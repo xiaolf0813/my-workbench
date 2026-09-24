@@ -1,0 +1,57 @@
+AGENTS.md
+  s_9bcb6cb69006af::t_b6a45851d1b295 3,33-34,37,53-54,67,71
+README.md
+  s_038b5a6d70c0ee::t_a787a8776e217b 87,93,146,153,155,166,176,180
+README_CN.md
+  s_038b5a6d70c0ee::t_40d8539ae65fc3 89,95,148,155,157,168,178,182
+agents/backends/dsh/lane-plugin-ui/README.md
+  s_9bcb6cb69006af::t_a6c1a6119c53fc 30,43
+agents/backends/dsh/lane-plugin-ui/lib/client.js
+  s_9bcb6cb69006af::t_0caf11f3c53ccb 63-64,224,360
+agents/backends/dsh/lane-plugin/host-package/src/index.js
+  s_9bcb6cb69006af::t_a30ce3e9074dce 4,45,68-69,77-83,85,180,244,317
+agents/backends/dsh/lanes.json
+  s_038b5a6d70c0ee::t_28c9960badcacf 1-9
+agents/roster.json
+  s_9bcb6cb69006af::t_539681f8ef7fdc 4-40,43-79,82-116,119-157,160-197,200-236,239-277,280-316
+bin/dsh-deps.js
+  s_9bcb6cb69006af::t_35c266dee5e38c 1-119
+bin/my-workbench.js
+  s_9bcb6cb69006af::t_3d9626deb8982a 9,20,100-115,178,199-201,226,439,441-445,447-489,697-701,703,706-709,753-754,776-778,780,785,787-790,825-826,834,899,1016,1118,1123,1320-1324,1346,1367-1368,1387,1389,1407,1411-1412
+docs/dsh-lane-plugin/PLAN.md
+  s_9bcb6cb69006af::t_a7ce73b496e3ba 6-7,56,141
+package.json
+  s_9bcb6cb69006af::t_0aadc4acabfe31 19,27-29
+test/dsh-deps.test.js
+  s_9bcb6cb69006af::t_c6fefd14f23028 1-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.1",
+  "base_commit_sha": "3e491299a3ab025bca749f29c7490183d299c0ff",
+  "prompts": {},
+  "sessions": {
+    "s_038b5a6d70c0ee": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d140-2602-7052-b1fd-2ce230087452",
+        "model": "unknown"
+      },
+      "human_author": "xiaolifan1 <xiaolifan1@h-partners.com>",
+      "total_additions": 0,
+      "total_deletions": 0,
+      "overridden_lines": 0
+    },
+    "s_9bcb6cb69006af": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d138-c2d9-76b0-a952-180b945b716c",
+        "model": "unknown"
+      },
+      "human_author": "xiaolifan1 <xiaolifan1@h-partners.com>",
+      "total_additions": 0,
+      "total_deletions": 0,
+      "overridden_lines": 0
+    }
+  }
+}
