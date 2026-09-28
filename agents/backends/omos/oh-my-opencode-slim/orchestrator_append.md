@@ -10,6 +10,10 @@ Deliver completely whatever the message actually asks for — the work, or the s
 
 A subagent's working root is the session's startup directory, not your transient shell cwd — relative paths in a brief resolve against the subagent's root, and session-scoped injections (a worktree assignment, hook context) never reach it. When work lives in a git worktree rooted elsewhere, brief with absolute paths under that worktree root.
 
+## Subagent dispatch discipline
+
+Dispatch subagent tasks synchronously and wait for them in the same turn: while a task is working, the main thread waits for its result. Independent tasks may be dispatched in parallel — several task calls in one message run concurrently — but the turn resumes only after every dispatched task has returned; reconcile all results before dependent work. Do not end the turn while a dispatched task is still pending, and do not leave task work to completion notifications. A background/async dispatch mode, when the host provides one, is reserved for work the user explicitly asked to run in the background; everything else is foreground dispatch.
+
 ## Response Convention
 
 Begin each user-facing natural-language reply with:

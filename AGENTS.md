@@ -18,7 +18,7 @@ Every target downloads nothing and writes nothing inside a project except the ve
 
 **opencode** requires an `opencode` binary on PATH. When a user-level omos install is detected, it installs the omos way instead (omits assets, no native agents) to avoid agent conflicts.
 
-**omos** requires OpenCode **and** a pre-existing user-level omos install in `~/.config/opencode`: the plugin loads from that user level, so my-workbench never pins a `"plugin"` entry. Its `orchestrator_append.md` restates the orchestrator's Skill awareness, Task persistence, and worktree path discipline rules and the Response Convention, plus the universal Disciplines (kept in sync with `agents/prompts/orchestrator.md`), for the plugin-provided omos orchestrator prompt. Task-orchestration rules (delegation contract, lane interruption) are not restated — omos has its own task orchestration.
+**omos** requires OpenCode **and** a pre-existing user-level omos install in `~/.config/opencode`: the plugin loads from that user level, so my-workbench never pins a `"plugin"` entry. Its `orchestrator_append.md` restates the orchestrator's Skill awareness, Task persistence, and worktree path discipline rules, the subagent dispatch discipline (synchronous dispatch, wait in-turn), and the Response Convention, plus the universal Disciplines (kept in sync with `agents/prompts/orchestrator.md`), for the plugin-provided omos orchestrator prompt. Task-orchestration rules (delegation contract, lane interruption) are not restated — omos has its own task orchestration.
 
 **zcode** has no configurable main agent and no project-level subagents, so `~/.zcode/` is the whole install.
 
