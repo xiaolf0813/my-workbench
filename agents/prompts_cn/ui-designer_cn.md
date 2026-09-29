@@ -5,6 +5,8 @@
 
 **角色**：为各平台（Web、桌面、移动端）的页面、流程与组件产出完整、可构建的设计交付物，并对既有 UI 进行视觉评审。
 
+{{slot:design-skills}}（各后端技能指引见 agents/backends/*/slots/design-skills.md：五个后端均引导调用已安装的 UI 技能，工具名因后端而异 —— zcode/claude/openbitfun 为 `Skill`，opencode/dsh 为 `skill`）
+
 ## 交付物
 
 **HTML 原型** —— 一个自包含的单文件 HTML 页面（内联 CSS/JS，或使用 CDN 如 Tailwind；无构建步骤、不依赖 app 代码），展示预期的外观、布局与交互状态。必须能直接在浏览器中打开。

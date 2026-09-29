@@ -6,7 +6,7 @@
         "claude": [
           "name: ui-designer",
           "@description",
-          "tools: Read, Write, Edit, Glob, Grep",
+          "tools: Read, Write, Edit, Glob, Grep, Skill",
           "model: opus"
         ],
         "opencode": [
@@ -20,7 +20,15 @@
           "name: ui-designer",
           "@description",
           "model: inherit",
-          "injectAgentsMd: false"
+          "injectAgentsMd: false",
+          "tools:",
+          "  - Read",
+          "  - Write",
+          "  - Edit",
+          "  - Glob",
+          "  - Grep",
+          "  - Bash",
+          "  - Skill"
         ],
         "openbitfun": [
           "schema_version: 1",
@@ -34,6 +42,7 @@
           "  - Grep",
           "  - Write",
           "  - Edit",
+          "  - Skill",
           "  - ExecCommand",
           "readonly: false"
         ]
@@ -260,6 +269,7 @@
           "  - Grep",
           "  - Write",
           "  - Edit",
+          "  - Skill",
           "  - ExecCommand",
           "  - Task",
           "  - AgentWait",
