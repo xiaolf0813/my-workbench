@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = ["crates/workbench-core", "src-tauri"]
+
+# Release profile tweaks apply to the whole workspace; a virtual (package-less)
+# root manifest is the only place Cargo accepts them.
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

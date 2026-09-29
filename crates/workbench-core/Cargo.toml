@@ -1,0 +1,23 @@
+[package]
+name = "workbench-core"
+version = "0.13.0"
+edition = "2021"
+description = "Pure Rust port of the my-workbench deployment engine and skill manager (no Tauri dependency)."
+license = "MIT"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+home = "0.5"
+walkdir = "2"
+regex = "1"
+dunce = "1"
+ureq = { version = "2", features = ["json"] }
+tar = "0.4"
+flate2 = "1"
+sha2 = "0.10"
+trash = "5"
+
+[dev-dependencies]
+tempfile = "3"

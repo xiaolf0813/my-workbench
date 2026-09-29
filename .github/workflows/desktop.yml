@@ -1,0 +1,74 @@
+name: desktop
+
+# Same-tag dual release (docs/desktop/PLAN.md §2): a v* tag publishes the npm
+# package and the three-platform desktop installers with the same version.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag version matches package.json and tauri.conf.json
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          TAURI_VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          echo "tag=$TAG_VERSION package=$PKG_VERSION tauri=$TAURI_VERSION"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
+            exit 1
+          fi
+          if [ "$TAG_VERSION" != "$TAURI_VERSION" ]; then
+            echo "::error::tag v$TAG_VERSION does not match src-tauri/tauri.conf.json version $TAURI_VERSION"
+            exit 1
+          fi
+
+  build:
+    needs: version-check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+          - platform: macos-latest
+          - platform: windows-latest
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Tauri Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Node-side checks
+        run: |
+          npm ci
+          npm test
+          npm pack --dry-run
+
+      - name: Rust tests
+        run: cargo test --workspace
+
+      - name: Build app bundles and draft the release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # __VERSION__ is replaced with the app version from tauri.conf.json.
+          tagName: v__VERSION__
+          releaseDraft: true
+          prerelease: false

@@ -25,7 +25,14 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test test/dsh-deps.test.js"
+    "test": "node --test test/dsh-deps.test.js",
+    "goldens": "cargo test -p workbench-core --test golden_end_to_end",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
   },
   "keywords": [
     "opencode",

@@ -1,0 +1,45 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "my-workbench desktop capability — least privilege per docs/desktop/PLAN.md §4. Shell is scoped to exactly two fixed commands (opencode --version detection; node Tier 2 self-checks only); http is scoped to the GitHub skill-management domains only. Frameless window: the four window-control mutations (minimize/toggle-maximize/close/start-dragging) are granted explicitly; is-maximized is already covered by core:window:default.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging",
+    "dialog:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "opencode",
+          "cmd": "opencode",
+          "args": ["--version"],
+          "sidecar": false
+        },
+        {
+          "name": "node",
+          "cmd": "node",
+          "args": ["--check", { "validator": "^[\\s\\S]+$" }],
+          "sidecar": false
+        },
+        {
+          "name": "node",
+          "cmd": "node",
+          "args": ["-e", { "validator": "^[\\s\\S]+$" }],
+          "sidecar": false
+        }
+      ]
+    },
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://api.github.com/*" },
+        { "url": "https://codeload.github.com/*" },
+        { "url": "https://raw.githubusercontent.com/*" }
+      ]
+    }
+  ]
+}

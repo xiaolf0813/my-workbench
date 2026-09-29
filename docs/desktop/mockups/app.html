@@ -1,0 +1,1997 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Workbench · 桌面版 UI 设计稿</title>
+<style>
+/* ============================================================
+   My Workbench — desktop design mockup (visual contract)
+   Tokens are the contract; see SPEC.md
+   ============================================================ */
+:root{
+  --font-ui:system-ui,-apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
+  --font-mono:ui-monospace,"Cascadia Code","SF Mono","JetBrains Mono",Consolas,"Courier New",monospace;
+
+  --bg-base:#0c0f14;
+  --bg-surface:#12161d;
+  --bg-raised:#181d26;
+  --bg-inset:#0a0d12;
+  --border:#1e2530;
+  --border-strong:#2c3545;
+  --text-1:#e7ecf4;
+  --text-2:#9aa5b8;
+  --text-3:#6d7889;
+
+  --accent:#3ccfdb;          /* 钢青 — the single brand accent */
+  --accent-hover:#66dfe9;
+  --accent-down:#2fb6c8;
+  --accent-text:#06222a;
+  --accent-tint:rgba(60,207,219,.10);
+  --accent-border:rgba(60,207,219,.38);
+
+  --ok:#46d68c;  --ok-tint:rgba(70,214,140,.10);  --ok-border:rgba(70,214,140,.32);
+  --warn:#f0b429;--warn-tint:rgba(240,180,41,.10);--warn-border:rgba(240,180,41,.35);
+  --err:#f5716f; --err-tint:rgba(245,113,111,.10); --err-border:rgba(245,113,111,.38);
+  --err-solid:#c94a48;
+  --vio:#a78bfa; --vio-tint:rgba(167,139,250,.12); --vio-border:rgba(167,139,250,.38);
+
+  --ring:0 0 0 2px var(--bg-base),0 0 0 4px rgba(60,207,219,.65);
+  --shadow-1:0 1px 2px rgba(0,0,0,.35);
+  --shadow-2:0 8px 24px rgba(0,0,0,.38);
+  --shadow-3:0 18px 56px rgba(0,0,0,.55);
+  --t-fast:120ms; --t-med:200ms; --t-slow:280ms;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+html[data-theme="light"]{
+  --bg-base:#f4f6f9; --bg-surface:#ffffff; --bg-raised:#eef1f6; --bg-inset:#f5f7fa;
+  --border:#e4e8ef; --border-strong:#ccd4e0;
+  --text-1:#182130; --text-2:#57637a; --text-3:#8b96a8;
+  --accent:#0b93a8; --accent-hover:#0a8093; --accent-down:#096e80; --accent-text:#ffffff;
+  --accent-tint:rgba(11,147,168,.08); --accent-border:rgba(11,147,168,.35);
+  --ok:#178a4c;  --ok-tint:rgba(23,138,76,.09);  --ok-border:rgba(23,138,76,.30);
+  --warn:#a16207;--warn-tint:rgba(161,98,7,.09); --warn-border:rgba(161,98,7,.32);
+  --err:#d43d3b; --err-tint:rgba(212,61,59,.08); --err-border:rgba(212,61,59,.32);
+  --err-solid:#d43d3b;
+  --vio:#6d4fd4; --vio-tint:rgba(109,79,212,.08); --vio-border:rgba(109,79,212,.32);
+  --ring:0 0 0 2px var(--bg-surface),0 0 0 4px rgba(11,147,168,.55);
+  --shadow-1:0 1px 2px rgba(24,33,48,.08);
+  --shadow-2:0 8px 24px rgba(24,33,48,.12);
+  --shadow-3:0 18px 56px rgba(24,33,48,.22);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none !important}
+html,body{height:100%}
+body{font-family:var(--font-ui);font-size:13px;color:var(--text-1);background:var(--bg-base);overflow:hidden;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+::selection{background:var(--accent-tint)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,select{font:inherit;color:inherit}
+svg.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.mono{font-family:var(--font-mono)}
+.num{font-variant-numeric:tabular-nums}
+.mut{color:var(--text-3)}
+.link{color:var(--accent);text-decoration:none;cursor:pointer}
+.link:hover{text-decoration:underline}
+:where(button,a,input,select,[role="switch"],[tabindex]):focus{outline:none}
+:where(button,a,input,select,[role="switch"],[tabindex]):focus-visible{box-shadow:var(--ring)}
+kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);background:var(--bg-inset);
+  border:1px solid var(--border-strong);border-radius:4px;padding:0 5px;line-height:16px}
+
+/* scrollbars */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:6px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--text-3);border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+*{scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent}
+
+/* ---------- app shell ---------- */
+.app{display:flex;height:100%;min-height:0}
+
+/* ---------- frameless window controls (SPEC §3.18): integrated, not a bar. The
+   cluster is pinned to the window's top-right corner, floating OVER the page
+   header area; it consumes no layout height. Buttons sit directly on the page
+   surface — no persistent backdrop; hover gives the only surface. Dragging is
+   NOT here: the sidebar brand row and the three page headers carry
+   data-tauri-drag-region — their empty background areas are the drag surface.
+   z-index 30: above page content, below the dialog scrim (50) and toasts (80). ---------- */
+.win-ctl{position:fixed;top:0;right:0;z-index:30;height:40px;display:flex}
+.win-btn{width:46px;display:grid;place-items:center;color:var(--text-2);transition:background var(--t-fast),color var(--t-fast)}
+.win-btn:hover{background:var(--bg-raised);color:var(--text-1)}
+.win-btn .ic{width:14px;height:14px}
+.win-btn.win-close:hover{background:var(--err-solid);color:#fff}
+.sidebar{width:232px;flex:none;display:flex;flex-direction:column;padding:14px 12px;border-right:1px solid var(--border);background:var(--bg-base)}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 6px 16px}
+.brand-tile{width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--accent) 0%,#1f9db4 100%);color:#04252d;box-shadow:var(--shadow-1)}
+.brand-tile svg.ic{width:15px;height:15px;stroke-width:2.2}
+.brand-name{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.brand-sub{font-size:11px;color:var(--text-3);margin-top:1px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav-item{position:relative;display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:8px;
+  color:var(--text-2);font-size:13.5px;font-weight:500;text-align:left;transition:background var(--t-fast),color var(--t-fast)}
+.nav-item .nv-s{font-size:11px;color:var(--text-3);margin-left:auto;font-weight:400}
+.nav-item:hover{background:var(--bg-raised);color:var(--text-1)}
+.nav-item.is-active{background:var(--bg-raised);color:var(--text-1)}
+.nav-item.is-active .ic{color:var(--accent)}
+.nav-item.is-active::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
+.nav-item:focus-visible{box-shadow:none;outline:none}
+.nav-item.is-active:focus-visible::after{content:"";position:absolute;inset:0;border-radius:8px;box-shadow:var(--ring)}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.env-card{background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.env-row{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-2)}
+.env-row .mono{margin-left:auto;font-size:11px;color:var(--text-3)}
+.dot{width:7px;height:7px;border-radius:50%;flex:none}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 3px var(--ok-tint)}
+.dot.off{background:transparent;border:1.5px solid var(--text-3)}
+.dot.acc{background:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
+.side-note{font-size:11px;color:var(--text-3);padding:0 6px;line-height:1.5}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;padding:20px 24px 20px}
+.page{display:none;flex-direction:column;flex:1;min-height:0}
+.page.is-active{display:flex}
+
+/* ---------- page head ---------- */
+.page-head{display:flex;align-items:flex-end;gap:16px;margin-bottom:16px;flex:none}
+.ph-title{font-size:20px;font-weight:600;letter-spacing:-.01em}
+.ph-sub{font-size:12.5px;color:var(--text-3);margin-top:3px}
+.ph-actions{margin-left:auto;display:flex;gap:8px;align-items:center;padding-right:150px}
+.page-body{flex:1;min-height:0;display:flex;flex-direction:column}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:7px;
+  font-size:13px;font-weight:500;border:1px solid var(--border-strong);background:var(--bg-raised);color:var(--text-1);
+  transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast),transform var(--t-fast)}
+.btn:hover{background:var(--bg-base);border-color:var(--text-3)}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+.btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn-primary:active{background:var(--accent-down)}
+.btn-danger{background:var(--err-solid);border-color:transparent;color:#fff;font-weight:600}
+.btn-danger:hover{filter:brightness(1.1)}
+.btn-warn{background:var(--warn);border-color:transparent;color:#2a1f04;font-weight:600}
+.btn-warn:hover{filter:brightness(1.08)}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--text-2)}
+.btn-ghost:hover{background:var(--bg-raised);color:var(--text-1)}
+.btn-danger-o{background:transparent;border-color:var(--err-border);color:var(--err)}
+.btn-danger-o:hover{background:var(--err-tint)}
+.btn-warn-o{background:transparent;border-color:var(--warn-border);color:var(--warn)}
+.btn-warn-o:hover{background:var(--warn-tint)}
+.btn-acc-o{background:var(--accent-tint);border-color:var(--accent-border);color:var(--accent)}
+.btn-acc-o:hover{background:var(--accent-tint);border-color:var(--accent)}
+.btn-sm{height:26px;padding:0 10px;font-size:12px;border-radius:6px;gap:5px}
+.btn-sm .ic{width:13px;height:13px}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.42;cursor:not-allowed;transform:none}
+.btn:disabled:hover{background:var(--bg-raised);border-color:var(--border-strong)}
+.btn-primary:disabled:hover{background:var(--accent)}
+.icon-btn{width:28px;height:28px;border-radius:6px;display:inline-grid;place-items:center;color:var(--text-3);
+  transition:background var(--t-fast),color var(--t-fast)}
+.icon-btn:hover{background:var(--bg-raised);color:var(--text-1)}
+.icon-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ---------- cards ---------- */
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px}
+.card-h{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border)}
+.card-t{font-size:13px;font-weight:600}
+.card-s{font-size:11.5px;color:var(--text-3)}
+.card-hr{margin-left:auto;display:flex;gap:4px;align-items:center}
+.card-b{padding:14px}
+
+/* ---------- deploy grid ---------- */
+.dgrid{flex:1;min-height:0;display:grid;grid-template-columns:384px minmax(0,1fr);gap:16px}
+.dcol{display:flex;flex-direction:column;gap:14px;min-height:0;overflow-y:auto;padding-right:2px;padding-bottom:4px}
+.dcol-b{display:flex;flex-direction:column;gap:14px;padding-bottom:4px}
+
+/* source radio cards */
+.srcgrid{display:flex;flex-direction:column;gap:8px}
+.src{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;
+  transition:border-color var(--t-fast),background var(--t-fast)}
+.src:hover{border-color:var(--border-strong);background:var(--bg-raised)}
+.src.is-on{border-color:var(--accent-border);background:var(--accent-tint)}
+.src-rad{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--border-strong);flex:none;display:grid;place-items:center;transition:border-color var(--t-fast)}
+.src.is-on .src-rad{border-color:var(--accent)}
+.src.is-on .src-rad::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.src-c{min-width:0}
+.src-t{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+.src-s{font-size:11.5px;color:var(--text-3);margin-top:2px}
+.src .vchip{font-family:var(--font-mono);font-size:10.5px;color:var(--accent);background:var(--accent-tint);border:1px solid var(--accent-border);
+  border-radius:4px;padding:1px 6px;font-weight:500}
+.local-panel{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.local-panel[hidden]{display:none}
+
+/* path field */
+.field{display:flex;flex-direction:column;gap:6px}
+.flabel{font-size:12px;font-weight:600;color:var(--text-2)}
+.path{display:flex;gap:6px}
+.path-in{flex:1;min-width:0;height:32px;border:1px solid var(--border-strong);border-radius:7px;background:var(--bg-inset);
+  padding:0 10px;font-family:var(--font-mono);font-size:12px;color:var(--text-1);display:flex;align-items:center;overflow:hidden;white-space:nowrap}
+.path-in input{flex:1;min-width:0;background:none;border:0;height:100%;font:inherit;color:inherit}
+.path-in input:focus{box-shadow:none}
+.path-in:focus-within{border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-tint)}
+.path-in.is-dis{opacity:.5;pointer-events:none}
+.fhint{font-size:11.5px;color:var(--text-3);display:flex;align-items:flex-start;gap:5px;line-height:1.5}
+.fhint .ic{width:13px;height:13px;margin-top:1px}
+.fhint.ok{color:var(--ok)}
+.fhint.err{color:var(--err)}
+.fhint.warn{color:var(--warn)}
+
+/* target checkbox cards */
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tck{position:relative;display:flex;flex-direction:column;gap:4px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;
+  cursor:pointer;transition:border-color var(--t-fast),background var(--t-fast),opacity var(--t-fast)}
+.tck:hover{border-color:var(--border-strong);background:var(--bg-raised)}
+.tck.is-on{border-color:var(--accent-border);background:var(--accent-tint)}
+.tck.is-dis{opacity:.45;cursor:not-allowed}
+.tck.is-dis:hover{background:none;border-color:var(--border)}
+.tck input{position:absolute;opacity:0;pointer-events:none}
+.trow{display:flex;align-items:center;gap:8px}
+.tbox{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--border-strong);flex:none;display:grid;place-items:center;
+  transition:background var(--t-fast),border-color var(--t-fast)}
+.tbox svg{width:10px;height:10px;stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.tck.is-on .tbox{background:var(--accent);border-color:var(--accent)}
+.tck.is-on .tbox svg{opacity:1}
+.tname{font-size:13px;font-weight:600;font-family:var(--font-mono);letter-spacing:-.01em}
+.tstat{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3);padding-left:23px}
+.tstat .mutex{color:var(--warn)}
+.mutex-line{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-3);margin-top:9px}
+.mutex-line .ic{width:13px;height:13px;color:var(--warn)}
+.textra{margin:4px 0 0 23px;display:flex}
+.envchip{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:10px;color:var(--accent);
+  background:var(--accent-tint);border:1px solid var(--accent-border);border-radius:4px;padding:0 5px;line-height:16px}
+
+/* option switch rows */
+.opts{display:flex;flex-direction:column}
+.opt{display:flex;align-items:center;gap:12px;padding:9px 2px}
+.opt + .opt{border-top:1px solid var(--border)}
+.opt-c{flex:1;min-width:0}
+.opt-t{font-size:13px;font-weight:500}
+.opt-s{font-size:11.5px;color:var(--text-3);margin-top:2px;line-height:1.5}
+.opt-s.warn{color:var(--warn)}
+.sw{width:34px;height:20px;border-radius:999px;background:var(--border-strong);position:relative;flex:none;
+  transition:background var(--t-med)}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;
+  transition:transform var(--t-med) var(--ease);box-shadow:0 1px 2px rgba(0,0,0,.4)}
+.sw[aria-checked="true"]{background:var(--accent)}
+.sw[aria-checked="true"]::after{transform:translateX(14px)}
+.sw:disabled{opacity:.45;cursor:not-allowed}
+
+/* ---------- preview panel ---------- */
+.panel{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;background:var(--bg-surface);
+  border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.livebar{position:absolute;top:0;left:0;right:0;height:2px;background:var(--bg-inset);z-index:5;opacity:0;transition:opacity var(--t-med)}
+.livebar.is-on{opacity:1}
+.livebar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#8ce8f2);transition:width .25s var(--ease)}
+.livebar.done i{background:var(--ok)}
+.panel-h{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border);flex:none}
+.seg{display:flex;gap:2px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:3px}
+.seg-b{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 12px;border-radius:6px;font-size:12.5px;font-weight:500;
+  color:var(--text-2);transition:background var(--t-fast),color var(--t-fast)}
+.seg-b:hover{color:var(--text-1)}
+.seg-b.is-on{background:var(--bg-raised);color:var(--text-1);box-shadow:var(--shadow-1)}
+.seg-b .pulse{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+/* Deploy 安装方式 merged block (SPEC §4.1): two-line scope segments — token-exact variant of .seg */
+.seg-scope{margin-bottom:10px}
+.seg-scope .seg-b{flex:1;justify-content:center;height:auto;padding:5px 12px}
+.seg-scope .seg-b[aria-pressed="true"]{background:var(--bg-raised);color:var(--text-1);box-shadow:var(--shadow-1)}
+.seg-scope .seg-sc{display:flex;flex-direction:column;gap:1px;line-height:1.3;text-align:left}
+.seg-scope .seg-st{font-size:11px;font-weight:400;color:var(--text-3)}
+.scope-opts{margin-top:10px;border-top:1px solid var(--border)}
+.panel-hr{margin-left:auto;display:flex;gap:6px;align-items:center}
+.panel-b{flex:1;min-height:0;display:flex;flex-direction:column}
+.pane{display:none;flex:1;min-height:0;flex-direction:column}
+.pane.is-on{display:flex}
+
+/* filter chips */
+.chips{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--border);flex:none;flex-wrap:wrap;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:6px;font-size:12px;color:var(--text-2);
+  border:1px solid var(--border);background:transparent;transition:all var(--t-fast)}
+.chip b{font-weight:600;color:var(--text-3);font-variant-numeric:tabular-nums}
+.chip:hover{border-color:var(--border-strong);color:var(--text-1)}
+.chip.is-on{background:var(--accent-tint);border-color:var(--accent-border);color:var(--accent)}
+.chip.is-on b{color:var(--accent)}
+.chips-right{margin-left:auto;font-size:11.5px;color:var(--text-3);display:flex;align-items:center;gap:6px}
+.stalebar{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--warn-tint);border-bottom:1px solid var(--warn-border);
+  font-size:12px;color:var(--warn);flex:none}
+.stalebar[hidden]{display:none}
+
+/* table */
+.tblw{flex:1;min-height:0;overflow:auto}
+table.tbl{width:100%;border-collapse:collapse}
+.tbl th{position:sticky;top:0;z-index:1;background:var(--bg-surface);text-align:left;font-size:11px;font-weight:600;color:var(--text-3);
+  letter-spacing:.05em;padding:8px 12px;border-bottom:1px solid var(--border)}
+.tbl td{padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
+.tbl tbody tr{transition:background var(--t-fast)}
+.tbl tbody tr:hover{background:var(--bg-raised)}
+.tbl .p{font-family:var(--font-mono);font-size:12px;white-space:nowrap}
+.tbl .p .dir{color:var(--text-3)}
+.tbl .p .nm{color:var(--text-1)}
+.tbl td.note{color:var(--text-3);font-size:11.5px;white-space:nowrap}
+.bd{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;letter-spacing:.02em;white-space:nowrap}
+.bd .ic{width:11px;height:11px;stroke-width:2.2}
+.bd-create{color:var(--ok);background:var(--ok-tint);border:1px solid var(--ok-border)}
+.bd-skip{color:var(--text-3);background:var(--bg-raised);border:1px solid var(--border)}
+.bd-over{color:var(--warn);background:var(--warn-tint);border:1px solid var(--warn-border)}
+.bd-mgd{color:var(--vio);background:var(--vio-tint);border:1px solid var(--vio-border)}
+.bd-na{color:var(--text-2);background:transparent;border:1px solid var(--border-strong)}
+.bd-lat{color:var(--ok);background:var(--ok-tint);border:1px solid var(--ok-border)}
+.bd-mod{color:var(--warn);background:var(--warn-tint);border:1px solid var(--warn-border)}
+.bd-upd{color:var(--accent);background:var(--accent-tint);border:1px solid var(--accent-border)}
+.pfoot{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--border);flex:none;font-size:12px;color:var(--text-2)}
+.psum{display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.psum b{color:var(--text-1);font-weight:600}
+.pfoot .pright{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-3)}
+
+/* empty state */
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:40px;text-align:center}
+.empty-ic{width:44px;height:44px;border-radius:12px;background:var(--bg-raised);border:1px solid var(--border);display:grid;place-items:center;
+  color:var(--text-3);margin-bottom:8px}
+.empty-ic .ic{width:20px;height:20px}
+.empty-t{font-size:14px;font-weight:600}
+.empty-s{font-size:12.5px;color:var(--text-3);max-width:340px;line-height:1.6}
+.empty .btn{margin-top:12px}
+
+/* log viewer */
+.logwrap{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
+.logbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);flex:none}
+.lchip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:5px}
+.lchip.idle{color:var(--text-3);border:1px solid var(--border-strong)}
+.lchip.run{color:var(--accent);background:var(--accent-tint);border:1px solid var(--accent-border)}
+.lchip.ok{color:var(--ok);background:var(--ok-tint);border:1px solid var(--ok-border)}
+.lchip.err{color:var(--err);background:var(--err-tint);border:1px solid var(--err-border)}
+.lchip.warn{color:var(--warn);background:var(--warn-tint);border:1px solid var(--warn-border)}
+.logbar-actions{margin-left:auto;display:flex;align-items:center;gap:10px}
+.mini-sw{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-3);cursor:pointer}
+.mini-sw .sw{width:28px;height:16px}
+.mini-sw .sw::after{width:12px;height:12px}
+.mini-sw .sw[aria-checked="true"]::after{transform:translateX(12px)}
+.lprog{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);flex:none}
+.lpbar{flex:1;height:4px;border-radius:99px;background:var(--bg-inset);border:1px solid var(--border);overflow:hidden}
+.lpfill{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#8ce8f2);transition:width .25s var(--ease);position:relative}
+.lpfill.is-run::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);
+  animation:sweep 1.3s linear infinite}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.lpfill.done{background:var(--ok)}
+.lpfill.failed{background:var(--err)}
+.lphase{font-size:11.5px;color:var(--text-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.log{flex:1;min-height:0;overflow-y:auto;background:var(--bg-inset);font-family:var(--font-mono);font-size:12px;line-height:1.75;padding:8px 0}
+.ln{display:flex;gap:8px;padding:0 12px;white-space:pre-wrap;word-break:break-all;animation:lnin var(--t-fast) var(--ease)}
+@keyframes lnin{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
+.ln .ts{color:var(--text-3);flex:none}
+.ln .tg{flex:none;font-size:10.5px;font-weight:600;color:var(--text-2);background:var(--bg-raised);border:1px solid var(--border);
+  border-radius:4px;padding:0 6px;height:17px;line-height:15px;margin-top:2px}
+.ln .lm{color:var(--text-2);min-width:0}
+.ln.ok .lm{color:var(--text-1)}
+.ln.ok .lm::before{content:"✓ ";color:var(--ok)}
+.ln.skip .lm{color:var(--text-3)}
+.ln.warn .lm{color:var(--warn)}
+.ln.mgd .lm{color:var(--vio)}
+.ln.err{background:var(--err-tint)}
+.ln.err .lm{color:var(--err)}
+.ln.err.dim .lm{opacity:.8}
+.resume{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:none;align-items:center;gap:6px;
+  background:var(--bg-raised);border:1px solid var(--border-strong);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--text-1);
+  box-shadow:var(--shadow-2)}
+.resume.is-on{display:inline-flex}
+.report{margin:10px 12px;border-radius:8px;padding:12px 14px;border:1px solid;display:flex;flex-direction:column;gap:8px;animation:lnin var(--t-med) var(--ease)}
+.report.ok{background:var(--ok-tint);border-color:var(--ok-border)}
+.report.err{background:var(--err-tint);border-color:var(--err-border)}
+.report-t{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.report.ok .report-t{color:var(--ok)}
+.report.err .report-t{color:var(--err)}
+.report.warn{background:var(--warn-tint);border-color:var(--warn-border)}
+.report.warn .report-t{color:var(--warn)}
+.report-chips{display:flex;gap:6px;flex-wrap:wrap}
+.rc{font-size:11.5px;font-family:var(--font-mono);padding:2px 8px;border-radius:5px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-2)}
+.report .errmsg{font-family:var(--font-mono);font-size:11.5px;color:var(--err);background:var(--bg-inset);border:1px solid var(--err-border);
+  border-radius:6px;padding:8px 10px;word-break:break-all}
+.report-a{display:flex;gap:8px}
+.log-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--text-3);font-size:12.5px;font-family:var(--font-ui)}
+
+/* health tab */
+.hscroll{flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px}
+.hctx{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-2);flex-wrap:wrap}
+.hctx .mono{color:var(--text-1);background:var(--bg-inset);border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:11.5px}
+.hctx .btn{margin-left:auto}
+.tiers{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tier{border:1px solid var(--border);border-radius:10px;background:var(--bg-surface);display:flex;flex-direction:column;min-width:0}
+.tier-h{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border)}
+.tier-nt{font-family:var(--font-mono);font-size:10.5px;font-weight:700;color:var(--text-3);background:var(--bg-raised);
+  border:1px solid var(--border-strong);border-radius:4px;padding:1px 6px}
+.tier-t{font-size:13px;font-weight:600}
+.tier-s{font-size:11px;color:var(--text-3)}
+.tier-badge{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px}
+.tier-badge.ok{color:var(--ok);background:var(--ok-tint);border:1px solid var(--ok-border)}
+.tier-badge.warn{color:var(--warn);background:var(--warn-tint);border:1px solid var(--warn-border)}
+.tier-badge.err{color:var(--err);background:var(--err-tint);border:1px solid var(--err-border)}
+.tier-b{padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text-2)}
+.tier-row{display:flex;align-items:center;gap:8px}
+.tier-row .ic{width:14px;height:14px}
+.tier-row .ic.okc{color:var(--ok)}
+.tier-row .ic.errc{color:var(--err)}
+.tier-row .mono{font-size:11px;color:var(--text-3)}
+.tier-note{border:1px solid var(--warn-border);background:var(--warn-tint);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--warn);line-height:1.6}
+.tier-note b{display:flex;align-items:center;gap:6px;margin-bottom:3px}
+.tier-note .ic{width:14px;height:14px}
+.tier-note .mut2{color:var(--text-2)}
+.tier-f{padding:10px 14px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text-3);line-height:1.55}
+.sect-t{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
+.sect-t .cnt{font-size:11.5px;font-weight:500;color:var(--warn);background:var(--warn-tint);border:1px solid var(--warn-border);border-radius:5px;padding:1px 8px}
+.drift{border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.drift-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background var(--t-fast)}
+.drift-row:last-child{border-bottom:0}
+.drift-row:hover{background:var(--bg-raised)}
+.drift-row .ic.w{width:15px;height:15px;color:var(--warn)}
+.drift-p{font-family:var(--font-mono);font-size:12px}
+.drift-p .dir{color:var(--text-3)}
+.drift-n{font-size:11.5px;color:var(--text-3)}
+.drift-row .btn{margin-left:auto}
+
+/* banners */
+.bn{display:flex;align-items:flex-start;gap:10px;border-radius:9px;border:1px solid;padding:10px 12px}
+.bn .ic{width:15px;height:15px;margin-top:1px}
+.bn-c{flex:1;min-width:0}
+.bn-t{font-size:12.5px;font-weight:600}
+.bn-s{font-size:11.5px;color:var(--text-2);margin-top:2px;line-height:1.55}
+.bn-s .mono{font-size:11px}
+.bn-a{margin-left:auto;display:flex;gap:6px;align-items:center;flex:none}
+.bn.info{background:var(--accent-tint);border-color:var(--accent-border);color:var(--accent)}
+.bn.info .bn-s{color:var(--text-2)}
+.bn.warn{background:var(--warn-tint);border-color:var(--warn-border);color:var(--warn)}
+.bn.err{background:var(--err-tint);border-color:var(--err-border);color:var(--err)}
+.bn.ok{background:var(--ok-tint);border-color:var(--ok-border);color:var(--ok)}
+.bn.mut{background:var(--bg-raised);border-color:var(--border-strong);color:var(--text-2)}
+.bn ul{margin:6px 0 0;padding-left:2px;list-style:none;display:flex;flex-direction:column;gap:3px}
+.bn li{font-family:var(--font-mono);font-size:11px;color:var(--err);display:flex;gap:6px}
+.bn li::before{content:"—";color:var(--text-3)}
+
+/* ---------- skills ---------- */
+.schips{display:flex;gap:8px;flex-wrap:wrap}
+.schip{display:inline-flex;align-items:center;gap:8px;padding:7px 10px 7px 12px;border:1px solid var(--border);border-radius:8px;
+  background:var(--bg-surface);cursor:pointer;transition:border-color var(--t-fast),background var(--t-fast);max-width:320px}
+.schip:hover{border-color:var(--border-strong);background:var(--bg-raised)}
+.schip.is-on{border-color:var(--accent-border);background:var(--accent-tint)}
+.schip .ic{width:13px;height:13px;color:var(--text-3)}
+.schip.is-on .ic{color:var(--accent)}
+.schip-r{font-family:var(--font-mono);font-size:12px;font-weight:600}
+.schip-m{font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:5px}
+.schip-x{display:inline-flex;gap:2px;margin-left:2px}
+.schip-x button{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--text-3)}
+.schip-x button:hover{background:var(--bg-base);color:var(--text-1)}
+.schip-x .ic{width:12px;height:12px}
+.schip-add{border-style:dashed;color:var(--text-2);background:transparent}
+.schip-add:hover{color:var(--text-1);border-color:var(--accent-border)}
+.sk-tools{display:flex;gap:8px;align-items:center;padding:10px 0;flex-wrap:wrap}
+.search{display:flex;align-items:center;gap:7px;height:30px;padding:0 10px;border:1px solid var(--border-strong);border-radius:7px;
+  background:var(--bg-inset);width:240px;color:var(--text-3)}
+.search input{flex:1;background:none;border:0;height:100%;font-size:12.5px;color:var(--text-1)}
+.search input:focus{box-shadow:none;outline:none}
+.search:focus-within{border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-tint)}
+.sk-list{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg-surface)}
+.sk-row{display:flex;align-items:center;gap:14px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background var(--t-fast)}
+.sk-row:last-child{border-bottom:0}
+.sk-row:hover{background:var(--bg-raised)}
+.sk-main{flex:1;min-width:0}
+.sk-name{font-size:13px;font-weight:600;font-family:var(--font-mono)}
+.sk-desc{font-size:11.5px;color:var(--text-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sk-src{width:170px;flex:none;font-family:var(--font-mono);font-size:11.5px;color:var(--text-2);display:flex;align-items:center;gap:6px}
+.sk-src .ic{width:12px;height:12px;color:var(--text-3)}
+.sk-ver{width:150px;flex:none;font-family:var(--font-mono);font-size:11.5px;color:var(--text-2);font-variant-numeric:tabular-nums}
+.sk-ver .na{color:var(--text-3)}
+.sk-st{width:110px;flex:none}
+.sk-acts{display:flex;gap:6px;flex:none;justify-content:flex-end}
+.sk-head{display:flex;gap:14px;padding:7px 14px;border-bottom:1px solid var(--border);background:var(--bg-inset);
+  font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.05em}
+.sk-head .h1{flex:1}.sk-head .h2{width:170px}.sk-head .h3{width:150px}.sk-head .h4{width:110px}.sk-head .h5{flex:0 0 150px}
+.sk-empty{padding:36px;text-align:center;color:var(--text-3);font-size:12.5px;display:flex;flex-direction:column;gap:6px;align-items:center}
+
+/* ---------- settings ---------- */
+.set-wrap{max-width:760px;display:flex;flex-direction:column;gap:16px;overflow-y:auto;padding-bottom:8px}
+.set-row{display:flex;gap:20px;padding:13px 16px;border-bottom:1px solid var(--border);align-items:flex-start}
+.set-row:last-child{border-bottom:0}
+.set-l{width:230px;flex:none}
+.set-lt{font-size:13px;font-weight:500}
+.set-ls{font-size:11.5px;color:var(--text-3);margin-top:3px;line-height:1.55}
+.set-ls .mono{font-size:11px}
+.set-c{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
+.set-c .path{max-width:420px}
+.patbox{display:flex;align-items:center;gap:8px;max-width:420px}
+.patval{flex:1;height:32px;display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid var(--border-strong);border-radius:7px;
+  background:var(--bg-inset);font-family:var(--font-mono);font-size:12px;color:var(--text-2);position:relative;overflow:hidden}
+.patval .ic{width:13px;height:13px;color:var(--text-3)}
+.patval .mask{letter-spacing:2px}
+.about{display:flex;align-items:center;gap:14px;padding:4px 0}
+.about-tile{width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,var(--accent),#1f9db4);display:grid;place-items:center;color:#04252d;box-shadow:var(--shadow-1)}
+.about-tile svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.about-n{font-size:15px;font-weight:600}
+.about-v{font-size:12px;color:var(--text-3);margin-top:2px;display:flex;align-items:center;gap:8px}
+.vchip{font-family:var(--font-mono);font-size:11px;padding:1px 8px;border-radius:5px;border:1px solid var(--border-strong);color:var(--text-2)}
+.vchip.ok{color:var(--ok);border-color:var(--ok-border);background:var(--ok-tint)}
+.vchip.warn{color:var(--warn);border-color:var(--warn-border);background:var(--warn-tint)}
+select.fsel{height:30px;border:1px solid var(--border-strong);border-radius:7px;background:var(--bg-inset);padding:0 8px;font-size:12.5px;color:var(--text-1)}
+select.fsel:disabled{opacity:.55}
+
+/* ---------- dialog ---------- */
+.oback{position:fixed;inset:0;background:rgba(4,7,12,.62);display:none;align-items:center;justify-content:center;z-index:50;
+  animation:fadein var(--t-med) var(--ease)}
+html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
+.oback.is-open{display:flex}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.dlg{width:520px;max-width:92vw;max-height:86vh;display:flex;flex-direction:column;background:var(--bg-surface);
+  border:1px solid var(--border-strong);border-radius:12px;box-shadow:var(--shadow-3);animation:dlgup var(--t-slow) var(--ease)}
+@keyframes dlgup{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.dlg-h{display:flex;align-items:center;gap:10px;padding:16px 20px 0}
+.dlg-ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none}
+.dlg-ic.warn{background:var(--warn-tint);color:var(--warn);border:1px solid var(--warn-border)}
+.dlg-ic.err{background:var(--err-tint);color:var(--err);border:1px solid var(--err-border)}
+.dlg-ic.info{background:var(--accent-tint);color:var(--accent);border:1px solid var(--accent-border)}
+.dlg-t{font-size:15px;font-weight:600}
+.dlg-x{margin-left:auto}
+.dlg-b{padding:14px 20px;font-size:12.5px;color:var(--text-2);line-height:1.65;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.dlg-b .mono{font-size:11.5px}
+.dlg-b b{color:var(--text-1)}
+.dlg-f{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--border)}
+.fchk{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-1);cursor:pointer;user-select:none}
+.fchk input{width:14px;height:14px;accent-color:var(--accent)}
+.fld{display:flex;flex-direction:column;gap:5px}
+.flab{font-size:12px;font-weight:600;color:var(--text-2)}
+.flab .opt-tag{font-weight:400;color:var(--text-3)}
+.fld-in{height:32px;border:1px solid var(--border-strong);border-radius:7px;background:var(--bg-inset);padding:0 10px;font-size:12.5px;
+  color:var(--text-1);width:100%}
+.fld-in:focus{border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-tint)}
+.fld-in.mono{font-family:var(--font-mono);font-size:12px}
+.modlist{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.modlist .ml-h{padding:7px 12px;background:var(--bg-inset);font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.04em;
+  border-bottom:1px solid var(--border)}
+.modlist .ml-r{display:flex;gap:8px;align-items:center;padding:7px 12px;font-family:var(--font-mono);font-size:11.5px;border-bottom:1px solid var(--border)}
+.modlist .ml-r:last-child{border-bottom:0}
+.modlist .ml-r .ic{width:13px;height:13px;color:var(--warn)}
+.diff2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.diff2 .dpan{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.diff2 .dp-h{padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-2);background:var(--bg-inset);border-bottom:1px solid var(--border);
+  display:flex;gap:6px;align-items:center}
+.diff2 .dp-h .ic{width:12px;height:12px}
+.diff2 pre{margin:0;padding:10px;font-family:var(--font-mono);font-size:11px;line-height:1.7;color:var(--text-2);overflow-x:auto;background:var(--bg-inset)}
+.diff2 .add{display:block;background:var(--ok-tint);color:var(--ok)}
+.diff2 .del{display:block;background:var(--err-tint);color:var(--err)}
+
+/* ---------- toast ---------- */
+.toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:80}
+.toast{display:flex;align-items:flex-start;gap:9px;min-width:260px;max-width:380px;background:var(--bg-raised);border:1px solid var(--border-strong);
+  border-radius:9px;padding:10px 13px;box-shadow:var(--shadow-2);font-size:12.5px;color:var(--text-1);animation:tin var(--t-slow) var(--ease)}
+@keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+.toast .ic{width:15px;height:15px;margin-top:1px}
+.toast.ok .ic{color:var(--ok)}
+.toast.err .ic{color:var(--err)}
+.toast.warn .ic{color:var(--warn)}
+.toast.info .ic{color:var(--accent)}
+.toast .tsub{display:block;font-size:11.5px;color:var(--text-3);margin-top:2px}
+
+/* ---------- demo panel (mockup scaffolding — NOT product UI) ---------- */
+.dfab{position:fixed;left:246px;bottom:16px;z-index:60;display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 12px;
+  border-radius:999px;background:var(--bg-raised);border:1px dashed var(--border-strong);font-size:12px;color:var(--text-2);box-shadow:var(--shadow-1)}
+.dfab:hover{color:var(--text-1);border-color:var(--text-3)}
+.dfab .ic{width:13px;height:13px}
+.dpanel{position:fixed;left:246px;bottom:16px;z-index:61;width:330px;background:var(--bg-surface);border:1px dashed var(--border-strong);
+  border-radius:10px;box-shadow:var(--shadow-3);padding:12px;display:none}
+.dpanel.is-open{display:block}
+.dp-h{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-3);margin-bottom:10px}
+.dp-h .icon-btn{margin-left:auto;width:22px;height:22px}
+.dp-row{display:flex;align-items:center;gap:8px;margin-top:7px}
+.dp-l{width:88px;flex:none;font-size:11.5px;color:var(--text-2)}
+.dp-row .seg{flex:1;padding:2px}
+.dp-row .seg-b{flex:1;justify-content:center;height:22px;padding:0 4px;font-size:11px}
+
+.spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--border-strong);border-top-color:var(--accent);
+  animation:rot .8s linear infinite;flex:none}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* responsive: narrow window stacks columns */
+@media (max-width:1080px){
+  .dgrid{grid-template-columns:1fr;overflow-y:auto;display:flex;flex-direction:column}
+  .dcol{overflow:visible}
+  .panel{min-height:560px}
+  .tiers{grid-template-columns:1fr}
+  .sk-src,.sk-ver{display:none}
+  .sk-head .h2,.sk-head .h3{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+
+<!-- icon sprite (inline, no external assets) -->
+<svg hidden xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-deploy" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></symbol>
+  <symbol id="i-skills" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></symbol>
+  <symbol id="i-set" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+  <symbol id="i-checkc" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="i-xc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+  <symbol id="i-ref" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
+  <symbol id="i-act" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
+  <symbol id="i-chevd" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+  <symbol id="i-chevr" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></symbol>
+  <symbol id="i-git" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+  <symbol id="i-offline" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></symbol>
+  <symbol id="i-wmin" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+  <symbol id="i-wmax" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></symbol>
+  <symbol id="i-wrestore" viewBox="0 0 24 24"><polyline points="8 8.5 8 5.5 18.5 5.5 18.5 16 15.5 16"/><rect x="5.5" y="8.5" width="10" height="10" rx="1"/></symbol>
+  <symbol id="i-wclose" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+</svg>
+
+<!-- Flat sidebar+main shell (SPEC §2): no dedicated title-bar strip. The window
+     controls are the fixed .win-ctl cluster demoed inside the Deploy page header
+     below; the sidebar brand row and the three page headers carry
+     data-tauri-drag-region — their empty background areas drag the window. -->
+<div class="app">
+  <!-- ======================= SIDEBAR ======================= -->
+  <aside class="sidebar">
+    <div class="brand" data-tauri-drag-region>
+      <div class="brand-tile"><svg class="ic"><use href="#i-term"/></svg></div>
+      <div>
+        <div class="brand-name">My Workbench</div>
+        <div class="brand-sub">部署 · 技能 · 设置</div>
+      </div>
+    </div>
+    <nav class="nav" aria-label="主导航">
+      <button class="nav-item is-active" data-page="deploy" aria-current="page">
+        <svg class="ic"><use href="#i-deploy"/></svg>部署<span class="nv-s">1</span>
+      </button>
+      <button class="nav-item" data-page="skills">
+        <svg class="ic"><use href="#i-skills"/></svg>技能<span class="nv-s num">12</span>
+      </button>
+      <button class="nav-item" data-page="settings">
+        <svg class="ic"><use href="#i-set"/></svg>设置
+      </button>
+    </nav>
+    <div class="side-foot">
+      <div class="env-card" title="环境状态在启动与手动刷新时更新">
+        <div class="env-row"><span class="dot acc"></span>内置源<span class="mono">v1.4.2</span></div>
+        <div class="env-row"><span class="dot ok"></span>Node<span class="mono">v22.14.0</span></div>
+        <div class="env-row"><span class="dot ok"></span>opencode<span class="mono">v0.6.3</span></div>
+        <div class="env-row"><span class="dot ok" id="envDshDot"></span>dsh profile<span class="mono" id="envDsh">dev</span></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ======================= MAIN ======================= -->
+  <main class="main">
+
+    <!-- ============ PAGE: DEPLOY ============ -->
+    <section class="page is-active" id="page-deploy">
+      <header class="page-head" data-tauri-drag-region>
+        <!-- Window controls (SPEC §3.18): fixed to the window's top-right corner,
+             floating over this header. position:fixed — DOM placement is only for
+             documentation. Static demo state: windowed (最大化 icon); non-functional. -->
+        <div class="win-ctl">
+          <button class="win-btn" aria-label="最小化"><svg class="ic"><use href="#i-wmin"/></svg></button>
+          <button class="win-btn" aria-label="最大化"><svg class="ic"><use href="#i-wmax"/></svg></button>
+          <button class="win-btn win-close" aria-label="关闭"><svg class="ic"><use href="#i-wclose"/></svg></button>
+        </div>
+        <div>
+          <h1 class="ph-title">部署</h1>
+          <p class="ph-sub">将多智能体编排系统安装到项目目录或用户配置目录 · 预览与安装均不访问网络</p>
+        </div>
+        <div class="ph-actions">
+          <button class="btn" id="btnPlan"><svg class="ic"><use href="#i-layers"/></svg>生成预览</button>
+          <button class="btn btn-primary" id="btnRun" disabled title="先生成预览"><svg class="ic"><use href="#i-play"/></svg>开始安装</button>
+        </div>
+      </header>
+
+      <div class="page-body dgrid">
+        <!-- ---- config column ---- -->
+        <div class="dcol">
+          <div class="card">
+            <div class="card-h"><span class="card-t">内容源</span><span class="card-s">渲染所用的 agents/ 树</span></div>
+            <div class="card-b">
+              <div class="srcgrid" role="radiogroup" aria-label="内容源">
+                <div class="src is-on" data-src="bundled" role="radio" aria-checked="true" tabindex="0">
+                  <span class="src-rad"></span>
+                  <div class="src-c">
+                    <div class="src-t">内置源 <span class="vchip">v1.4.2</span></div>
+                    <div class="src-s">随应用打包</div>
+                  </div>
+                </div>
+                <div class="src" data-src="local" role="radio" aria-checked="false" tabindex="0">
+                  <span class="src-rad"></span>
+                  <div class="src-c">
+                    <div class="src-t">本地源</div>
+                    <div class="src-s">选择包含 agents/ 的目录（维护者工作流）</div>
+                  </div>
+                </div>
+              </div>
+              <div class="local-panel" id="localPanel" hidden>
+                <div class="path">
+                  <div class="path-in"><input id="localPath" value="D:\repos\my-fork" spellcheck="false" aria-label="本地源目录"></div>
+                  <button class="btn btn-sm" style="height:32px"><svg class="ic"><use href="#i-folder"/></svg>浏览…</button>
+                </div>
+                <div class="fhint ok" id="localHintOk"><svg class="ic"><use href="#i-checkc"/></svg>agents/ 树有效 · 检测到 6 个后端 · dsh 插件结构完整</div>
+                <div class="fhint err" id="localHintErr" hidden><svg class="ic"><use href="#i-xc"/></svg>未找到 agents/ 目录 — 请选择包含 agents/ 的上层目录</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="card-t">安装方式</span></div>
+            <div class="card-b">
+              <div class="seg seg-scope" id="scopeSeg" role="group" aria-label="安装方式">
+                <button class="seg-b is-on" data-scope="proj" aria-pressed="true">
+                  <svg class="ic"><use href="#i-folder"/></svg>
+                  <span class="seg-sc"><span>目录级安装</span><span class="seg-st">安装到项目目录</span></span>
+                </button>
+                <button class="seg-b" data-scope="user" aria-pressed="false">
+                  <svg class="ic"><use href="#i-set"/></svg>
+                  <span class="seg-sc"><span>用户级安装</span><span class="seg-st">安装到用户配置目录</span></span>
+                </button>
+              </div>
+              <div class="fhint" id="projHintUser" hidden><svg class="ic"><use href="#i-info"/></svg>安装到用户配置目录而非项目目录</div>
+              <div class="field" id="projField">
+                <div class="path">
+                  <div class="path-in"><input id="projPath" value="D:\dev\acme-web" spellcheck="false" aria-label="项目目录"></div>
+                  <button class="btn btn-sm" style="height:32px" id="projBrowse"><svg class="ic"><use href="#i-folder"/></svg>浏览…</button>
+                </div>
+                <div class="fhint" id="projHint"><svg class="ic"><use href="#i-info"/></svg>项目目录 = opencode / claude 项目级安装根目录</div>
+              </div>
+              <div class="opts scope-opts">
+                <div class="opt">
+                  <div class="opt-c">
+                    <div class="opt-t">覆盖已存在文件</div>
+                    <div class="opt-s" id="forceHint">默认跳过已存在的文件</div>
+                    <div class="opt-s warn" id="forceHintOn" hidden>已开启 — 已存在的文件将被直接覆盖，请确认</div>
+                  </div>
+                  <button class="sw" role="switch" aria-checked="false" id="swForce" aria-label="覆盖已存在文件"></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h">
+              <span class="card-t">安装目标</span><span class="card-s" id="tgtCount">已选 3 个</span>
+              <span class="card-hr"><button class="icon-btn" title="重新检测环境"><svg class="ic"><use href="#i-ref"/></svg></button></span>
+            </div>
+            <div class="card-b">
+              <div class="tgrid" id="tgrid">
+                <label class="tck is-on" data-t="opencode">
+                  <input type="checkbox" checked>
+                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">opencode</span></span>
+                  <span class="tstat"><span class="dot ok"></span>已检测到 v0.6.3</span>
+                </label>
+                <label class="tck is-dis" data-t="omos">
+                  <input type="checkbox" disabled>
+                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">omos</span></span>
+                  <span class="tstat"><span class="dot off"></span><span class="mutex">与 opencode 互斥</span></span>
+                </label>
+                <label class="tck is-on" data-t="claude">
+                  <input type="checkbox" checked>
+                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">claude</span></span>
+                  <span class="tstat"><span class="dot ok"></span>已找到 ~\.claude</span>
+                </label>
+                <label class="tck is-on" data-t="zcode">
+                  <input type="checkbox" checked>
+                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">zcode</span></span>
+                  <span class="tstat"><span class="dot ok"></span>已找到 ~\.zcode</span>
+                </label>
+                <label class="tck" data-t="dsh">
+                  <input type="checkbox">
+                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">dsh</span></span>
+                  <span class="tstat"><span class="dot ok" id="dshDot"></span><span id="dshStat">profile：dev</span></span>
+                  <span class="textra" id="dshExtra"><span class="envchip">DSH_HOME 已覆盖</span></span>
+                </label>
+                <label class="tck" data-t="openbitfun">
+                  <input type="checkbox">
+                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">openbitfun</span></span>
+                  <span class="tstat"><span class="dot off"></span>未找到配置目录 · 仍可安装</span>
+                </label>
+              </div>
+              <div class="mutex-line"><svg class="ic"><use href="#i-info"/></svg><span>opencode 与 omos 为同一运行时的两种宿主形态，互斥；未检测到仍可安装。</span></div>
+            </div>
+          </div>
+
+          <!-- custom-source pre-validation banner (local source + DSH target) -->
+          <div id="preval" hidden></div>
+        </div>
+
+        <!-- ---- preview column ---- -->
+        <div class="panel">
+          <div class="livebar" id="livebar"><i id="livefill"></i></div>
+          <div class="panel-h">
+            <div class="seg" role="tablist" aria-label="预览面板">
+              <button class="seg-b is-on" data-tab="preview" role="tab" aria-selected="true">预览</button>
+              <button class="seg-b" data-tab="log" role="tab" aria-selected="false">安装日志<span id="segLogDot" hidden><span class="pulse"></span></span></button>
+              <button class="seg-b" data-tab="health" role="tab" aria-selected="false">健康检查</button>
+            </div>
+            <div class="panel-hr">
+              <span class="bd bd-over" id="forceBadge" hidden>覆盖已开启</span>
+              <span class="mut" style="font-size:11.5px" id="planMeta">项目级 · 0 写入</span>
+            </div>
+          </div>
+
+          <div class="panel-b">
+            <!-- ===== preview pane ===== -->
+            <div class="pane is-on" id="tab-preview" role="tabpanel">
+              <div class="empty" id="plan-empty">
+                <div class="empty-ic"><svg class="ic"><use href="#i-layers"/></svg></div>
+                <div class="empty-t">先选择目标生成预览</div>
+                <div class="empty-s">在左侧勾选安装目标，然后点击「生成预览」。预览不会写入任何文件。</div>
+                <button class="btn btn-acc-o" onclick="genPreview()"><svg class="ic"><use href="#i-layers"/></svg>生成预览</button>
+              </div>
+              <div id="plan-filled" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
+                <div class="stalebar" id="stalebar" hidden>
+                  <svg class="ic"><use href="#i-warn"/></svg>选择已更改 — 预览可能过期，请重新生成
+                  <button class="btn btn-sm" style="margin-left:auto" onclick="genPreview()">重新生成</button>
+                </div>
+                <div class="chips" id="planChips">
+                  <button class="chip is-on" data-f="all">全部 <b>12</b></button>
+                  <button class="chip" data-f="create">新建 <b>7</b></button>
+                  <button class="chip" data-f="skip">跳过 <b>4</b></button>
+                  <button class="chip" data-f="over">覆盖 <b>0</b></button>
+                  <button class="chip" data-f="mgd">受管块 <b>1</b></button>
+                  <span class="chips-right"><svg class="ic" style="width:12px;height:12px"><use href="#i-shield"/></svg>预览不会写入任何文件</span>
+                </div>
+                <div class="tblw">
+                  <table class="tbl">
+                    <thead><tr><th style="width:88px">状态</th><th>目标文件</th><th style="width:230px">说明</th></tr></thead>
+                    <tbody id="planTbody"></tbody>
+                  </table>
+                </div>
+                <div class="pfoot">
+                  <div class="psum" id="planSummary"></div>
+                  <div class="pright">
+                    <span id="planStamp">生成于 14:31:58</span>
+                    <button class="icon-btn" style="width:22px;height:22px" title="重新生成预览" onclick="genPreview()"><svg class="ic" style="width:13px;height:13px"><use href="#i-ref"/></svg></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== log pane ===== -->
+            <div class="pane" id="tab-log" role="tabpanel" hidden>
+              <div class="logwrap">
+                <div class="logbar">
+                  <span class="lchip idle" id="logChip">未开始</span>
+                  <button class="btn btn-sm" id="btnStop" hidden title="协作取消：将在当前文件写完后停止（已写入的文件保留）"><svg class="ic"><use href="#i-x"/></svg>停止</button>
+                  <span class="logbar-actions">
+                    <span class="mini-sw"><button class="sw" role="switch" aria-checked="true" id="swAuto" aria-label="自动滚动"></button>自动滚动</span>
+                    <button class="icon-btn" title="复制日志"><svg class="ic" style="width:14px;height:14px"><use href="#i-copy"/></svg></button>
+                    <button class="icon-btn" title="导出日志 — 计划于 M3 提供" disabled><svg class="ic" style="width:14px;height:14px"><use href="#i-dl"/></svg></button>
+                  </span>
+                </div>
+                <div class="lprog" id="lprog" hidden>
+                  <div class="lpbar"><span class="lpfill" id="lpfill"></span></div>
+                  <span class="lphase" id="lphase">准备中…</span>
+                </div>
+                <div class="log" id="log" role="log" aria-live="polite">
+                  <div class="log-empty" id="logEmpty">
+                    <svg class="ic" style="width:20px;height:20px"><use href="#i-term"/></svg>
+                    尚未开始安装 — 点击「开始安装」后此处将流式输出日志
+                  </div>
+                </div>
+                <button class="resume" id="resumeBtn"><svg class="ic" style="width:12px;height:12px"><use href="#i-chevd"/></svg>回到底部</button>
+              </div>
+            </div>
+
+            <!-- ===== health pane ===== -->
+            <div class="pane" id="tab-health" role="tabpanel" hidden>
+              <div class="hscroll">
+                <div class="hctx">
+                  <svg class="ic" style="width:14px;height:14px;color:var(--text-3)"><use href="#i-act"/></svg>
+                  检查对象：<span class="mono" id="hctxSrc">内置源 v1.4.2</span> → <span class="mono" id="hctxDir">D:\dev\acme-web</span>
+                  <span class="mut">· 上次检查 2 分钟前</span>
+                  <button class="btn btn-sm" onclick="toast('已发起重新检查','ok','正在后台运行')"><svg class="ic"><use href="#i-ref"/></svg>重新检查</button>
+                </div>
+
+                <div class="tiers">
+                  <div class="tier">
+                    <div class="tier-h">
+                      <div><div class="tier-t">结构检查（始终可用）</div></div>
+                      <span class="tier-badge" id="t1badge"><svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>通过</span>
+                    </div>
+                    <div class="tier-b">
+                      <div class="tier-row"><svg class="ic okc" id="t1i1"><use href="#i-checkc"/></svg><span id="t1r1">渲染字节对比 <b class="num">11 / 11</b>&nbsp;一致</span></div>
+                      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>结构检查全部通过 · 槽位与源结构完整</span></div>
+                      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>槽位计数 <b class="num">12 / 12</b>&nbsp;· 受管块形状正常</span></div>
+                    </div>
+                    <div class="tier-f">渲染 agents/ 树并与目标文件逐字节对比，附全部结构性检查。</div>
+                  </div>
+
+                  <div class="tier">
+                    <div class="tier-h">
+                      <div><div class="tier-t">执行状态检查（需要本地 Node）</div></div>
+                      <span class="tier-badge ok" id="t2badge"><svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>通过</span>
+                    </div>
+                    <div class="tier-b" id="t2body"></div>
+                    <div class="tier-f" id="t2foot">本地 Node v22.14.0 · 全部执行检查通过。</div>
+                  </div>
+                </div>
+
+                <div id="driftZone"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PAGE: SKILLS ============ -->
+    <section class="page" id="page-skills">
+      <header class="page-head" data-tauri-drag-region>
+        <div>
+          <h1 class="ph-title">技能</h1>
+          <p class="ph-sub" id="skillsSub">从 GitHub 仓库安装与管理技能 · 安装位置 <span class="mono">~\.agents\skills\</span></p>
+        </div>
+        <div class="ph-actions">
+          <button class="btn" id="btnUpdAll"><svg class="ic"><use href="#i-up"/></svg>全部更新<span class="vchip upd-cnt" id="updCnt" style="margin-left:2px">3</span></button>
+          <button class="btn btn-ghost" data-open="dlg-source"><svg class="ic"><use href="#i-plus"/></svg>添加源</button>
+          <button class="icon-btn" id="btnRefreshSkills" title="从 GitHub 刷新（受 60 次/小时限额约束）"><svg class="ic"><use href="#i-ref"/></svg></button>
+        </div>
+      </header>
+
+      <div class="page-body" style="overflow-y:auto;gap:0">
+        <div style="display:flex;flex-direction:column;gap:12px;max-width:1080px">
+          <div id="netBanner"></div>
+
+          <div class="card">
+            <div class="card-h">
+              <span class="card-t">技能源</span><span class="card-s" id="srcMeta">2 个源 · 公开 1 · 私有 1</span>
+              <span class="card-hr"><button class="btn btn-sm btn-ghost" data-open="dlg-source"><svg class="ic"><use href="#i-plus"/></svg>添加源</button></span>
+            </div>
+            <div class="card-b">
+              <div class="schips" id="srcChips">
+                <div class="schip" data-src="acme-labs/skills" role="button" tabindex="0" title="点击按该源筛选">
+                  <svg class="ic"><use href="#i-git"/></svg>
+                  <div><div class="schip-r">acme-labs/skills</div><div class="schip-m">@main · 8 个技能 · 公开</div></div>
+                  <span class="schip-x">
+                    <button title="编辑源" data-open="dlg-source" data-mode="edit"><svg class="ic"><use href="#i-edit"/></svg></button>
+                    <button title="删除源" id="delSrc1"><svg class="ic"><use href="#i-trash"/></svg></button>
+                  </span>
+                </div>
+                <div class="schip" data-src="xiaolf/workbench-skills" role="button" tabindex="0" title="点击按该源筛选">
+                  <svg class="ic"><use href="#i-lock"/></svg>
+                  <div><div class="schip-r">xiaolf/workbench-skills</div><div class="schip-m">@v2 · 4 个技能 · 私有 · PAT</div></div>
+                  <span class="schip-x">
+                    <button title="编辑源" data-open="dlg-source" data-mode="edit"><svg class="ic"><use href="#i-edit"/></svg></button>
+                    <button title="删除源" id="delSrc2"><svg class="ic"><use href="#i-trash"/></svg></button>
+                  </span>
+                </div>
+                <button class="schip schip-add" data-open="dlg-source"><svg class="ic"><use href="#i-plus"/></svg>添加源</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sk-tools">
+            <div class="search">
+              <svg class="ic" style="width:13px;height:13px"><use href="#i-search"/></svg>
+              <input id="skSearch" placeholder="搜索技能…" aria-label="搜索技能">
+              <kbd class="kbd">/</kbd>
+            </div>
+            <button class="chip is-on" data-sf="all">全部 <b>12</b></button>
+            <button class="chip" data-sf="upd">可更新 <b>3</b></button>
+            <button class="chip" data-sf="mod">有本地修改 <b>1</b></button>
+            <button class="chip" data-sf="na">未安装 <b>4</b></button>
+            <span style="margin-left:auto;font-size:11.5px;color:var(--text-3)" id="cacheLabel"><svg class="ic" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-clock"/></svg> 列表缓存于 12 分钟前</span>
+          </div>
+
+          <div class="sk-list" id="skList">
+            <div class="sk-head"><span class="h1">技能</span><span class="h2">来源</span><span class="h3">已安装</span><span class="h4">状态</span><span class="h5" style="text-align:right">操作</span></div>
+            <div id="skRows"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PAGE: SETTINGS ============ -->
+    <section class="page" id="page-settings">
+      <header class="page-head" data-tauri-drag-region>
+        <div>
+          <h1 class="ph-title">设置</h1>
+          <p class="ph-sub">技能存储、GitHub 访问与应用信息</p>
+        </div>
+      </header>
+      <div class="page-body" style="overflow-y:auto">
+        <div class="set-wrap">
+
+          <div class="card">
+            <div class="card-h"><span class="card-t">技能存储</span></div>
+            <div class="set-row">
+              <div class="set-l">
+                <div class="set-lt">技能根目录</div>
+                <div class="set-ls">技能安装位置。默认 <span class="mono">~\.agents\skills\</span>。</div>
+              </div>
+              <div class="set-c">
+                <div class="path">
+                  <div class="path-in"><input value="~\.agents\skills\" spellcheck="false" aria-label="技能根目录"></div>
+                  <button class="btn btn-sm" style="height:32px"><svg class="ic"><use href="#i-folder"/></svg>浏览…</button>
+                  <button class="btn btn-sm btn-ghost" style="height:32px">恢复默认</button>
+                </div>
+                <div class="fhint"><svg class="ic"><use href="#i-info"/></svg>技能清单存储于 <span class="mono">&nbsp;&lt;root&gt;\.workbench-skills.json&nbsp;</span>。</div>
+                <div><a class="link" style="font-size:12px;display:inline-flex;align-items:center;gap:5px"><svg class="ic" style="width:13px;height:13px"><use href="#i-folder"/></svg>打开技能目录</a></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="card-t">GitHub 访问</span></div>
+            <div class="set-row">
+              <div class="set-l">
+                <div class="set-lt">GitHub PAT（个人访问令牌）</div>
+                <div class="set-ls">公开仓库无需令牌；私有仓库读取需要 <span class="mono">repo</span> 权限的 PAT。</div>
+              </div>
+              <div class="set-c">
+                <div class="patbox">
+                  <div class="patval"><svg class="ic"><use href="#i-lock"/></svg><span class="mask">ghp_••••••••••••••••••••</span></div>
+                  <button class="btn btn-sm">更新</button>
+                  <button class="btn btn-sm btn-danger-o">清除</button>
+                </div>
+                <div class="fhint ok"><svg class="ic"><use href="#i-shield"/></svg>已存入系统钥匙串 · 保存后不再显示完整令牌。</div>
+                <div class="fhint"><svg class="ic"><use href="#i-info"/></svg>配置 PAT 后，GitHub API 限额由 60 次/小时（未认证）提升至 5,000 次/小时。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="card-t">通用</span></div>
+            <div class="set-row">
+              <div class="set-l"><div class="set-lt">界面语言</div></div>
+              <div class="set-c">
+                <div style="display:flex;gap:8px;align-items:center">
+                  <select class="fsel" style="width:180px"><option selected>中文（简体）</option><option>English（计划于 M3）</option></select>
+                </div>
+                <div class="fhint"><svg class="ic"><use href="#i-info"/></svg>英文界面计划于 M3（i18n）提供。</div>
+              </div>
+            </div>
+            <div class="set-row">
+              <div class="set-l"><div class="set-lt">日志导出</div></div>
+              <div class="set-c">
+                <button class="btn btn-sm" disabled>导出安装日志…</button>
+                <div class="fhint"><svg class="ic"><use href="#i-info"/></svg>计划于 M3 提供。</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-h"><span class="card-t">关于</span></div>
+            <div class="set-row">
+              <div class="set-l"><div class="set-lt">应用</div></div>
+              <div class="set-c">
+                <div class="about">
+                  <div class="about-tile"><svg><use href="#i-term"/></svg></div>
+                  <div>
+                    <div class="about-n">My Workbench 桌面版</div>
+                    <div class="about-v">版本 <span class="mono">1.4.2</span> (stable) · Tauri 2</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="set-row">
+              <div class="set-l">
+                <div class="set-lt">内置 agents 源版本</div>
+              </div>
+              <div class="set-c">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span class="mono" style="font-size:13px">1.4.2</span>
+                  <span class="vchip ok">与 npm 版本一致</span>
+                </div>
+                <div class="fhint"><svg class="ic"><use href="#i-info"/></svg>若不一致会在此显示警告（<span class="vchip warn" style="font-size:10px">与 npm 版本不一致</span>），提示重新安装。</div>
+              </div>
+            </div>
+            <div class="set-row">
+              <div class="set-l"><div class="set-lt">源代码仓库</div></div>
+              <div class="set-c">
+                <a class="link mono" style="font-size:12.5px;display:inline-flex;align-items:center;gap:5px">github.com/xiaolf/my-workbench <svg class="ic" style="width:12px;height:12px"><use href="#i-ext"/></svg></a>
+              </div>
+            </div>
+            <div class="set-row">
+              <div class="set-l"><div class="set-lt">检查更新</div></div>
+              <div class="set-c">
+                <button class="btn btn-sm" disabled>检查更新…</button>
+                <div class="fhint"><svg class="ic"><use href="#i-info"/></svg>Tauri updater 计划于 M3 提供。</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ======================= DIALOGS ======================= -->
+<div class="oback" id="dlg-source" role="dialog" aria-modal="true" aria-labelledby="dlgSrcT">
+  <div class="dlg">
+    <div class="dlg-h">
+      <div class="dlg-ic info"><svg class="ic"><use href="#i-git"/></svg></div>
+      <div class="dlg-t" id="dlgSrcT">添加技能源</div>
+      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="dlg-b">
+      <div class="fld">
+        <label class="flab" for="fRepo">仓库</label>
+        <input class="fld-in mono" id="fRepo" placeholder="owner/repo" value="">
+        <div class="fhint"><svg class="ic"><use href="#i-info"/></svg>仅支持 GitHub 仓库（公开或私有）。</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="fld">
+          <label class="flab" for="fRef">分支 / Ref <span class="opt-tag">（可选）</span></label>
+          <input class="fld-in mono" id="fRef" placeholder="默认分支">
+        </div>
+        <div class="fld">
+          <label class="flab" for="fSub">技能子目录 <span class="opt-tag">（可选）</span></label>
+          <input class="fld-in mono" id="fSub" placeholder="skills/">
+        </div>
+      </div>
+      <div class="bn mut" style="padding:8px 10px">
+        <svg class="ic"><use href="#i-lock"/></svg>
+        <div class="bn-c"><div class="bn-s">私有仓库将使用已配置的 GitHub PAT（设置 → GitHub 访问）。公开仓库无需认证。</div></div>
+      </div>
+    </div>
+    <div class="dlg-f">
+      <button class="btn btn-ghost" data-close>取消</button>
+      <button class="btn btn-primary" id="btnSaveSource">添加源</button>
+    </div>
+  </div>
+</div>
+
+<div class="oback" id="dlg-updwarn" role="dialog" aria-modal="true" aria-labelledby="dlgUwT">
+  <div class="dlg">
+    <div class="dlg-h">
+      <div class="dlg-ic warn"><svg class="ic"><use href="#i-warn"/></svg></div>
+      <div class="dlg-t" id="dlgUwT">检测到本地修改</div>
+      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="dlg-b">
+      <span>技能 <b class="mono">code-review</b> 的以下文件自安装后被修改过：</span>
+      <div class="modlist">
+        <div class="ml-h">已修改的文件 · 2</div>
+        <div class="ml-r"><svg class="ic"><use href="#i-warn"/></svg>SKILL.md</div>
+        <div class="ml-r"><svg class="ic"><use href="#i-warn"/></svg>scripts/lint.py</div>
+      </div>
+      <span>强制更新将<b>丢失这些修改</b>。选择「备份后强制更新」会先把当前目录完整备份，再应用远端最新版本。</span>
+      <div class="fhint"><svg class="ic"><use href="#i-folder"/></svg>备份位置：<span class="mono">&nbsp;~\.agents\skills\.backups\code-review-20260928-1432\</span></div>
+    </div>
+    <div class="dlg-f">
+      <button class="btn btn-ghost" data-close>取消</button>
+      <button class="btn btn-warn" id="btnForceUpdate"><svg class="ic"><use href="#i-up"/></svg>备份后强制更新</button>
+    </div>
+  </div>
+</div>
+
+<div class="oback" id="dlg-del" role="dialog" aria-modal="true" aria-labelledby="dlgDelT">
+  <div class="dlg">
+    <div class="dlg-h">
+      <div class="dlg-ic err"><svg class="ic"><use href="#i-trash"/></svg></div>
+      <div class="dlg-t" id="dlgDelT">删除技能</div>
+      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="dlg-b">
+      <span>将从 <span class="mono">~\.agents\skills\</span> 移除 <b class="mono">docx</b> 及其清单条目。此操作不可撤销（除非勾选备份）。</span>
+      <label class="fchk"><input type="checkbox" checked>备份到回收站（删除前复制整个技能目录到系统回收站）</label>
+    </div>
+    <div class="dlg-f">
+      <button class="btn btn-ghost" data-close>取消</button>
+      <button class="btn btn-danger" id="btnDelConfirm">删除</button>
+    </div>
+  </div>
+</div>
+
+<div class="oback" id="dlg-drift" role="dialog" aria-modal="true" aria-labelledby="dlgDrT">
+  <div class="dlg" style="width:640px">
+    <div class="dlg-h">
+      <div class="dlg-ic warn"><svg class="ic"><use href="#i-act"/></svg></div>
+      <div class="dlg-t" id="dlgDrT">漂移详情</div>
+      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="dlg-b">
+      <span class="mono" style="color:var(--text-1)">~\.claude\CLAUDE.md</span>
+      <span>本地文件与渲染期望不一致（字节对比）。</span>
+      <div class="diff2">
+        <div class="dpan">
+          <div class="dp-h"><svg class="ic"><use href="#i-file"/></svg>期望（渲染结果）</div>
+          <pre>---
+name: my-workbench
+lanes: 4
+<span class="add">+ prompts: rendered v1.4.2</span>
+roster: generated
+ managed: cordis.patch.yml
+…</pre>
+        </div>
+        <div class="dpan">
+          <div class="dp-h"><svg class="ic"><use href="#i-edit"/></svg>本地文件</div>
+          <pre>---
+name: my-workbench
+lanes: 4
+<span class="del">- prompts: rendered v1.4.1</span>
+roster: generated
+ managed: cordis.patch.yml
+…</pre>
+        </div>
+      </div>
+      <div class="fhint warn"><svg class="ic"><use href="#i-warn"/></svg>将以覆盖模式重新安装；所有已存在的文件都会被覆盖且不可恢复。</div>
+    </div>
+    <div class="dlg-f">
+      <button class="btn btn-ghost" data-close>关闭</button>
+      <button class="btn btn-primary" onclick="driftRepair()">覆盖重装</button>
+    </div>
+  </div>
+</div>
+
+<div class="oback" id="dlg-srcdel" role="dialog" aria-modal="true" aria-labelledby="dlgSdT">
+  <div class="dlg" style="width:440px">
+    <div class="dlg-h">
+      <div class="dlg-ic err"><svg class="ic"><use href="#i-trash"/></svg></div>
+      <div class="dlg-t" id="dlgSdT">删除技能源</div>
+      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="dlg-b">
+      <span>移除源 <b class="mono">acme-labs/skills</b>？已安装的技能不受影响，仅解除关联（无法再更新）。</span>
+    </div>
+    <div class="dlg-f">
+      <button class="btn btn-ghost" data-close>取消</button>
+      <button class="btn btn-danger" onclick="closeDialogs();toast('已移除源 acme-labs/skills','ok','已安装技能保留')">移除源</button>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= DEMO CONTROLS (mockup only) ======================= -->
+<button class="dfab" id="dfab"><svg class="ic"><use href="#i-set"/></svg>演示状态</button>
+<div class="dpanel" id="dpanel">
+  <div class="dp-h">演示控制 · 仅用于设计评审，非产品 UI
+    <button class="icon-btn" id="dpclose"><svg class="ic" style="width:12px;height:12px"><use href="#i-x"/></svg></button>
+  </div>
+  <div class="dp-row"><span class="dp-l">预览</span>
+    <div class="seg" data-dk="preview">
+      <button class="seg-b is-on" data-dv="empty">空</button>
+      <button class="seg-b" data-dv="ready">已生成</button>
+    </div>
+  </div>
+  <div class="dp-row"><span class="dp-l">安装</span>
+    <div class="seg" data-dk="run">
+      <button class="seg-b is-on" data-dv="idle">空闲</button>
+      <button class="seg-b" data-dv="running">运行中</button>
+      <button class="seg-b" data-dv="success">成功</button>
+      <button class="seg-b" data-dv="failed">失败</button>
+      <button class="seg-b" data-dv="cancelled">已取消</button>
+    </div>
+  </div>
+  <div class="dp-row"><span class="dp-l">执行状态检查</span>
+    <div class="seg" data-dk="tier2">
+      <button class="seg-b is-on" data-dv="pass">通过</button>
+      <button class="seg-b" data-dv="skip">跳过</button>
+      <button class="seg-b" data-dv="fail">失败</button>
+    </div>
+  </div>
+  <div class="dp-row"><span class="dp-l">漂移</span>
+    <div class="seg" data-dk="drift">
+      <button class="seg-b is-on" data-dv="none">无</button>
+      <button class="seg-b" data-dv="some">2 处</button>
+    </div>
+  </div>
+  <div class="dp-row"><span class="dp-l">本地源校验</span>
+    <div class="seg" data-dk="preval">
+      <button class="seg-b is-on" data-dv="na">不适用</button>
+      <button class="seg-b" data-dv="checking">校验中</button>
+      <button class="seg-b" data-dv="pass">通过</button>
+      <button class="seg-b" data-dv="fail">未通过</button>
+    </div>
+  </div>
+  <div class="dp-row"><span class="dp-l">技能网络</span>
+    <div class="seg" data-dk="net">
+      <button class="seg-b is-on" data-dv="fresh">最新</button>
+      <button class="seg-b" data-dv="cached">缓存</button>
+      <button class="seg-b" data-dv="rate">限流</button>
+      <button class="seg-b" data-dv="offline">离线</button>
+    </div>
+  </div>
+  <div class="dp-row"><span class="dp-l">dsh 检测</span>
+    <div class="seg" data-dk="dsh">
+      <button class="seg-b" data-dv="missing">未找到</button>
+      <button class="seg-b" data-dv="multi">多候选</button>
+      <button class="seg-b is-on" data-dv="profile">唯一</button>
+    </div>
+  </div>
+  <div class="dp-row"><span class="dp-l">本地源</span>
+    <div class="seg" data-dk="lsrc">
+      <button class="seg-b is-on" data-dv="valid">有效</button>
+      <button class="seg-b" data-dv="invalid">无效</button>
+    </div>
+  </div>
+  <div class="dp-row"><span class="dp-l">主题 · M3</span>
+    <div class="seg" data-dk="theme">
+      <button class="seg-b is-on" data-dv="dark">深色</button>
+      <button class="seg-b" data-dv="light">浅色</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ---------------- state ---------------- */
+const state = {
+  page:'deploy', tab:'preview',
+  srcMode:'bundled', lsrc:'valid',
+  targets:new Set(['opencode','claude','zcode']),
+  user:false, force:false,
+  preview:'empty', stale:false,
+  run:'idle', runTimer:null, autoScroll:true, runCancelled:false, runFiles:0,
+  tier2:'pass', drift:'none', preval:'na', dsh:'profile',
+  net:'fresh', srcFilter:null, sf:'all', q:'',
+};
+
+/* ---------------- data ---------------- */
+const PREFIX = {
+  proj:{opencode:'D:\\dev\\acme-web\\.opencode\\', claude:'D:\\dev\\acme-web\\.claude\\', zcode:'D:\\dev\\acme-web\\.zcode\\'},
+  user:{opencode:'~\\.config\\opencode\\', claude:'~\\.claude\\', zcode:'~\\.zcode\\'},
+};
+const PLAN = [
+  {t:'opencode', rel:'agent\\my-workbench\\roster.generated.js', s:'create'},
+  {t:'opencode', rel:'agent\\my-workbench\\prompts.generated.js', s:'create'},
+  {t:'opencode', rel:'command\\workbench.md', s:'create'},
+  {t:'opencode', rel:'README.md', s:'skip', note:'已存在'},
+  {t:'claude', rel:'agents\\workbench.md', s:'create'},
+  {t:'claude', rel:'CLAUDE.md', s:'mgd', note:'追加受管块 § my-workbench · 保留既有内容'},
+  {t:'claude', rel:'workbench\\lanes.json', s:'create'},
+  {t:'claude', rel:'workbench\\README.md', s:'skip', note:'已存在 · 内容一致'},
+  {t:'zcode', rel:'agent\\my-workbench\\prompts.generated.js', s:'skip', note:'已存在'},
+  {t:'zcode', rel:'agent\\my-workbench\\config.toml', s:'create'},
+  {t:'zcode', rel:'agent\\my-workbench\\version.txt', s:'skip', note:'已存在 · 内容一致'},
+  {t:'zcode', rel:'agent\\my-workbench\\README.md', s:'create'},
+];
+const BD = {
+  create:['新建','bd-create'], skip:['跳过','bd-skip'], over:['覆盖','bd-over'], mgd:['受管块','bd-mgd'],
+};
+const LOG_OK = [
+  {ts:'14:32:05',tg:'系统',lv:'',m:'计划校验通过 · 12 个文件操作 · 0 写入'},
+  {ts:'14:32:05',tg:'系统',lv:'',m:'目标顺序：opencode → claude → zcode'},
+  {ts:'14:32:05',tg:'opencode',lv:'ok',m:'创建 agent/my-workbench/roster.generated.js · 12.4 KB'},
+  {ts:'14:32:05',tg:'opencode',lv:'ok',m:'创建 agent/my-workbench/prompts.generated.js · 9.1 KB'},
+  {ts:'14:32:06',tg:'opencode',lv:'skip',m:'跳过 README.md — 已存在'},
+  {ts:'14:32:06',tg:'opencode',lv:'ok',m:'创建 command/workbench.md · 2.3 KB'},
+  {ts:'14:32:06',tg:'claude',lv:'ok',m:'创建 agents/workbench.md · 3.8 KB'},
+  {ts:'14:32:06',tg:'claude',lv:'mgd',m:'受管块 CLAUDE.md — 追加 § my-workbench（保留既有内容）'},
+  {ts:'14:32:07',tg:'claude',lv:'ok',m:'创建 workbench/lanes.json · 1.9 KB'},
+  {ts:'14:32:07',tg:'claude',lv:'skip',m:'跳过 workbench/README.md — 已存在 · 内容一致'},
+  {ts:'14:32:08',tg:'zcode',lv:'warn',m:'覆盖 agent/my-workbench/prompts.generated.js（覆盖已开启）'},
+  {ts:'14:32:08',tg:'zcode',lv:'ok',m:'创建 agent/my-workbench/config.toml · 0.8 KB'},
+  {ts:'14:32:08',tg:'zcode',lv:'skip',m:'跳过 agent/my-workbench/version.txt — 已存在 · 内容一致'},
+  {ts:'14:32:09',tg:'系统',lv:'ok',m:'结构检查全部通过 · 槽位 12/12'},
+  {ts:'14:32:09',tg:'系统',lv:'ok',m:'安装完成 · 7 新建 · 4 跳过 · 1 受管块 · 用时 3.2s'},
+];
+const LOG_FAIL = [
+  {ts:'14:32:07',tg:'系统',lv:'err',m:'错误：预校验未通过（本地源 + DSH 目标）'},
+  {ts:'14:32:07',tg:'系统',lv:'err dim',m:'语法检查失败 — lane-plugin/index.js:42 Unexpected token'},
+  {ts:'14:32:07',tg:'系统',lv:'err dim',m:'提示模块检查失败 — prompts.generated.js 动态导入失败'},
+  {ts:'14:32:08',tg:'系统',lv:'err',m:'安装已中止 · 未写入任何文件'},
+];
+const SKILLS = [
+  {n:'code-review', d:'对当前变更运行双轴评审：规范 + 规格', src:'acme-labs/skills', v:'v1.3.0 · a1b2c3d', st:'mod'},
+  {n:'tdd-guide', d:'测试驱动开发循环：红-绿-重构', src:'acme-labs/skills', v:'v0.4.1 · 9f8e7d6', st:'upd', rv:'→ v0.5.0'},
+  {n:'web-research', d:'高信任来源检索与引用核查', src:'acme-labs/skills', v:'v1.1.2 · 4d5e6f7', st:'upd', rv:'→ v1.2.0'},
+  {n:'api-design', d:'接口设计评审与破坏性变更检查', src:'acme-labs/skills', v:'v2.0.0 · c0ffee01', st:'upd', rv:'→ v2.1.0'},
+  {n:'refactor-playbook', d:'深度模块重构的步骤手册', src:'acme-labs/skills', st:'na'},
+  {n:'ux-review', d:'界面走查：可用性检查清单', src:'acme-labs/skills', st:'na'},
+  {n:'brainstorm', d:'发散-收敛创意工作流', src:'acme-labs/skills', v:'v0.9.0 · 77aa00b', st:'lat'},
+  {n:'docx', d:'Word 文档创建与编辑', src:'xiaolf/workbench-skills', v:'v0.1.7 · 3c4d5e6', st:'lat'},
+  {n:'pptx', d:'演示文稿创建与重排', src:'xiaolf/workbench-skills', v:'v0.1.7 · 7a8b9c0', st:'lat'},
+  {n:'pdf-toolkit', d:'PDF 报告 / 提取 / 合并', src:'xiaolf/workbench-skills', v:'v0.2.1 · de10ad5', st:'lat'},
+  {n:'commit-messages', d:'约定式提交信息生成', src:'xiaolf/workbench-skills', st:'na'},
+  {n:'release-notes', d:'从标签区间生成发布说明', src:'xiaolf/workbench-skills', st:'na'},
+];
+const SK_BADGE = { na:['未安装','bd-na'], lat:['已安装 · 最新','bd-lat'], mod:['有本地修改','bd-mod'], upd:['可更新','bd-upd'] };
+
+/* ---------------- toast ---------------- */
+function toast(title, kind, sub){
+  const t = document.createElement('div');
+  t.className = 'toast ' + (kind||'info');
+  const icon = {ok:'i-checkc', err:'i-xc', warn:'i-warn', info:'i-info'}[kind||'info'];
+  t.innerHTML = `<svg class="ic"><use href="#${icon}"/></svg><div>${title}${sub?`<span class="tsub">${sub}</span>`:''}</div>`;
+  $('#toasts').appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity 200ms'; setTimeout(()=>t.remove(),220); }, 3800);
+}
+
+/* ---------------- dialogs ---------------- */
+let lastFocus = null;
+function openDialog(id){
+  lastFocus = document.activeElement;
+  const d = $('#'+id); d.classList.add('is-open');
+  const f = d.querySelector('input,button.btn,button.icon-btn');
+  if(f) setTimeout(()=>f.focus(), 30);
+}
+function closeDialogs(){
+  $$('.oback.is-open').forEach(d=>d.classList.remove('is-open'));
+  if(lastFocus) lastFocus.focus();
+}
+document.addEventListener('click', e=>{
+  const o = e.target.closest('[data-open]');
+  if(o){
+    const mode = o.dataset.mode;
+    const d = $('#'+o.dataset.open);
+    const title = d.querySelector('.dlg-t'), btn = d.querySelector('.dlg-f .btn-primary');
+    if(o.dataset.open==='dlg-source'){
+      title.textContent = mode==='edit' ? '编辑技能源' : '添加技能源';
+      btn.textContent = mode==='edit' ? '保存' : '添加源';
+      if(mode==='edit'){ $('#fRepo').value='acme-labs/skills'; $('#fRef').value='main'; $('#fSub').value='skills/'; }
+      else { $('#fRepo').value=''; $('#fRef').value=''; $('#fSub').value=''; }
+    }
+    openDialog(o.dataset.open); return;
+  }
+  if(e.target.closest('[data-close]') || e.target.classList.contains('oback')) closeDialogs();
+});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape') closeDialogs();
+  if(e.key==='/' && state.page==='skills' && !e.target.closest('input,textarea') && !$('.oback.is-open')){
+    e.preventDefault(); $('#skSearch').focus();
+  }
+});
+$('#btnSaveSource').onclick = ()=>{ closeDialogs(); toast('已保存源 acme-labs/skills','ok','list_sources 已刷新'); };
+$('#delSrc1').onclick = e=>{ e.stopPropagation(); openDialog('dlg-srcdel'); };
+$('#delSrc2').onclick = e=>{ e.stopPropagation(); toast('私有源需先解除 PAT 关联（示意）','warn'); };
+
+/* ---------------- nav ---------------- */
+$$('.nav-item').forEach(b => b.onclick = ()=>setPage(b.dataset.page));
+function setPage(name){
+  state.page = name;
+  $$('.nav-item').forEach(x=>{ const on = x.dataset.page===name; x.classList.toggle('is-active', on); x.toggleAttribute('aria-current', on); });
+  $$('.page').forEach(p=>p.classList.toggle('is-active', p.id==='page-'+name));
+}
+
+/* ---------------- deploy: tabs ---------------- */
+$$('.seg-b[data-tab]').forEach(b => b.onclick = ()=>setTab(b.dataset.tab));
+function setTab(t){
+  state.tab = t;
+  $$('.seg-b[data-tab]').forEach(x=>{ const on = x.dataset.tab===t; x.classList.toggle('is-on',on); x.setAttribute('aria-selected',on); });
+  $$('.pane').forEach(p=>{ const on = p.id==='tab-'+t; p.classList.toggle('is-on',on); p.hidden=!on; });
+}
+
+/* ---------------- deploy: source mode ---------------- */
+$$('.src').forEach(el => {
+  const pick = ()=>{
+    state.srcMode = el.dataset.src;
+    $$('.src').forEach(x=>{ const on = x===el; x.classList.toggle('is-on',on); x.setAttribute('aria-checked',on); });
+    $('#localPanel').hidden = state.srcMode!=='local';
+    if(state.srcMode==='local') applyLocalHint();
+    invalidate();
+  };
+  el.onclick = pick;
+  el.onkeydown = e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); pick(); } };
+});
+function applyLocalHint(){
+  const ok = state.lsrc==='valid';
+  $('#localHintOk').hidden = !ok;
+  $('#localHintErr').hidden = ok;
+}
+
+/* ---------------- deploy: targets + mutex ---------------- */
+$$('#tgrid .tck').forEach(l => {
+  const input = l.querySelector('input');
+  input.addEventListener('change', ()=>{
+    const t = l.dataset.t;
+    if(input.checked){
+      state.targets.add(t);
+      if(t==='opencode'){ setTarget('omos', false, true); }
+      if(t==='omos'){ setTarget('opencode', false, true); }
+    } else state.targets.delete(t);
+    refreshMutex();
+    invalidate();
+  });
+});
+function setTarget(t, on, disabled){
+  const l = $(`.tck[data-t="${t}"]`), input = l.querySelector('input');
+  input.checked = on; input.disabled = disabled;
+  l.classList.toggle('is-on', on);
+  l.classList.toggle('is-dis', disabled);
+  if(on) state.targets.add(t); else state.targets.delete(t);
+}
+function refreshMutex(){
+  const oc = state.targets.has('opencode'), om = state.targets.has('omos');
+  const lOc = $('.tck[data-t="opencode"]'), lOm = $('.tck[data-t="omos"]');
+  if(oc && !lOc.querySelector('input').disabled) setTarget('omos', false, true);
+  if(om && !lOm.querySelector('input').disabled) setTarget('opencode', false, true);
+  if(!oc && !om){
+    const iOc = lOc.querySelector('input'), iOm = lOm.querySelector('input');
+    if(iOc.disabled && !iOc.checked){ iOc.disabled=false; lOc.classList.remove('is-dis'); }
+    if(iOm.disabled && !iOm.checked){ iOm.disabled=false; lOm.classList.remove('is-dis'); }
+  }
+  const mutexEl = lOm.querySelector('.mutex');
+  mutexEl.textContent = state.targets.has('opencode') ? '与 opencode 互斥' : (lOm.querySelector('input').disabled ? '与 opencode 互斥' : '未检测到');
+  $('#tgtCount').textContent = `已选 ${state.targets.size} 个`;
+  updatePrevalVisibility();
+}
+
+/* ---------------- deploy: install scope (安装方式 segmented control) ---------------- */
+$$('#scopeSeg .seg-b').forEach(b => b.onclick = function(){
+  const user = this.dataset.scope === 'user';
+  if(!!state.user === user) return;
+  state.user = user;
+  $$('#scopeSeg .seg-b').forEach(x=>{
+    const on = x.dataset.scope === (user ? 'user' : 'proj');
+    x.classList.toggle('is-on', on);
+    x.setAttribute('aria-pressed', on);
+  });
+  $('#projField').hidden = user;
+  $('#projHintUser').hidden = !user;
+  invalidate();
+});
+$('#swForce').onclick = function(){
+  state.force = !state.force;
+  this.setAttribute('aria-checked', state.force);
+  $('#forceHint').hidden = state.force;
+  $('#forceHintOn').hidden = !state.force;
+  syncForce();
+  invalidate();
+};
+function syncForce(){ $('#forceBadge').hidden = !state.force; }
+
+/* ---------------- preview ---------------- */
+function invalidate(){
+  if(state.preview==='ready'){ state.stale = true; renderPlan(); }
+  updateApplyButtons();
+}
+function genPreview(){
+  state.preview = 'ready'; state.stale = false;
+  renderPlan();
+  setTab('preview');
+  updateApplyButtons();
+}
+$('#btnPlan').onclick = genPreview;
+function planRows(){
+  return PLAN.map(r=>{
+    let s = r.s;
+    if(state.force && s==='skip' && r.note && !r.note.includes('内容一致')) s='over';
+    const base = (state.user?PREFIX.user:PREFIX.proj)[r.t] || '';
+    const full = base + r.rel;
+    const i = full.lastIndexOf('\\');
+    return {...r, s, dir:full.slice(0,i+1), nm:full.slice(i+1), note: r.s==='skip'&&s==='over' ? '已存在 · 将被覆盖' : r.note};
+  });
+}
+function renderPlan(){
+  const ready = state.preview==='ready';
+  $('#plan-empty').style.display = ready?'none':'';
+  $('#plan-filled').hidden = !ready;
+  if(!ready) return;
+  $('#stalebar').hidden = !state.stale;
+  const f = state._f || 'all';
+  const rows = planRows().filter(r=> f==='all' || r.s===f);
+  $('#planTbody').innerHTML = rows.map(r=>`
+    <tr>
+      <td><span class="bd ${BD[r.s][1]}">${BD[r.s][0]}</span></td>
+      <td><span class="p"><span class="dir">${r.dir}</span><span class="nm">${r.nm}</span></span></td>
+      <td class="note">${r.note||''}</td>
+    </tr>`).join('');
+  const c = {create:0,skip:0,over:0,mgd:0}; planRows().forEach(r=>c[r.s]++);
+  $$('#planChips .chip').forEach(ch=>{
+    const k = ch.dataset.f;
+    ch.classList.toggle('is-on', k===f);
+    ch.querySelector('b').textContent = k==='all' ? planRows().length : c[k];
+  });
+  $('#planSummary').innerHTML =
+    `<b>${c.create}</b> 新建 · <b>${c.skip}</b> 跳过 · <b>${c.over}</b> 覆盖 · <b>${c.mgd}</b> 受管块 · 共 ${planRows().length} 个文件`;
+  $('#planStamp').textContent = '生成于 14:31:58';
+  $('#planMeta').textContent = `${state.user?'用户级':'项目级'} · 0 写入`;
+}
+$$('#planChips .chip').forEach(ch => ch.onclick = ()=>{ state._f = ch.dataset.f; renderPlan(); });
+
+/* ---------------- apply buttons ---------------- */
+function updateApplyButtons(){
+  const ok = state.preview==='ready' && !state.stale && state.run!=='running'
+    && state.preval!=='checking' && state.preval!=='fail'
+    && !(state.srcMode==='local' && state.lsrc==='invalid');
+  const b = $('#btnRun');
+  b.disabled = !ok;
+  b.title = !ok ? (state.preval==='fail' ? '预校验未通过，安装已被阻止'
+    : state.preval==='checking' ? '正在预校验本地源…'
+    : state.stale ? '选择已更改，请重新生成预览'
+    : '先生成预览') : '';
+}
+
+/* ---------------- install run ---------------- */
+$('#btnRun').onclick = ()=>startRun(false);
+function switchLog(){ setTab('log'); }
+function clearLog(){
+  $('#log').innerHTML = '';
+}
+function logLine(l){
+  const d = document.createElement('div');
+  d.className = 'ln ' + l.lv;
+  d.innerHTML = `<span class="ts">${l.ts}</span><span class="tg">${l.tg}</span><span class="lm">${l.m}</span>`;
+  $('#log').appendChild(d);
+  autoscroll();
+}
+function autoscroll(force){
+  if(!state.autoScroll && !force) return;
+  const el = $('#log'); el.scrollTop = el.scrollHeight;
+}
+function renderReport(kind){
+  const old = $('#log .report'); if(old) old.remove();
+  const r = document.createElement('div');
+  if(kind==='ok'){
+    r.className = 'report ok';
+    r.innerHTML = `<div class="report-t"><svg class="ic"><use href="#i-checkc"/></svg>安装完成</div>
+      <div class="report-chips"><span class="rc">7 新建</span><span class="rc">4 跳过</span><span class="rc">0 覆盖</span><span class="rc">1 受管块</span><span class="rc">用时 3.2s</span></div>
+      <div class="report-a"><button class="btn btn-sm" onclick="toast('已发起健康检查','ok','正在后台运行')"><svg class="ic"><use href="#i-act"/></svg>运行健康检查</button></div>`;
+  } else if(kind==='cancel'){
+    r.className = 'report warn';
+    r.innerHTML = `<div class="report-t"><svg class="ic"><use href="#i-info"/></svg>安装已取消</div>
+      <div class="report-chips"><span class="rc">第 ${state.runFiles} 个文件后停止</span><span class="rc">已写入的文件保留</span></div>
+      <div class="report-a"><button class="btn btn-sm" onclick="startRun(false)"><svg class="ic"><use href="#i-ref"/></svg>重试安装</button></div>`;
+  } else {
+    r.className = 'report err';
+    r.innerHTML = `<div class="report-t"><svg class="ic"><use href="#i-xc"/></svg>安装失败</div>
+      <div class="errmsg">安装失败：预校验未通过 — lane-plugin/index.js:42 Unexpected token</div>
+      <div class="report-a"><button class="btn btn-sm" onclick="startRun(false)"><svg class="ic"><use href="#i-ref"/></svg>重试安装</button>
+      <button class="btn btn-sm btn-ghost" disabled title="计划于 M3 提供">导出日志</button></div>`;
+  }
+  $('#log').appendChild(r);
+  autoscroll(true);
+}
+function setRunUI(){
+  const chip = $('#logChip'), bar = $('#lpfill'), lb = $('#livebar');
+  $('#segLogDot').hidden = state.run!=='running';
+  $('#btnStop').hidden = state.run!=='running';
+  if(state.run==='idle'){
+    chip.className='lchip idle'; chip.textContent='未开始';
+    $('#lprog').hidden = true; lb.classList.remove('is-on','done');
+    bar.className='lpfill'; bar.style.width='0';
+  } else if(state.run==='running'){
+    chip.className='lchip run'; chip.innerHTML='<span class="pulse" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor"></span>运行中';
+    $('#lprog').hidden = false; lb.classList.add('is-on'); lb.classList.remove('done');
+    bar.className='lpfill is-run';
+  } else if(state.run==='cancelled'){
+    chip.className='lchip warn'; chip.textContent='已取消';
+    $('#lprog').hidden = false; lb.classList.add('is-on'); lb.classList.remove('done');
+    bar.className='lpfill';
+  } else {
+    const ok = state.run==='success';
+    chip.className='lchip '+(ok?'ok':'err'); chip.textContent = ok?'已完成':'已失败';
+    $('#lprog').hidden = false; lb.classList.add('is-on','done');
+    bar.className='lpfill '+(ok?'done':'failed');
+    bar.style.width = ok?'100%':'62%';
+  }
+  updateApplyButtons();
+}
+function stopTimer(){ if(state.runTimer){ clearInterval(state.runTimer); state.runTimer=null; } }
+function startRun(failMode){
+  stopTimer();
+  state.runCancelled = false; state.runFiles = 0;
+  $('#btnStop').disabled = false;
+  state.run='running'; clearLog(); setRunUI(); switchLog();
+  const script = failMode ? [...LOG_OK.slice(0,10), ...LOG_FAIL] : LOG_OK;
+  let i = 0;
+  state.runTimer = setInterval(()=>{
+    if(state.runCancelled){ // cooperative: stops before starting the next file
+      stopTimer();
+      state.run='cancelled'; setRunUI(); renderReport('cancel');
+      $('#lphase').textContent = '已取消';
+      toast('安装已取消','warn',`第 ${state.runFiles} 个文件后停止 · 已写入的文件保留`);
+      return;
+    }
+    if(i < script.length){
+      logLine(script[i]);
+      if(script[i].tg!=='core' && ['ok','warn','mgd'].includes(script[i].lv)) state.runFiles++;
+      const pct = Math.round((i+1)/script.length*100);
+      $('#lpfill').style.width = pct+'%';
+      $('#lphase').textContent = failMode && i>=10 ? '正在中止…' : `正在安装 ${script[i].tg} · ${i+1}/${script.length} · ${pct}%`;
+      i++;
+    } else {
+      stopTimer();
+      state.run = failMode?'failed':'success';
+      setRunUI(); renderReport(failMode?'err':'ok');
+      toast(failMode?'安装失败':'安装完成', failMode?'err':'ok',
+        failMode?'未写入任何文件':'7 新建 · 4 跳过 · 1 受管块 · 用时 3.2s');
+    }
+  }, 170);
+}
+$('#btnStop').onclick = ()=>{
+  if(state.run==='running'){ state.runCancelled = true; $('#btnStop').disabled = true; }
+};
+function renderStaticRun(kind){
+  stopTimer();
+  state.run = kind; state.runCancelled = false; clearLog(); setRunUI(); switchLog();
+  let script;
+  if(kind==='failed') script = [...LOG_OK.slice(0,10), ...LOG_FAIL];
+  else if(kind==='cancelled') script = LOG_OK.slice(0,10);
+  else script = LOG_OK;
+  script.forEach(logLine);
+  state.runFiles = script.filter(l=>l.tg!=='core' && ['ok','warn','mgd'].includes(l.lv)).length;
+  $('#lpfill').style.width = kind==='failed'?'62%':kind==='cancelled'?'53%':'100%';
+  $('#lphase').textContent = kind==='failed'?'已中止 · 62%':kind==='cancelled'?`已取消 · 第 ${state.runFiles} 个文件后停止`:'已完成 · 15/15 · 100%';
+  renderReport(kind==='failed'?'err':kind==='cancelled'?'cancel':'ok');
+}
+$('#log').addEventListener('scroll', function(){
+  const nearBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 48;
+  $('#resumeBtn').classList.toggle('is-on', !nearBottom && this.children.length>2);
+  if(!nearBottom && state.autoScroll){ state.autoScroll=false; $('#swAuto').setAttribute('aria-checked','false'); }
+});
+$('#resumeBtn').onclick = ()=>{
+  state.autoScroll=true; $('#swAuto').setAttribute('aria-checked','true');
+  autoscroll(true); $('#resumeBtn').classList.remove('is-on');
+};
+$('#swAuto').onclick = function(){
+  state.autoScroll = !state.autoScroll;
+  this.setAttribute('aria-checked', state.autoScroll);
+  if(state.autoScroll){ autoscroll(true); $('#resumeBtn').classList.remove('is-on'); }
+};
+
+/* ---------------- health ---------------- */
+function renderHealth(){
+  // Tier 1 badge depends on drift
+  const b1 = $('#t1badge');
+  if(state.drift==='some'){
+    b1.className='tier-badge warn'; b1.innerHTML='<svg class="ic" style="width:11px;height:11px"><use href="#i-warn"/></svg>2 处漂移';
+    $('#t1i1').className='ic errc'; $('#t1i1').innerHTML='<use href="#i-warn"/>';
+    $('#t1r1').innerHTML='渲染字节对比 <b class="num">9 / 11</b>&nbsp;一致 · <b style="color:var(--warn)">2 个文件漂移</b>';
+  } else {
+    b1.className='tier-badge ok'; b1.innerHTML='<svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>通过';
+    $('#t1i1').className='ic okc'; $('#t1i1').innerHTML='<use href="#i-checkc"/>';
+    $('#t1r1').innerHTML='渲染字节对比 <b class="num">11 / 11</b>&nbsp;一致';
+  }
+  // 执行状态检查
+  const b2 = $('#t2badge'), body = $('#t2body'), foot = $('#t2foot');
+  if(state.tier2==='pass'){
+    b2.className='tier-badge ok'; b2.innerHTML='<svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>通过';
+    body.innerHTML = `
+      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>语法检查 — 3 个脚本工件正常</span></div>
+      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>宿主模块检查 — 可正常导入</span></div>
+      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>提示模块检查 — 可正常导入</span></div>`;
+    foot.textContent = '本地 Node v22.14.0 · 全部执行检查通过。';
+  } else if(state.tier2==='skip'){
+    b2.className='tier-badge warn'; b2.innerHTML='<svg class="ic" style="width:11px;height:11px"><use href="#i-info"/></svg>已跳过';
+    body.innerHTML = `
+      <div class="tier-note">
+        <b><svg class="ic"><use href="#i-info"/></svg>执行状态检查已跳过：未检测到 Node</b>
+        <span class="mut2">安装本地 Node 后点击「重新检查」。</span>
+      </div>
+      <div class="tier-row" style="color:var(--text-3)"><svg class="ic"><use href="#i-x"/></svg><span>3 项执行检查未执行</span></div>`;
+    foot.textContent = '缺失 Node 不会阻塞安装。';
+  } else {
+    b2.className='tier-badge err'; b2.innerHTML='<svg class="ic" style="width:11px;height:11px"><use href="#i-x"/></svg>失败';
+    body.innerHTML = `
+      <div class="tier-row"><svg class="ic errc"><use href="#i-xc"/></svg><span>语法检查 — <span class="mono">lane-plugin/index.js:42 Unexpected token</span></span></div>
+      <div class="tier-row"><svg class="ic errc"><use href="#i-xc"/></svg><span>提示模块检查 — prompts.generated.js 动态导入失败</span></div>
+      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>宿主模块检查 — 正常</span></div>`;
+    foot.textContent = '存在失败的执行检查 — 若为本地源 + DSH 目标，安装将被阻止。';
+  }
+  // drift zone
+  const dz = $('#driftZone');
+  if(state.drift==='some'){
+    dz.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="sect-t"><svg class="ic" style="width:14px;height:14px;color:var(--warn)"><use href="#i-warn"/></svg>漂移报告<span class="cnt">2 个文件与渲染期望不一致</span>
+        <span style="margin-left:auto;font-size:11.5px;color:var(--text-3)">在「查看详情」中选择处理方式</span></div>
+      <div class="drift">
+        <div class="drift-row">
+          <svg class="ic w"><use href="#i-file"/></svg>
+          <div><div class="drift-p"><span class="dir">~\\.claude\\</span>CLAUDE.md</div><div class="drift-n">本地与渲染期望不一致 · 大小 4.2 KB（期望 4.1 KB）</div></div>
+          <button class="btn btn-sm" data-open="dlg-drift">查看详情<svg class="ic"><use href="#i-chevr"/></svg></button>
+        </div>
+        <div class="drift-row">
+          <svg class="ic w"><use href="#i-file"/></svg>
+          <div><div class="drift-p"><span class="dir">D:\\dev\\acme-web\\.opencode\\command\\</span>workbench.md</div><div class="drift-n">本地文件被修改 · 字节不一致</div></div>
+          <button class="btn btn-sm" data-open="dlg-drift">查看详情<svg class="ic"><use href="#i-chevr"/></svg></button>
+        </div>
+      </div>
+    </div>`;
+  } else {
+    dz.innerHTML = `
+    <div class="sect-t" style="color:var(--text-3)"><svg class="ic" style="width:14px;height:14px"><use href="#i-checkc"/></svg>漂移报告<span style="font-weight:500;font-size:12px;color:var(--text-3)">无漂移 — 全部文件与渲染期望一致</span></div>`;
+  }
+}
+
+/* ---------------- pre-validation banner ---------------- */
+function updatePrevalVisibility(){
+  const z = $('#preval');
+  const applies = state.srcMode==='local' && state.targets.has('dsh');
+  const show = applies && state.preval!=='na';
+  z.hidden = !show;
+  if(!show){ updateApplyButtons(); return; }
+  if(state.preval==='checking'){
+    z.innerHTML = `<div class="bn info"><span class="spin"></span>
+      <div class="bn-c"><div class="bn-t" style="color:var(--accent)">正在预校验本地源…</div>
+      <div class="bn-s">本地源 + DSH 目标：安装前必须先通过执行状态检查。</div></div></div>`;
+  } else if(state.preval==='pass'){
+    z.innerHTML = `<div class="bn ok"><svg class="ic"><use href="#i-checkc"/></svg>
+      <div class="bn-c"><div class="bn-t">预校验通过 · 3 项执行检查</div>
+      <div class="bn-s">本地源渲染的 DSH 工件通过全部执行检查 — 可以开始安装。</div></div></div>`;
+  } else {
+    z.innerHTML = `<div class="bn err"><svg class="ic"><use href="#i-warn"/></svg>
+      <div class="bn-c"><div class="bn-t">预校验未通过 · 安装已阻止</div>
+      <div class="bn-s">本地源需先通过预校验：</div>
+      <ul><li>语法检查 — lane-plugin/index.js:42 Unexpected token</li><li>提示模块检查 — prompts.generated.js 动态导入失败</li></ul></div>
+      <div class="bn-a"><button class="btn btn-sm" onclick="setPreval('checking')"><svg class="ic"><use href="#i-ref"/></svg>重新校验</button></div></div>`;
+  }
+  updateApplyButtons();
+}
+function setPreval(v){ state.preval=v; syncDemoSeg('preval', v); updatePrevalVisibility(); }
+
+/* drift repair (locked): no ad-hoc write — routes into the normal plan/execute flow with 覆盖 forced on */
+function driftRepair(){
+  closeDialogs();
+  setPage('deploy');
+  if(!state.force){
+    state.force = true;
+    $('#swForce').setAttribute('aria-checked','true');
+    $('#forceHint').hidden = true; $('#forceHintOn').hidden = false;
+  }
+  syncForce();
+  genPreview();
+  toast('已开启覆盖模式并重新生成预览','warn','请确认预览后点击「开始安装」');
+}
+
+/* dsh detection (locked payload: {home, homeSource:'env'|'default', exists, profile:{name}|null, profilesCount}) */
+const DSH_STATES = {
+  missing:{dot:'off', text:'未找到 DSH 主目录 · 仍可安装', chip:false, env:'未找到'},
+  multi:{dot:'ok', text:'未找到唯一 profile（共 2 个候选）· 仍可安装', chip:true, env:'2 候选'},
+  profile:{dot:'ok', text:'profile：dev', chip:true, env:'dev'},
+};
+function applyDsh(v){
+  const s = DSH_STATES[v] || DSH_STATES.profile;
+  state.dsh = v;
+  $('#dshDot').className = 'dot ' + s.dot;
+  $('#dshStat').textContent = s.text;
+  $('#dshExtra').hidden = !s.chip;
+  $('#envDshDot').className = 'dot ' + s.dot;
+  $('#envDsh').textContent = s.env;
+}
+function updatePrevalAuto(){
+  // auto-derive: applies when local+dsh selected
+  updatePrevalVisibility();
+}
+
+/* ---------------- skills ---------------- */
+function renderSkills(){
+  // banner
+  const nb = $('#netBanner');
+  if(state.net==='offline'){
+    nb.innerHTML = `<div class="bn mut"><svg class="ic"><use href="#i-offline"/></svg>
+      <div class="bn-c"><div class="bn-t">离线 — 无法连接 GitHub</div>
+      <div class="bn-s">当前显示本地清单，安装与更新不可用；删除与查看不受影响。恢复网络后点击刷新。</div></div></div>`;
+  } else if(state.net==='rate'){
+    nb.innerHTML = `<div class="bn warn"><svg class="ic"><use href="#i-warn"/></svg>
+      <div class="bn-c"><div class="bn-t">GitHub API 限额提醒</div>
+      <div class="bn-s">未认证限额 60 次/小时，即将用尽。配置 PAT 后提升至 5,000 次/小时。 <a class="link">前往设置</a></div></div>
+      <div class="bn-a"><button class="btn btn-sm btn-ghost" title="关闭">稍后</button></div></div>`;
+  } else nb.innerHTML = '';
+
+  // cache label
+  const cl = $('#cacheLabel');
+  cl.innerHTML = state.net==='offline' ? '<svg class="ic" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-offline"/></svg> 离线 · 显示本地清单（12 个技能）'
+    : state.net==='cached' ? '<svg class="ic" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-clock"/></svg> 列表缓存于 12 分钟前 · 上次刷新 14:08'
+    : state.net==='rate' ? '<svg class="ic" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-warn"/></svg> 限额预警 · 显示缓存清单'
+    : '<svg class="ic" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-clock"/></svg> 刚刚刷新 · 14:32';
+  // sub
+  $('#skillsSub').innerHTML = state.net==='offline'
+    ? '离线模式 · 从本地清单管理技能'
+    : '从 GitHub 仓库安装与管理技能 · 安装位置 <span class="mono">~\\.agents\\skills\\</span>';
+
+  // rows
+  const q = state.q.trim().toLowerCase();
+  const rows = SKILLS.filter(s =>
+    (state.sf==='all' || s.st===state.sf) &&
+    (!state.srcFilter || s.src===state.srcFilter) &&
+    (!q || s.n.toLowerCase().includes(q) || s.d.includes(q))
+  );
+  const disabled = state.net==='offline';
+  $('#skRows').innerHTML = rows.map(s=>{
+    const [bt,bc] = SK_BADGE[s.st];
+    const ver = s.v ? s.v + (s.rv?` <span style="color:var(--accent)">${s.rv}</span>`:'') : '<span class="na">—</span>';
+    let acts = '';
+    if(s.st==='na') acts = `<button class="btn btn-sm btn-acc-o" data-act="install" ${disabled?'disabled':''}><svg class="ic"><use href="#i-dl"/></svg>安装</button>`;
+    else if(s.st==='upd') acts = `<button class="btn btn-sm" data-act="update" ${disabled?'disabled':''}><svg class="ic"><use href="#i-up"/></svg>更新</button>`;
+    else if(s.st==='mod') acts = `<button class="btn btn-sm btn-warn-o" data-act="updmod" ${disabled?'disabled':''}><svg class="ic"><use href="#i-up"/></svg>更新</button>`;
+    else acts = `<button class="btn btn-sm btn-ghost" data-act="reinstall" ${disabled?'disabled':''} title="重新安装">重装</button>`;
+    return `<div class="sk-row">
+      <div class="sk-main"><div class="sk-name">${s.n}</div><div class="sk-desc">${s.d}</div></div>
+      <div class="sk-src"><svg class="ic"><use href="#i-git"/></svg>${s.src}</div>
+      <div class="sk-ver">${ver}</div>
+      <div class="sk-st"><span class="bd ${bc}">${bt}</span></div>
+      <div class="sk-acts">${acts}<button class="btn btn-sm btn-ghost btn-danger-o" data-act="del" data-name="${s.n}"><svg class="ic"><use href="#i-trash"/></svg></button></div>
+    </div>`;
+  }).join('') || `<div class="sk-empty"><svg class="ic" style="width:20px;height:20px"><use href="#i-search"/></svg>没有匹配的技能<button class="btn btn-sm btn-ghost" onclick="clearSkillFilters()">清除筛选</button></div>`;
+
+  // disabled tooltip
+  if(disabled) $$('#skRows [data-act="install"],#skRows [data-act="update"],#skRows [data-act="updmod"]').forEach(b=>b.title='离线状态：安装与更新不可用');
+  // chips counts
+  const c = {na:0,mod:0,upd:0}; SKILLS.forEach(s=>c[s.st]++);
+  $$('[data-sf]').forEach(ch=>{
+    const k = ch.dataset.sf;
+    ch.classList.toggle('is-on', k===state.sf);
+    ch.querySelector('b').textContent = k==='all'?SKILLS.length:c[k];
+  });
+  // source chips active
+  $$('#srcChips .schip[data-src]').forEach(ch=>ch.classList.toggle('is-on', ch.dataset.src===state.srcFilter));
+}
+function clearSkillFilters(){ state.sf='all'; state.q=''; state.srcFilter=null; $('#skSearch').value=''; renderSkills(); }
+$('#skSearch').addEventListener('input', e=>{ state.q=e.target.value; renderSkills(); });
+$$('[data-sf]').forEach(ch => ch.onclick = ()=>{ state.sf = ch.dataset.sf; renderSkills(); });
+$$('#srcChips .schip[data-src]').forEach(ch => {
+  const toggle = ()=>{ state.srcFilter = state.srcFilter===ch.dataset.src ? null : ch.dataset.src; renderSkills(); };
+  ch.addEventListener('click', e=>{ if(!e.target.closest('.schip-x')) toggle(); });
+  ch.addEventListener('keydown', e=>{ if(e.key==='Enter') toggle(); });
+});
+$('#skRows').addEventListener('click', e=>{
+  const b = e.target.closest('[data-act]'); if(!b) return;
+  const act = b.dataset.act;
+  if(act==='del') openDialog('dlg-del');
+  else if(act==='updmod') openDialog('dlg-updwarn');
+  else if(act==='install') toast('正在安装 '+b.closest('.sk-row').querySelector('.sk-name').textContent+'…','info','install_skill · 下载 codeload 归档');
+  else if(act==='update') toast('正在更新 '+b.closest('.sk-row').querySelector('.sk-name').textContent+'…','info','update_skills');
+  else if(act==='reinstall') toast('重新安装（示意）','info');
+});
+$('#btnDelConfirm').onclick = ()=>{ closeDialogs(); toast('已删除 docx','ok','已备份到回收站 · 清单已更新'); renderSkills(); };
+$('#btnForceUpdate').onclick = ()=>{ closeDialogs(); toast('已备份并强制更新 code-review','ok','备份于 ~/.agents/skills/.backups/'); };
+$('#btnUpdAll').onclick = ()=>toast('已加入更新队列：3 个技能','info','update_skills · 全部更新');
+$('#btnRefreshSkills').onclick = ()=>{
+  if(state.net==='offline'){ toast('离线 — 无法刷新','warn','恢复网络后重试'); return; }
+  state.net='fresh'; syncDemoSeg('net','fresh'); renderSkills(); toast('列表已刷新','ok','GitHub · 2 个源');
+};
+
+/* ---------------- demo panel ---------------- */
+const dpanel = $('#dpanel'), dfab = $('#dfab');
+dfab.onclick = ()=>dpanel.classList.toggle('is-open');
+$('#dpclose').onclick = ()=>dpanel.classList.remove('is-open');
+function syncDemoSeg(key, val){
+  const seg = document.querySelector(`.seg[data-dk="${key}"]`);
+  if(!seg) return;
+  seg.querySelectorAll('.seg-b').forEach(b=>b.classList.toggle('is-on', b.dataset.dv===val));
+}
+$$('.seg[data-dk]').forEach(seg=>{
+  seg.querySelectorAll('.seg-b').forEach(b=>{
+    b.onclick = ()=>{
+      const k = seg.dataset.dk, v = b.dataset.dv;
+      syncDemoSeg(k, v);
+      if(k==='preview'){ state.preview=v; state.stale=false; renderPlan(); setTab('preview'); updateApplyButtons(); }
+      else if(k==='run'){
+        if(v==='running') startRun(false);
+        else if(v==='success') renderStaticRun('success');
+        else if(v==='failed') renderStaticRun('failed');
+        else if(v==='cancelled') renderStaticRun('cancelled');
+        else { stopTimer(); state.run='idle'; clearLog(); $('#log').innerHTML='<div class="log-empty" id="logEmpty"><svg class="ic" style="width:20px;height:20px"><use href="#i-term"/></svg>尚未开始安装 — 点击「开始安装」后此处将流式输出日志</div>'; setRunUI(); }
+      }
+      else if(k==='dsh'){ applyDsh(v); }
+      else if(k==='tier2'){ state.tier2=v; renderHealth(); }
+      else if(k==='drift'){ state.drift=v; renderHealth(); }
+      else if(k==='preval'){ state.preval=v; updatePrevalVisibility(); }
+      else if(k==='net'){ state.net=v; renderSkills(); }
+      else if(k==='lsrc'){ state.lsrc=v; if(state.srcMode!=='local'){ $('.src[data-src="local"]').click(); } else applyLocalHint(); }
+      else if(k==='theme'){ state.theme=v; document.documentElement.dataset.theme=v; }
+    };
+  });
+});
+
+/* ---------------- init ---------------- */
+renderPlan();
+renderHealth();
+renderSkills();
+applyDsh(state.dsh);
+syncForce();
+updateApplyButtons();
+</script>
+</body>
+</html>

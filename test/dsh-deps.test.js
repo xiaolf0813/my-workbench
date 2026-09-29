@@ -142,11 +142,22 @@ function fakeNpx(t, { rewrite, exitCode = 0 } = {}) {
   const bin = join(fixture(t), 'bin')
   const log = join(bin, 'npx.log')
   mkdirSync(bin)
-  const script = ['#!/bin/sh', `printf '%s\\n' "$*" >> ${JSON.stringify(log)}`]
-  if (rewrite !== undefined) script.push(`printf '%s\\n' ${JSON.stringify(rewrite)} > my-workbench.version`)
-  script.push(`exit ${exitCode}`)
-  writeFileSync(join(bin, 'npx'), script.join('\n') + '\n')
-  chmodSync(join(bin, 'npx'), 0o755)
+  if (process.platform === 'win32') {
+    // The CLI spawns npx through cmd.exe here and npm's own shim is npx.cmd, so the
+    // fake must be a .cmd batch file: cmd cannot execute an extensionless sh script,
+    // and without this it falls through to the real npx.cmd in the npm directory.
+    // Redirection comes first so a trailing digit in %* can never read as "2>".
+    const script = ['@echo off', `>"${log}" echo(%*`]
+    if (rewrite !== undefined) script.push(`>"my-workbench.version" echo ${rewrite}`)
+    script.push(`exit /b ${exitCode}`)
+    writeFileSync(join(bin, 'npx.cmd'), script.join('\r\n') + '\r\n')
+  } else {
+    const script = ['#!/bin/sh', `printf '%s\\n' "$*" >> ${JSON.stringify(log)}`]
+    if (rewrite !== undefined) script.push(`printf '%s\\n' ${JSON.stringify(rewrite)} > my-workbench.version`)
+    script.push(`exit ${exitCode}`)
+    writeFileSync(join(bin, 'npx'), script.join('\n') + '\n')
+    chmodSync(join(bin, 'npx'), 0o755)
+  }
   return { path: bin + delimiter + (process.env.PATH ?? ''), log }
 }
 

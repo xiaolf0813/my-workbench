@@ -9,3 +9,11 @@ node_modules/
 # Windows NTFS download-zone artifacts
 *:Zone.Identifier
 /my-workbench.version
+
+# Desktop GUI (Tauri 2 scaffold)
+/target/
+/ui/node_modules/
+/ui/dist/
+/src-tauri/gen/
+src-tauri/target/
+*.rs.bk
