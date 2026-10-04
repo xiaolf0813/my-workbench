@@ -1,10 +1,10 @@
 {
   "agents": {
-    "ui-designer": {
+    "designer": {
       "description": "Pure UI design specialist. Produces design specs and self-contained HTML mockups that show how interfaces should look, feel, and behave - never edits app source. Use before implementing new screens, redesigns, or visual polish; fixer implements the design in the app. Not for implementation of any kind.",
       "frontmatter": {
         "claude": [
-          "name: ui-designer",
+          "name: designer",
           "@description",
           "tools: Read, Write, Edit, Glob, Grep, Skill",
           "model: opus"
@@ -17,7 +17,7 @@
           "  ast_grep_replace: false"
         ],
         "zcode": [
-          "name: ui-designer",
+          "name: designer",
           "@description",
           "model: inherit",
           "injectAgentsMd: false",
@@ -33,8 +33,8 @@
         "openbitfun": [
           "schema_version: 1",
           "kind: subagent",
-          "id: ui-designer",
-          "name: UI Designer",
+          "id: designer",
+          "name: Designer",
           "@description",
           "tools:",
           "  - Read",
@@ -88,7 +88,7 @@
       }
     },
     "fixer": {
-      "description": "Fast implementation specialist. Receives complete context and a task spec from the orchestrator, then executes bounded code changes efficiently. Use for well-defined mechanical or multi-file edits with parallelizable scope, including UI implementation from a ui-designer mockup/spec. Not for research, architecture, debugging strategy, or authoring visual designs (commission ui-designer first).",
+      "description": "Fast implementation specialist. Receives complete context and a task spec from the orchestrator, then executes bounded code changes efficiently. Use for well-defined mechanical or multi-file edits with parallelizable scope, including UI implementation from a designer mockup/spec. Not for research, architecture, debugging strategy, or authoring visual designs (commission designer first).",
       "frontmatter": {
         "claude": [
           "name: fixer",
@@ -205,11 +205,11 @@
         ]
       }
     },
-    "oracle": {
-      "description": "Strategic technical advisor and senior code reviewer. Use for escalations where being wrong is costly - major architectural decisions with long-term impact, problems persisting after 2+ fix attempts, complex debugging with unclear root cause, high-risk multi-system refactors, and code needing simplification or YAGNI scrutiny. Not for routine verification or first-attempt fixes.",
+    "sentinel": {
+      "description": "Independent senior reviewer for high-risk changes and stuck debugging. Use ONLY as an escalation: gatekeeping a high-risk multi-system refactor (assessing the plan before dispatch or reviewing the delivered change) or re-deriving a debugging strategy after 2+ failed fix attempts. Not for routine reviews, first attempts, or general architecture questions - the orchestrator owns those.",
       "frontmatter": {
         "claude": [
-          "name: oracle",
+          "name: sentinel",
           "@description",
           "tools: Glob, Grep, Read, Bash",
           "model: opus"
@@ -224,7 +224,7 @@
           "  patch: false"
         ],
         "zcode": [
-          "name: oracle",
+          "name: sentinel",
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
@@ -232,8 +232,8 @@
         "openbitfun": [
           "schema_version: 1",
           "kind: subagent",
-          "id: oracle",
-          "name: Oracle",
+          "id: sentinel",
+          "name: Sentinel",
           "@description",
           "tools:",
           "  - Read",
@@ -245,7 +245,7 @@
       }
     },
     "orchestrator": {
-      "description": "Multi-agent workflow manager - plans, schedules, delegates, monitors, reconciles, and verifies specialist-agent work instead of implementing serially. Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); handles non-trivial coding work by routing bounded lanes to explorer/librarian/oracle/ui-designer/fixer/observer.",
+      "description": "Multi-agent workflow manager and senior technical advisor - plans, schedules, delegates, monitors, reconciles, and verifies specialist-agent work; analyzes, decides, and reviews but never implements (purely mechanical doc/config touches excepted). Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); routes every implementation lane - however small - to explorer/librarian/sentinel/designer/fixer/observer.",
       "frontmatter": {
         "claude": [
           "name: orchestrator",
@@ -254,7 +254,7 @@
         ],
         "opencode": [
           "@description",
-          "model: zhipuai-coding-plan/glm-5.3-flash",
+          "model: zhipuai-coding-plan/glm-5.3",
           "mode: all"
         ],
         "openbitfun": [

@@ -1452,7 +1452,6 @@ async function assembleCommand({ check }) {
   try {
     const rendered = renderDshComposition(dshSlots);
     if (!check) console.log(`rendered: agents/backends/dsh/agent.cordis.yml (${rendered.length} bytes)`);
-    warnUnusedSlots("dsh", dshSlots);
   } catch (err) {
     dshFailures.push(`agent.cordis.yml: ${err.message}`);
   }
@@ -1461,6 +1460,8 @@ async function assembleCommand({ check }) {
   // needed. The installed form differs only in those two specifiers. Slot
   // accounting shares `dshSlots` with the composition above: both templates draw
   // on the same backend slot set, and a second set would report dispatch unused.
+  // The unused-slot warning therefore waits until after this render — the
+  // composition never touches design-skills, only the lane prompts do.
   try {
     const host = renderLaneHost(
       Object.fromEntries(Object.entries(DSH_LANE_PLUGIN_DEPS).map(([alias, pkg]) => [alias, pkg])),
@@ -1474,6 +1475,7 @@ async function assembleCommand({ check }) {
   } catch (err) {
     dshFailures.push(`lane-plugin: ${err.message}`);
   }
+  warnUnusedSlots("dsh", dshSlots);
   // The lane settings page is the package that reaches the browser, so it gets
   // the checks whose failure would otherwise only be visible in a running GUI,
   // plus an import of its inert host half (which is what a profile row mounts).

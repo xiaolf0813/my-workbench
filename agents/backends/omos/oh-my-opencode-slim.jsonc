@@ -1,7 +1,7 @@
 {
   "agents": {
     "orchestrator": {
-      "model": ["zhipuai-coding-plan/glm-5.3-flash", "openai/gpt-5.6-terra"],
+      "model": ["zhipuai-coding-plan/glm-5.3", "openai/gpt-5.6-sol"],
       "variant": "max"
     },
     "explorer": {
@@ -12,18 +12,23 @@
       "model": ["zhipuai-coding-plan/glm-5.3-flash", "openai/gpt-5.6-luna"],
       "variant": "low"
     },
-    "oracle": {
+    "sentinel": {
+      "description": "Independent senior reviewer for high-risk changes and stuck debugging: gatekeeps high-risk multi-system refactors and re-derives debugging strategy after repeated failed fixes; read-only.",
       "model": ["openai/gpt-5.6-sol", "zhipuai-coding-plan/glm-5.3"],
-      "variant": "max"
+      "variant": "max",
+      "skills": [],
+      "mcps": [],
+      "permission": { "bash": "allow", "webfetch": "deny", "task": "deny", "ast_grep_replace": "deny", "edit": "deny", "write": "deny", "apply_patch": "deny", "read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "lsp": "allow", "codesearch": "allow", "ast_grep_search": "allow" },
+      "orchestratorPrompt": "Delegate to @sentinel only as an escalation: gatekeeping a high-risk multi-system refactor (before dispatch or on the delivered change), or a debugging strategy after 2+ failed fix attempts. It is read-only and returns an independent assessment. Never use it for routine reviews or first attempts; never delegate to @oracle."
     },
-    "ui-designer": {
+    "designer": {
       "description": "Pure UI design specialist: produces design specs and self-contained HTML mockups showing how interfaces should look, feel, and behave; never edits app source.",
       "model": ["openai/gpt-5.6-terra", "zhipuai-coding-plan/glm-5.3-flash"],
       "variant": "max",
       "skills": [],
       "mcps": [],
       "permission": { "bash": "deny", "webfetch": "allow", "task": "deny", "ast_grep_replace": "deny", "edit": "allow", "write": "allow", "apply_patch": "allow", "read": "allow", "glob": "allow", "grep": "allow", "list": "allow", "lsp": "allow", "codesearch": "allow", "ast_grep_search": "allow" },
-      "orchestratorPrompt": "Delegate to @ui-designer only for UI design decisions - how a screen, flow, or component should look, feel, and behave visually. It returns design specs plus self-contained HTML mockups inside the design/ directory and never edits app source. Commission @ui-designer before @fixer implements any new or redesigned user-facing UI; attach its mockup/spec to the fixer brief. Never delegate implementation of any kind to @ui-designer."
+      "orchestratorPrompt": "Delegate to @designer only for UI design decisions - how a screen, flow, or component should look, feel, and behave visually. It returns design specs plus self-contained HTML mockups inside the design/ directory and never edits app source. Commission @designer before @fixer implements any new or redesigned user-facing UI; attach its mockup/spec to the fixer brief. Never delegate implementation of any kind to @designer."
     },
     "fixer": {
       "model": "zhipuai-coding-plan/glm-5.3-flash",
@@ -39,9 +44,14 @@
       "orchestratorPrompt": "Delegate to @improver when the user reports that previously completed work is wrong or unsatisfactory (unfocused docs, incomplete feature implementation, wrong bug fix, poor output quality) and wants the responsible agent traced and the omos setup improved to prevent recurrence. Pass it the original request, the delegation briefs, the agent outputs, and the user's feedback. Do not delegate to @improver for ordinary code bugs, new feature work, or in-progress verification - route those to fixer/explorer as usual."
     }
   },
-  // The hybrid designer (design + implement) is disabled: ui-designer (design-only,
-  // mockups/specs) + fixer (all implementation, including UI from the design) replace it.
-  "disabled_agents": ["designer"],
+  // designer is the plugin's bundled hybrid (design + implement) agent, overridden
+  // here into our design-only UI designer: the full prompt replacement in
+  // oh-my-opencode-slim/designer.md plus this entry's model and permission. fixer
+  // does all implementation, including UI built from designer's mockups/specs.
+  // oracle is disabled: its advisory duties are folded into the orchestrator prompt,
+  // with sentinel (defined in oh-my-opencode-slim/sentinel.md) carrying the independent
+  // escalations - high-risk refactor gatekeeping and stuck-debugging strategy.
+  "disabled_agents": ["oracle"],
   "council": {
     "default_preset": "three-model-review",
     "presets": {

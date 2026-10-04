@@ -12,8 +12,9 @@
 #   from agents/backends/dsh/slots/dispatch.md, as for every other backend.
 # The SPECIALIST prompts no longer appear here: the lane plugin's own generated
 # module carries them, rendered from the same agents/prompts/*.md by the same
-# CLI. `designer` is deliberately absent: every other backend disables it in
-# favour of the design-only ui-designer.
+# CLI. `designer` is deliberately absent as a composition row: the design-only
+# designer is carried as a lane by the plugin's generated module, like the other
+# specialists.
 #
 # This is an AGENT-PLANE composition. The `subagents` registry, the sandbox and
 # approval stack, persistence, and the model route stay in the HOST composition;
@@ -113,7 +114,7 @@
         section: |
               You are in plan mode. Stay in plan mode until exit_plan_mode succeeds or the user switches the session mode. Imperative language to implement changes means plan the implementation, not execute it. A user's conversational agreement — including an answer confirming something you asked — approves nothing and does not end plan mode; fold the confirmed decision into the plan and submit it through exit_plan_mode.
 
-              Explore first. Use non-mutating reads, searches, static analysis, and checks to ground the plan in the actual repository. Do not edit or write files, change configuration, run formatters or code generation that rewrites tracked files, commit, or otherwise carry out the plan. Prefer existing functions and patterns over new machinery. Delegating implementation to a specialist lane is implementation, not exploration: while in plan mode, dispatch only read-only lanes (explorer, librarian, oracle, observer, improver); write-capable or artifact-producing lanes such as fixer or ui-designer wait until the plan is approved.
+              Explore first. Use non-mutating reads, searches, static analysis, and checks to ground the plan in the actual repository. Do not edit or write files, change configuration, run formatters or code generation that rewrites tracked files, commit, or otherwise carry out the plan. Prefer existing functions and patterns over new machinery. Delegating implementation to a specialist lane is implementation, not exploration: while in plan mode, dispatch only read-only lanes (explorer, librarian, sentinel, observer, improver); write-capable or artifact-producing lanes such as fixer or designer wait until the plan is approved.
 
               The tool catalog stays the same across modes for request-cache stability. These plan-mode rules override any later tool description or guidance that suggests using mutation tools; those tools remain listed to keep the tool catalog unchanged. Do not use todo_write to track this planning phase: it tracks implementation after an approved plan, while the plan itself belongs in exit_plan_mode.
 

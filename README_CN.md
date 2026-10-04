@@ -12,7 +12,7 @@ npx my-workbench
 
 `my-workbench` 将一套精心整理的多智能体配置复制到当前项目：
 
-- **`.opencode/`** — OpenCode 核心配置与原生 `.opencode/agents/` 子智能体：八个专职智能体 — `orchestrator`、`explorer`、`librarian`、`oracle`、`ui-designer`、`fixer`、`observer`、`improver`。在此之上可用独立的 `--omos` 目标启用 [oh-my-opencode-slim](https://github.com/alvinunreal/oh-my-opencode-slim) 插件方案（简称 **omos**）：多模型议会预设与提示词覆盖。
+- **`.opencode/`** — OpenCode 核心配置与原生 `.opencode/agents/` 子智能体：八个专职智能体 — `orchestrator`、`explorer`、`librarian`、`sentinel`、`designer`、`fixer`、`observer`、`improver`。在此之上可用独立的 `--omos` 目标启用 [oh-my-opencode-slim](https://github.com/alvinunreal/oh-my-opencode-slim) 插件方案（简称 **omos**）：多模型议会预设与提示词覆盖。
 - **`.claude/`** — 同一批专家智能体的 Claude Code 原生子智能体形态（`.claude/agents/*.md`）。与 omos 无关：所有目标中安装内容完全一致。
 - **`~/.zcode/`** — 可选的 ZCode 支持（`--zcode`）：用户级全局指令，外加各专家子智能体作为 ZCode 用户级 agents（`~/.zcode/agents/*.md`）。不在项目内写入任何内容。
 - **`~/.dsh/`** — 可选的 DeepSeek Harness 支持（`--dsh`）：在 `<DSH_HOME>/.agent-presets/my-workbench/` 安装一个 agent preset — orchestrator 提示词作为该 preset 的 persona，外加拥有七个具名专家工具与「MyWorkbench 赛道模型」设置页的打包 **lane 插件**。工具在 preset 作用域内；设置页需要一行惰性 profile 行，那是 profile 层的全部足迹。不在项目内写入任何内容。
@@ -131,7 +131,7 @@ DSH 发现浏览器（client）插件半的方式是扫描 **profile loader 自�
 
 **委派与按赛道路由**
 
-- 委派是原生机制。模型调用 `subagent_explorer`、`subagent_librarian`、`subagent_oracle`、`subagent_ui_designer`、`subagent_fixer`、`subagent_observer`、`subagent_improver`，而不是在 Task 工具里填写子智能体类型。赛道默认在后台运行并返回可续用的子 agent id，用 `send_message` 继续它 —— 这正是 orchestrator 提示词中所说的会话句柄。
+- 委派是原生机制。模型调用 `subagent_explorer`、`subagent_librarian`、`subagent_sentinel`、`subagent_designer`、`subagent_fixer`、`subagent_observer`、`subagent_improver`，而不是在 Task 工具里填写子智能体类型。赛道默认在后台运行并返回可续用的子 agent id，用 `send_message` 继续它 —— 这正是 orchestrator 提示词中所说的会话句柄。
 - 每个工具携带该专家的提示词（由 `agents/prompts/*.md` 渲染），并按其提示词的约束收紧子 agent 的工具：只读赛道失去 `write`/`edit`，`observer` 与 `improver` 还失去 shell，所有赛道都失去委派工具，因此赛道无法再派生子赛道。
 - **按赛道固定模型与推理等级。** 打开 DSH Web GUI 的设置页 **MyWorkbench 赛道模型**：每条赛道一行，左侧选模型、右侧选思考级别，另有 应用 / 全部改回继承 / 刷新模型目录。写入落在插件自己的设置命名空间并持久化到 `<DSH_HOME>/settings.yaml`，重启 DSH 后依然有效。全新安装由作为命名空间 `base` 层的推荐映射初始化；把某条赛道留作「继承会话模型」即可沿用当前会话的路由。
 - 仅按需启用（`--dsh` 或 `dsh`）— 默认目标仍是 `.opencode/` + `.claude/`。要求已存在 DSH home，不下载任何东西，已存在的文件除非 `--force` 否则跳过。新开一个 DSH 会话即可选用该 preset。
