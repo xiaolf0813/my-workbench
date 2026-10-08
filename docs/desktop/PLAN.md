@@ -12,7 +12,7 @@
 | 1 | **Rust native port** of the CLI engine (not a Node sidecar) | `workbench-core` is a pure Rust library; no Node runtime ships with the app |
 | 2 | **The DSH plugin stays authored JavaScript** | `lane-plugin/`, `lane-plugin-ui/` and `agent.cordis.yml` are rendered and copied, never rewritten; see §3 |
 | 3 | **Skills: GitHub public/private repos only** | No skills.sh / open-ecosystem index integration; sources are user-added `owner/repo` refs |
-| 4 | **Frontend: React + Vite + TypeScript** | `ui/` scaffold; visual design is commissioned from the ui-designer lane before page implementation |
+| 4 | **Frontend: React + Vite + TypeScript** | `ui/` scaffold; visual design is commissioned from the designer lane before page implementation |
 | 5 | **The Node CLI stays, unchanged** | Same content source, same behaviour, its JS-executing assemble validators included |
 | 6 | **Tier 2 checks use the local Node only** | No Node-free engine ever (the former M3 item is cut). Missing Node → explicit "Tier 2 skipped" notice, never a block |
 | 7 | **GUI covers consumers AND custom-source maintainers** | Health check incl. Tier 2 and custom-source pre-install validation are GUI features; the CLI remains the authoritative source-maintenance tool (repo-internal `assemble` regeneration, release gate) |
@@ -100,7 +100,7 @@ Capabilities (least privilege): fs scopes = the target homes (`~/.claude`, `~/.c
 
 ### UI
 
-Three areas — Deploy / Skills / Settings — per the information architecture agreed in discussion. Visual design (layout, hierarchy, log-stream presentation) is commissioned from the ui-designer lane before implementation; fixer implements from that mockup. The design half precedes each milestone's page work.
+Three areas — Deploy / Skills / Settings — per the information architecture agreed in discussion. Visual design (layout, hierarchy, log-stream presentation) is commissioned from the designer lane before implementation; fixer implements from that mockup. The design half precedes each milestone's page work.
 
 ## 5. Feature 2 — skill management (GitHub repos only)
 

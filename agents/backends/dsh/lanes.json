@@ -2,7 +2,7 @@
   { "key": "explorer", "tool": "subagent_explorer", "zh": "代码库导航", "denyWrites": true, "denyShell": false, "recommended": { "provider": "deepseek-official", "model": "deepseek-v4-flash", "reasoningEffort": "low" } },
   { "key": "librarian", "tool": "subagent_librarian", "zh": "外部文档研究", "denyWrites": true, "denyShell": false, "recommended": { "provider": "deepseek-official", "model": "deepseek-v4-flash", "reasoningEffort": "low" } },
   { "key": "oracle", "tool": "subagent_oracle", "zh": "架构评审", "denyWrites": true, "denyShell": false, "recommended": { "provider": "deepseek-official", "model": "deepseek-v4-pro", "reasoningEffort": "max" } },
-  { "key": "ui-designer", "tool": "subagent_ui_designer", "zh": "UI 设计", "denyWrites": false, "denyShell": false, "recommended": { "provider": "deepseek-official", "model": "deepseek-v4-pro", "reasoningEffort": "high" } },
+  { "key": "designer", "tool": "subagent_designer", "zh": "UI 设计", "denyWrites": false, "denyShell": false, "recommended": { "provider": "deepseek-official", "model": "deepseek-v4-pro", "reasoningEffort": "high" } },
   { "key": "fixer", "tool": "subagent_fixer", "zh": "实现", "denyWrites": false, "denyShell": false, "recommended": { "provider": "deepseek-official", "model": "deepseek-v4-pro", "reasoningEffort": "high" } },
   { "key": "observer", "tool": "subagent_observer", "zh": "视觉分析", "denyWrites": true, "denyShell": true, "recommended": { "provider": "deepseek-official", "model": "deepseek-v4-flash-vision-exp", "reasoningEffort": "low" } },
   { "key": "improver", "tool": "subagent_improver", "zh": "失败复盘", "denyWrites": true, "denyShell": true, "recommended": { "provider": "deepseek-official", "model": "deepseek-v4-pro", "reasoningEffort": "high" } }

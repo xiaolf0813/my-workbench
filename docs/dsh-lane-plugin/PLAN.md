@@ -308,14 +308,14 @@ Reproduce the deny lists exactly from `agents/backends/dsh/agent.cordis.yml:192,
 
 ```js
 const LANE_TOOLS = ['subagent_explorer','subagent_librarian','subagent_oracle',
-                    'subagent_ui_designer','subagent_fixer','subagent_observer','subagent_improver']
+                    'subagent_designer','subagent_fixer','subagent_observer','subagent_improver']
 const SHELL = process.platform === 'win32' ? 'pwsh' : 'bash'   // evaluated in-process
 
 const TOOL_FILTER = {
   explorer:      { deny: ['write','edit', ...LANE_TOOLS.filter(n => n !== 'subagent_explorer')] },
   librarian:     { deny: ['write','edit', ...LANE_TOOLS.filter(n => n !== 'subagent_librarian')] },
   oracle:        { deny: ['write','edit', ...LANE_TOOLS.filter(n => n !== 'subagent_oracle')] },
-  'ui-designer': { deny: LANE_TOOLS.filter(n => n !== 'subagent_ui_designer') },
+  'designer': { deny: LANE_TOOLS.filter(n => n !== 'subagent_designer') },
   fixer:         { deny: LANE_TOOLS.filter(n => n !== 'subagent_fixer') },
   observer:      { deny: ['write','edit', SHELL, ...LANE_TOOLS.filter(n => n !== 'subagent_observer')] },
   improver:      { deny: ['write','edit', SHELL, ...LANE_TOOLS.filter(n => n !== 'subagent_improver')] }
