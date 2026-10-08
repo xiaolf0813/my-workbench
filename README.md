@@ -13,7 +13,7 @@ npx my-workbench
 - **`.opencode/`** — OpenCode core config and native `.opencode/agents/` subagents: eight specialized agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `fixer`, `observer`, `improver`. Add the separate `--omos` target on top for the [oh-my-opencode-slim](https://github.com/alvinunreal/oh-my-opencode-slim) plugin scheme (short name: **omos**): multi-model council presets and prompt overrides.
 - **`.claude/`** — the same specialists as native Claude Code subagents (`.claude/agents/*.md`). omos-agnostic: installed identically in every target.
 - **`~/.zcode/`** — opt-in ZCode support (`--zcode`): user-level global instructions plus the specialist subagents as ZCode user agents (`~/.zcode/agents/*.md`). Nothing is written inside the project.
-- **`~/.dsh/`** — opt-in DeepSeek Harness support (`--dsh`): one agent preset under `<DSH_HOME>/.agent-presets/my-workbench/` — the orchestrator prompt as the preset persona, plus a packaged **lane plugin** that owns the seven named specialist tools and a settings page for pinning each lane's model and reasoning effort. The tools are preset-scoped; the settings page needs one inert profile row, the entire profile-level footprint. Nothing is written inside the project.
+- **`~/.dsh/`** — opt-in DeepSeek Harness support (`--dsh`): one agent preset under `<DSH_HOME>/.agent-presets/my-workbench/` — the orchestrator prompt as the preset persona, plus a packaged **lane plugin** that owns the seven named specialist tools and a settings page for pinning each lane's model and reasoning effort. The tools are preset-scoped; the settings page needs one inert row in every DSH profile (`web` for `dsh web`, `desktop` for DSH Desktop), the entire profile-level footprint. Nothing is written inside the project.
 - **OpenBitFun** — opt-in OpenBitFun support (`--openbitfun`): the eight agents installed into the `agents/` directory of OpenBitFun's per-OS user config. Always user-level; nothing is written inside the project.
 
 ## OpenCode targets: native or omos
@@ -37,6 +37,7 @@ npx my-workbench --force            # overwrite files that already exist
 npx my-workbench --dry-run          # preview without writing
 npx my-workbench --zcode            # ZCode user-level setup only (~/.zcode)
 npx my-workbench --dsh              # DSH agent preset only (~/.dsh)
+npx my-workbench --dsh --dsh-profile desktop  # DSH preset + the desktop profile's page row only
 npx my-workbench --openbitfun       # OpenBitFun user-level agents only
 npx my-workbench assemble [--check] # in this repo: regenerate .claude/agents/ and .opencode/
 ```
@@ -106,10 +107,12 @@ lane-plugin-ui/                     # profile row: file:///…/lane-plugin-ui/sr
 - The host row's `name` is **relative** (`./lane-plugin/src/index.js`): a preset row's bare package name resolves from the host composition's base, not from the preset directory, so a package shipped alongside the composition would not be found.
 - The host half's two deployment imports (`@deepseek-ai/dsh-tools`, `@deepseek-ai/schemastery`) are baked into its installed `src/index.js` as absolute `file:` URLs **at install time**, resolved from your DSH home. That is why no dependency command is ever needed.
 - The plugin must be named by this preset **only**: it registers a settings namespace, and DSH refuses a duplicate registration, so a second preset mounting the same row would fail loudly.
+- **Both installed manifests, and the page's own header, name the release that produced them.** DSH reports each active plugin package to the model provider as `{name, version}` read from its nearest manifest, so `package.json`'s `version` is rendered from the CLI's own version at install time rather than authored: `my-workbench@0.14.0` installs `my-workbench-lanes@0.14.0`. The browser half has no manifest field the shell reads — the boot-graph entry accepts only `id/url/rev/inject/external/immediately` — so its version is written into the file header instead. `assemble --check` fails if a source manifest's `version` drifts from the CLI's, which keeps the published pair in step at release time.
+- Those **three release-stamped files refresh on every run**, like the version stamp, because skip-if-exists would otherwise freeze the first release's version in place forever: the two `package.json` files and `lane-plugin-ui/lib/client.js`. Re-running needs no `--force` for them, and the refresh is byte-identical when nothing changed, so it is a no-op on disk. Every other file keeps the ordinary skip-unless-`--force` semantics.
 
-**Why one profile row (and what it costs)**
+**Why one profile row per profile (and what it costs)**
 
-DSH discovers browser ("client") plugin halves by scanning the **profile loader's own entries** — an agent preset is a separate loader tree mounted under a scope, so a row inside it is never scanned, its page is never served, and `clientModules.clientPath(...)` stays `undefined`. The host half mounts and its settings namespace registers; only the page needs the profile. So `--dsh` also maintains **one marked, managed block** in `<DSH_HOME>/profiles/<profile>/cordis.patch.yml` holding a single inert row:
+DSH discovers browser ("client") plugin halves by scanning the **profile loader's own entries** — an agent preset is a separate loader tree mounted under a scope, so a row inside it is never scanned, its page is never served, and `clientModules.clientPath(...)` stays `undefined`. The host half mounts and its settings namespace registers; only the page needs the profile. A DSH **process composes exactly one profile**, so the row is per profile, not per DSH home: `--dsh` maintains **one marked, managed block** in the `cordis.patch.yml` of **every profile it finds**, each holding a single inert row:
 
 ```yaml
 # >>> my-workbench lane settings page (managed block - regenerated by `my-workbench --dsh`) >>>
@@ -119,13 +122,23 @@ DSH discovers browser ("client") plugin halves by scanning the **profile loader'
 # <<< my-workbench lane settings page <<<
 ```
 
+| Profile | Who composes it | Maintained |
+| --- | --- | --- |
+| `web` | `dsh web` (the web GUI) | yes |
+| `desktop` | DSH Desktop (the desktop app) | yes |
+| anything else | any other DSH client or setup | yes — no name is assumed |
+| `node_modules` | nobody: it is DSH's shared dependency root | no, never |
+
+No profile **name** is assumed, because none of them is fixed: DSH Desktop composes a profile it names itself (`desktop` on the machine this was written for), and a machine can hold profiles this CLI has never heard of. The rule is structural instead — a profile is any directory under `<DSH_HOME>/profiles/` that carries `cordis.yml` (the root entry list every profile has) or `cordis.patch.yml` (the user patch layer this CLI writes) — so the desktop app is covered by the same rule that covers the web GUI. Use `--dsh-profile <name>` to maintain exactly one profile instead.
+
 - The block is replaced **in place** on every run; your own rows and comments are never touched or reordered. `--dry-run` writes nothing.
 - The row is inert: `lane-plugin-ui` declares **no dependencies at all**, registers no tool, no prompt section and no service. No bundle layer changes and nothing is installed into any `node_modules`.
 - The page is registered **synchronously** from `apply()` and decides inside the component what to show: live controls while the lane host half's `my-workbench-lanes` namespace is registered, an inert placeholder otherwise. Registering after an `await` left the shell's ledger entry `active: false` and the settings panel blank, which is why the decision moved into the component.
 - A deployment that never mounts MyWorkbench therefore sees the nav entry with **no controls and no write path**. Once any MyWorkbench session has mounted the host half (the namespace is process-global), the same page is live from every session — it edits pins that only MyWorkbench sessions consume.
 - The component re-reads the namespace each time the section is opened, so the page needs **one page reload** to pick up a changed bundle, not to pick up a mounted host half.
 - **Changing the lane plugin's HOST half needs a DSH restart, not just a reinstall.** The preset row is imported once per process — Node's ESM cache, and the loader re-imports the SAME specifier when it re-mounts a stale composition — so `--dsh --force` alone leaves the running process on the old code. Worse, the stale mount's settings-namespace registration is never released (`ensureStanding` drops the mount without disposing its scope), so old code that registers unconditionally fails the next mount with `settings namespace "my-workbench-lanes" is already registered`. The shipped host half tolerates that duplicate and reads through the surviving registration; the tolerance takes effect after the next DSH restart. The settings page is a browser module and needs only the page reload.
-- If no single profile directory can be found, nothing is written to any profile and the exact row is printed for you to paste by hand.
+- When no directory under `<DSH_HOME>/profiles/` is a profile (none carries `cordis.yml` or `cordis.patch.yml`) nothing is written and the exact row is printed for you to paste — the CLI never guesses at a directory name.
+- **A live DSH is reported before anything is written.** DSH refuses profile changes while its desktop app is running, and a running process keeps the composition it booted with, so an install against a live DSH lands on disk without taking effect. The CLI reads the process table first and says so (naming the process it matched); it does not block, because a preset-directory refresh is still worth doing while DSH runs. On a platform where the process table cannot be read, the same warning is printed — a missed warning costs a confusing no-op, a false one costs a sentence.
 
 **Delegation and per-lane routing**
 
@@ -138,12 +151,16 @@ DSH discovers browser ("client") plugin halves by scanning the **profile loader'
 
 ```bash
 npx my-workbench --dsh --force        # (re)write ~/.dsh/.agent-presets/my-workbench/
-                                      # + the one managed row in ~/.dsh/profiles/web/cordis.patch.yml
+                                      # + the managed row in every profile's cordis.patch.yml:
+                                      #   ~/.dsh/profiles/web/       (dsh web)
+                                      #   ~/.dsh/profiles/desktop/   (DSH Desktop)
+npx my-workbench --dsh --dsh-profile desktop --force
+                                      # the desktop profile's row only
 ```
 
-Order matters: install → **start a new DSH session** on the MyWorkbench preset (that mounts the lane host half) → **reload the web page** (that runs the page's gate) → check `settings → MyWorkbench 赛道模型` shows seven lanes. Also confirm the seven `subagent_*` tools are listed and that a pinned lane's child session header carries the pinned provider/model/effort.
+Order matters: install → **start a new DSH session** on the MyWorkbench preset (that mounts the lane host half) → **reload the web page** (that runs the page's gate) → check `settings → MyWorkbench 赛道模型` shows seven lanes. In DSH Desktop the same page appears after a restart of the app; **close DSH and DSH Desktop while installing** — DSH refuses profile changes while the desktop app is running, and the CLI warns when it sees a live process. Also confirm the seven `subagent_*` tools are listed and that a pinned lane's child session header carries the pinned provider/model/effort.
 
-To roll back: remove the managed block from the profile's `cordis.patch.yml` **and** delete `~/.dsh/.agent-presets/my-workbench` (`rm -rf`). `npx my-workbench --dsh --force` restores both. What remains after a rollback is at most an inert `my-workbench-lanes:` section in `~/.dsh/settings.yaml`.
+To roll back: remove the managed block from each profile's `cordis.patch.yml` **and** delete `~/.dsh/.agent-presets/my-workbench` (`rm -rf`). `npx my-workbench --dsh --force` restores both. What remains after a rollback is at most an inert `my-workbench-lanes:` section in `~/.dsh/settings.yaml`.
 
 ## Single source, assembled output
 

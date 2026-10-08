@@ -19,9 +19,15 @@ The lane host half therefore mounts correctly and its settings namespace is regi
 | Where | What |
 | --- | --- |
 | `<DSH_HOME>/.agent-presets/my-workbench/lane-plugin-ui/` | this package, copied by `my-workbench --dsh` |
-| `<DSH_HOME>/profiles/<profile>/cordis.patch.yml` | ONE marked, managed block containing one `insert:` row (`id: my-workbench-lanes-ui`, `name: file:///…/lane-plugin-ui/src/index.js`) |
+| `<DSH_HOME>/profiles/<profile>/cordis.patch.yml` | ONE marked, managed block per profile, each containing one `insert:` row (`id: my-workbench-lanes-ui`, `name: file:///…/lane-plugin-ui/src/index.js`) |
+
+A profile is a separate composition per DSH process, so the row is per profile and not per DSH home: `my-workbench --dsh` writes it into **every** profile it finds under `<DSH_HOME>/profiles/` — `web` for `dsh web`, `desktop` for DSH Desktop — using the structure rather than a name list (a profile is a directory carrying `cordis.yml` or `cordis.patch.yml`; `node_modules` there is DSH's shared dependency root and never a profile), and into the single profile named by `--dsh-profile <name>`. With no profile directory to write to, the row is printed instead. Installing while DSH runs is reported first: DSH refuses profile changes while its desktop app is up, and a live process keeps the composition it booted with.
 
 Nothing else: no tools, no prompt sections, no services, no packages installed into any `node_modules`, no dependencies at all (`package.json` declares none).
+
+## Identity
+
+One name, three places — the package name, the browser module id the bundle registers under, and the id its `settings.section` occupant carries — all `my-workbench-lanes-ui`, so one nav entry names one package. The occupant id used to be the *host* half's settings namespace (`my-workbench-lanes`), which pointed a reader at the wrong package. The version in `package.json` is rendered from the CLI's own version at install time, and the same version is written into this file's header, because a client package has no manifest field the shell reads: `dsh-client-modules` accepts only `id/url/rev/inject/external/immediately` on a boot-graph entry.
 
 ## Registration
 
@@ -41,10 +47,11 @@ A class error boundary (`RenderGuard`) wraps the page, so a throw in its render 
 ```powershell
 # after `npx my-workbench --dsh --force` and a page refresh:
 #   settings → MyWorkbench 赛道模型 shows the specialist lanes
-Select-String -Path "$env:USERPROFILE\.dsh\profiles\web\cordis.patch.yml" -Pattern 'my-workbench-lanes-ui'
+Select-String -Path "$env:USERPROFILE\.dsh\profiles\web\cordis.patch.yml"     -Pattern 'my-workbench-lanes-ui'
+Select-String -Path "$env:USERPROFILE\.dsh\profiles\desktop\cordis.patch.yml" -Pattern 'my-workbench-lanes-ui'
 
-# rollback: remove the preset directory AND the marked block
+# rollback: remove the preset directory AND every marked block
 Remove-Item -Recurse -Force "$env:USERPROFILE\.dsh\.agent-presets\my-workbench"
 ```
 
-`my-workbench --dsh --force` restores the preset and the block.
+`my-workbench --dsh --force` restores the preset and each block. The desktop app composes the `desktop` profile, so a page that appears in the browser but not in DSH Desktop means that profile has no block — re-run the install (or `--dsh-profile desktop`) with the desktop app closed, since DSH refuses profile changes while it runs.

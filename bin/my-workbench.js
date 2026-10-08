@@ -77,9 +77,28 @@ const DSH_LANE_UI_SRC = join(PKG_ROOT, "agents", "backends", "dsh", "lane-plugin
 /** Directory the lane settings page occupies inside the installed preset. */
 const DSH_LANE_UI_DIR = "lane-plugin-ui";
 
+/**
+ * Package names of the two lane artifacts. They are the SINGLE authored source of
+ * these strings: the same name is the browser module id the page registers under,
+ * the id its `settings.section` occupant carries, and the name DSH's plugin
+ * inventory reports, so a rename that touched only one of them would silently
+ * detach the page from its package (the module table keys bundles by package name).
+ */
+const LANE_HOST_PACKAGE = "my-workbench-lanes";
+const LANE_UI_PACKAGE = "my-workbench-lanes-ui";
+
 /** Profile filenames the DSH target reads or maintains. */
 const PROFILE_ROOT_FILENAME = "cordis.yml";
 const PROFILE_PATCH_FILENAME = "cordis.patch.yml";
+
+/** Marks an initialized DSH profile even before its loader files exist. */
+const PROFILE_MANIFEST_FILENAME = "package.json";
+
+/**
+ * The one entry under `<DSH_HOME>/profiles/` that is NOT a profile: DSH's own
+ * shared dependency root, a farm of links into the harness install.
+ */
+const PROFILE_LINK_DIR = "node_modules";
 
 /**
  * Comment fence around the ONE profile row this CLI owns. Everything between the
@@ -186,8 +205,13 @@ DSH target (opt-in only; user-level, writes to your DSH home)
                           my-workbench/ (orchestrator + the lane plugin that
                           owns the ${DSH_LANE_KEYS.length} named specialist tools + their
                           model/reasoning-effort settings page; also writes ONE
-                          managed inert row into your DSH profile patch layer so
-                          the page can load; takes effect in new DSH sessions)
+                          managed inert row into EVERY DSH profile's patch layer
+                          so the page loads where you look for it — the 'web'
+                          profile of "dsh web" and the 'desktop' profile of
+                          DSH Desktop alike — and takes effect in new DSH
+                          sessions)
+  --dsh-profile <name>    with --dsh: maintain the settings-page row in this
+                          profile only, instead of every profile found
 
 OpenBitFun target (opt-in only; user-level, writes to your OpenBitFun config)
   --openbitfun            install the eight agent files into
@@ -209,7 +233,10 @@ Options
                           "npx --yes my-workbench@latest [<targets>] --force"
                           — deployed files are overwritten, and npm must be
                           on PATH; exits 1 on a registry error, no stamps
-                          found, or a failed redeploy
+                          found, or a failed redeploy. The redeploy repeats
+                          the target selection, not option values: a
+                          --dsh-profile choice is not carried over (the
+                          default, every profile found, is used instead)
   -h, --help              show this help
 
 Notes
@@ -248,20 +275,35 @@ Notes
   module) and the read-only tool restriction the old preset rows carried, and
   each reads its provider/model/reasoning-effort pin from the plugin's own
   settings namespace, editable at settings → MyWorkbench 赛道模型.
-  The preset mounts the tools; the SETTINGS PAGE needs one profile row, because
-  DSH discovers browser halves only by scanning the profile loader's own
-  entries — a row inside an agent preset is never scanned. So --dsh also
-  maintains ONE marked, managed block in
-  <DSH_HOME>/profiles/<profile>/cordis.patch.yml holding a single inert row
-  (id my-workbench-lanes-ui). It is replaced in place on every run, never
-  reorders or touches your own rows, and is regenerated unconditionally (it is
-  this CLI's block, not your file). That row is the whole profile-level
-  footprint: no tools, no services, no packages installed into any node_modules,
-  and no other preset (standard/ptc/minimal/cordis) gains a tool. The page
-  itself registers only when the lane host half has mounted, so a deployment
-  that never mounts MyWorkbench shows no extra settings entry.
+  The preset mounts the tools; the SETTINGS PAGE needs one profile row per
+  PROFILE, because DSH discovers browser halves only by scanning the profile
+  loader's own entries — a row inside an agent preset is never scanned, and a
+  DSH process composes exactly one profile. So --dsh also maintains ONE marked,
+  managed block in <DSH_HOME>/profiles/<profile>/cordis.patch.yml of EVERY
+  profile it finds, which is where the page has to be for both clients that
+  read them: 'web' for "dsh web" and 'desktop' for DSH Desktop. No profile name
+  is assumed — a profile is any directory under <DSH_HOME>/profiles/ that
+  carries cordis.yml or cordis.patch.yml (the node_modules entry there is DSH's
+  shared dependency root, not a profile) — so a desktop app that picks its own
+  profile name, or a machine with profiles this CLI has never seen, is covered
+  by the same rule. Name one profile with --dsh-profile <name> to keep the write
+  to that profile alone. Each block holds a single inert row (id
+  my-workbench-lanes-ui). It is replaced in place on every run, never reorders
+  or touches your own rows, and is regenerated unconditionally (it is this
+  CLI's block, not your file). Those rows are the whole profile-level footprint:
+  no tools, no services, no packages installed into any node_modules, and no
+  other preset (standard/ptc/minimal/cordis) gains a tool. The page itself
+  registers only when the lane host half has mounted, so a deployment that
+  never mounts MyWorkbench shows no extra settings entry.
   Skips existing files unless --force, downloads nothing, and takes effect in
-  new DSH sessions only.
+  new DSH sessions only. Two files are the exception to the skip rule: both
+  installed lane manifests and the settings page's browser half are rendered
+  from this CLI's own content and carry its version, so they refresh on every
+  run (byte-identically when nothing changed) — that is what lets the deployed
+  artifacts name the release that produced them, which DSH reports for each
+  active plugin package. A live DSH is reported before anything is written: the
+  desktop app makes DSH refuse profile changes, and a running process keeps the
+  composition it booted with.
 
   OpenBitFun target (--openbitfun or "openbitfun") is never part of the
   default set. It installs the eight agent files into the agents/ directory
@@ -285,6 +327,8 @@ Examples
   npx my-workbench --user             # user-level: ~/.config/opencode/ + ~/.claude/
   npx my-workbench --zcode            # ZCode user-level setup only (~/.zcode)
   npx my-workbench --dsh              # DSH agent preset only (~/.dsh)
+  npx my-workbench --dsh --dsh-profile desktop
+                                      # DSH preset + the desktop profile's page row only
   npx my-workbench --openbitfun       # OpenBitFun user-level agents only
   npx my-workbench --upgrade          # compare deployed versions, auto-upgrade when outdated
 `;
@@ -305,8 +349,10 @@ function parseArgs(argv) {
   let dryRun = false;
   let user = false;
   let upgrade = false;
+  let dshProfile;
 
-  for (const arg of argv) {
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
     switch (arg) {
       case "--opencode":
       case "opencode":
@@ -347,9 +393,29 @@ function parseArgs(argv) {
       case "-h":
       case "--help":
         return { help: true };
-      default:
-        throw new Error(`unknown argument: ${arg}\n\n${HELP}`);
+      default: {
+        // The profile name is the one option that takes a value; it is read here
+        // so the loop's own `default:` stays the unknown-argument error.
+        if (arg !== "--dsh-profile" && !arg.startsWith("--dsh-profile=")) {
+          throw new Error(`unknown argument: ${arg}\n\n${HELP}`);
+        }
+        const inline = arg.split("=", 2)[1];
+        const value = inline === undefined ? argv[i + 1] : inline;
+        // An empty value is a missing name, whether it was written as
+        // `--dsh-profile` or as `--dsh-profile=`.
+        if (value === undefined || value === "") throw new Error(`--dsh-profile needs a profile name\n\n${HELP}`);
+        // A value that looks like another option is a mistake, not a name: a
+        // profile literally called "--force" cannot exist on disk.
+        if (/^-/.test(value)) throw new Error(`--dsh-profile needs a profile name, got '${value}'\n\n${HELP}`);
+        if (inline === undefined) i++;
+        dshProfile = value;
+        break;
+      }
     }
+  }
+
+  if (dshProfile !== undefined && !targets.has("dsh")) {
+    throw new Error(`--dsh-profile only applies to the DSH target; add --dsh\n\n${HELP}`);
   }
 
   if (targets.has("opencode") && targets.has("omos")) {
@@ -368,7 +434,7 @@ function parseArgs(argv) {
     targets.add("opencode");
     targets.add("claude");
   }
-  return { targets, explicitTargets, force, dryRun, user, upgrade };
+  return { targets, explicitTargets, force, dryRun, user, upgrade, dshProfile };
 }
 
 function walk(root, dir, onFile) {
@@ -407,12 +473,17 @@ function copyOne(src, dest, { force, dryRun, displayRoot = process.cwd(), displa
  * displayRoot/displayPrefix only control how the destination is displayed
  * (the user-level ZCode target passes the home directory and "~/"); defaults
  * keep the project-relative display for all existing callers.
+ *
+ * `regenerate` marks content the CLI OWNS ENTIRELY and that names the running
+ * release: it is written on every run, like the version stamp, because skip-if-
+ * exists would freeze the first release that ever deployed it. Only files with no
+ * user-editable content may ask for it.
  */
-function writeAgent(dest, content, { force, dryRun, displayRoot = process.cwd(), displayPrefix = "" }, counts) {
+function writeAgent(dest, content, { force, dryRun, regenerate = false, displayRoot = process.cwd(), displayPrefix = "" }, counts) {
   const rel = displayPrefix + relative(displayRoot, dest);
   const exists = existsSync(dest);
 
-  if (exists && !force) {
+  if (exists && !force && !regenerate) {
     counts.skipped++;
     console.log(`  skip       ${rel}  (exists, use --force to overwrite)`);
     return;
@@ -422,7 +493,8 @@ function writeAgent(dest, content, { force, dryRun, displayRoot = process.cwd(),
     writeFileSync(dest, content);
   }
   counts[exists ? "overwritten" : "created"]++;
-  console.log(`  ${exists ? "overwrite" : "create   "}  ${rel}${dryRun ? "  (dry-run)" : ""}`);
+  const why = dryRun ? "  (dry-run)" : regenerate && exists && !force ? "  (refreshed: rendered from this release)" : "";
+  console.log(`  ${exists ? "overwrite" : "create   "}  ${rel}${why}`);
 }
 
 /**
@@ -707,6 +779,74 @@ function dshHome() {
 }
 
 /**
+ * Command lines mentioning a running DSH, or undefined when the question could
+ * not be answered on this platform.
+ *
+ * DSH refuses to change a profile while its desktop app is running, and this CLI
+ * writes profile rows — so an install against a live DSH is the one case where a
+ * successful-looking run does not take effect (the row lands, the running process
+ * keeps the composition it booted with). Reading the process table is the only
+ * way to know before writing.
+ *
+ * `DSH_PROFILE_PROBE` overrides the platform command, which is how the test suite
+ * exercises every answer without depending on what is live on the machine: an
+ * empty value means "nothing is running", `@platform@` forces the real read, and
+ * anything else is run as the probe. The variable is executed by the user's own
+ * shell, so it is a debugging hook, not an input: nothing this CLI installs or
+ * reads ever sets it.
+ *
+ * @returns {string[] | undefined} matching command lines, or undefined when unknown.
+ */
+function dshRunningProbe() {
+  const override = process.env.DSH_PROFILE_PROBE;
+  if (override === "") return [];
+  if (override !== undefined && override !== "@platform@") {
+    const result = spawnSync(override, { encoding: "utf8", shell: true, windowsHide: true });
+    // A probe that failed is not proof that nothing is running: a shell reports a
+    // missing command as a non-zero status with no output, which would otherwise
+    // read as a clean process table. An empty successful probe is the clean answer.
+    if (result.error !== undefined || result.status !== 0) return undefined;
+    return typeof result.stdout === "string" ? result.stdout.split("\n") : [];
+  }  if (process.platform === "win32") {
+    const result = spawnSync("tasklist", ["/fo", "csv", "/nh"], { encoding: "utf8", windowsHide: true });
+    if (result.error !== undefined || typeof result.stdout !== "string") return undefined;
+    return result.stdout.split("\n");
+  }
+  if (process.platform === "linux" || process.platform === "darwin") {
+    const result = spawnSync("ps", ["-Ao", "args"], { encoding: "utf8" });
+    if (result.error !== undefined || typeof result.stdout !== "string") return undefined;
+    return result.stdout.split("\n");
+  }
+  return undefined;
+}
+
+/**
+ * What, if anything, appears to be running DSH right now.
+ *
+ * The image-name patterns are shared across platforms: the desktop app is
+ * `DeepSeek Harness` with its host process running `@deepseek-ai/dsh-desktop-host`,
+ * and a CLI-composed DSH is a `dsh` launcher running its own entry points. The
+ * web-server case is deliberately included — it composes a profile too.
+ *
+ * @returns {{ running: boolean, label: string }} the verdict, and what it matched.
+ */
+function dshRunning() {
+  const wanted = ["@deepseek-ai/dsh-desktop-host", "@deepseek-ai/dsh-web-app", "@deepseek-ai/dsh/lib", "dsh/lib/bin.js"];
+  const imageNames = ["deepseek harness", "dsh", "dsh.exe", "dsh.cmd"];
+  const lines = dshRunningProbe();
+  // An unanswerable probe warns like a running one: a missed warning costs the
+  // user a confusing no-op, a false warning costs one sentence.
+  if (lines === undefined) return { running: true, label: "whether DSH is running could not be determined on this platform" };
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    if (wanted.some((needle) => lower.includes(needle)) || imageNames.some((name) => lower.includes(name))) {
+      return { running: true, label: line.trim().slice(0, 120) || "a DSH process" };
+    }
+  }
+  return { running: false, label: "" };
+}
+
+/**
  * OpenBitFun's per-OS user config directory, the root its own agent files live
  * under (as <configDir>/agents/): ~/.config/openbitfun (XDG_CONFIG_HOME
  * respected) on Linux, ~/Library/Application Support/openbitfun on macOS,
@@ -815,6 +955,60 @@ function laneManifest() {
   return JSON.parse(readFileSync(join(DSH_LANE_PLUGIN_SRC, "host-package", "package.json"), "utf8"));
 }
 
+/** The lane settings page's manifest (single source: lane-plugin-ui/package.json). */
+function laneUiManifest() {
+  return JSON.parse(readFileSync(join(DSH_LANE_UI_SRC, "package.json"), "utf8"));
+}
+
+/**
+ * Render one lane package manifest for installation, stamped with the running
+ * CLI version.
+ *
+ * Why the version is rendered rather than authored: DSH's `dsh_plugin_packages`
+ * inventory reports each active plugin package as `{name, version}` read from its
+ * nearest manifest (`dsh-plugin-package-inventory-deepseek`, "Collection"), and
+ * the desktop release note asks that the deployed artifact be identifiable. A
+ * hand-written literal in an installed file cannot satisfy that — no gate can
+ * tell a stale literal from a current one — so the version names the my-workbench
+ * release that produced the tree, exactly as the deployment stamp does. The
+ * package name is checked instead, because it is the identity the browser module
+ * table keys bundles by and must not drift from the source.
+ *
+ * The render is byte-stable: key order is preserved, so re-running the install
+ * produces the same file and `--force` is never needed to keep it current.
+ *
+ * @param {object} source - the authored manifest.
+ * @param {string} expectedName - the package name the source must carry.
+ * @param {string} label - the source path to name in an error.
+ * @returns {string} the installed manifest text, newline-terminated.
+ */
+function renderLaneManifest(source, expectedName, label) {
+  const problems = laneManifestProblems(source, expectedName, label);
+  if (problems.length > 0) throw new Error(problems.join("; "));
+  return `${JSON.stringify({ ...source, version: PKG_VERSION }, null, 2)}\n`;
+}
+
+/**
+ * The manifest problems that make an install or a check fail: a name that drifted
+ * from the authored constant, or an authored `version` that a hand-edit slipped
+ * back in (the CLI must be the only writer of that field).
+ *
+ * @param {object} manifest - the authored manifest.
+ * @param {string} expectedName - the package name it must carry.
+ * @param {string} label - the source path to name in the message.
+ * @returns {string[]} human-readable problems; empty means valid.
+ */
+function laneManifestProblems(manifest, expectedName, label) {
+  const problems = [];
+  if (manifest.name !== expectedName) {
+    problems.push(`${label} is named ${JSON.stringify(manifest.name)}, but the CLI registers and mounts it as ${JSON.stringify(expectedName)}`);
+  }
+  if (manifest.version !== PKG_VERSION) {
+    problems.push(`${label} carries version ${JSON.stringify(manifest.version)}; that field is rendered from this CLI's own version at install time (${PKG_VERSION}), so the source copy is a placeholder`);
+  }
+  return problems;
+}
+
 /**
  * Structural validation of the lane plugin that needs neither a DSH home nor a
  * browser: the authored lane keys must refer to agents, and the host package's
@@ -829,6 +1023,7 @@ function lanePluginProblems() {
   const problems = [];
 
   const manifest = laneManifest();
+  for (const problem of laneManifestProblems(manifest, LANE_HOST_PACKAGE, "host-package/package.json")) problems.push(problem);
   const exportsField = manifest.exports ?? {};
   for (const [key, target] of Object.entries(exportsField)) {
     if (typeof target !== "string") continue;
@@ -849,31 +1044,57 @@ function lanePluginProblems() {
   return problems;
 }
 
-/** Render the browser page's display names from the same authored lane record. */
+/**
+ * Render the browser page: its display names from the authored lane record, and a
+ * provenance banner naming the release that produced the file.
+ *
+ * The banner is the only place the page's version can live. `dsh-client-modules`
+ * accepts exactly `id/url/rev/inject/external/immediately` on a boot-graph entry
+ * (lib/client.js:83-101), so a client package has no manifest field for a version
+ * and DSH's `dsh_plugin_packages` inventory — which reports Loader entries —
+ * cannot see this row either: it is mounted by a `file:` row whose nearest
+ * manifest is this package's own, but the served artifact is the bundle, not the
+ * entry. A reader asking "which my-workbench is this page from?" therefore has to
+ * find the answer in the file, so it is written there.
+ *
+ * @returns {string} the installed bundle text.
+ */
 function laneUiClientSource() {
   const template = readFileSync(join(DSH_LANE_UI_SRC, "lib", "client.js"), "utf8");
-  const marker = '"__MY_WORKBENCH_LANES__"';
-  if (template.indexOf(marker) < 0 || template.indexOf(marker) !== template.lastIndexOf(marker)) throw new Error("lane UI must contain exactly one roster marker");
-  return template.replace(marker, JSON.stringify(dshLanes().map(({ key, zh }) => ({ key, zh }))));
+  return fillRenderMarkers(template, "lane UI", {
+    '"__MY_WORKBENCH_LANES__"': JSON.stringify(dshLanes().map(({ key, zh }) => ({ key, zh }))),
+    __MY_WORKBENCH_VERSION__: PKG_VERSION,
+  });
 }
 
-/** The lane settings page's manifest (single source: lane-plugin-ui/package.json). */
-function laneUiManifest() {
-  return JSON.parse(readFileSync(join(DSH_LANE_UI_SRC, "package.json"), "utf8"));
+/**
+ * Replace each render marker exactly once. A missing or duplicated marker is an
+ * authoring error: the marker would otherwise ship verbatim into an installed
+ * file, where nothing on this side can see it.
+ *
+ * @param {string} template - the authored file text.
+ * @param {string} label - what to call the file in an error.
+ * @param {Record<string, string>} values - marker -> replacement text.
+ * @returns {string} the rendered text.
+ */
+function fillRenderMarkers(template, label, values) {
+  let rendered = template;
+  for (const [marker, value] of Object.entries(values)) {
+    const first = rendered.indexOf(marker);
+    if (first < 0) throw new Error(`${label} must contain the marker ${marker}`);
+    if (first !== rendered.lastIndexOf(marker)) throw new Error(`${label} must contain exactly one ${marker} marker`);
+    rendered = rendered.replace(marker, value);
+  }
+  return rendered;
 }
 
 /**
  * Structural validation of the lane settings page. This is the package that
- * reaches the browser, so the checks are the ones whose failure would only show
- * up in a running GUI: the declaration `dsh-client-modules` scans for, the
- * export it resolves, the classic-script registration seam, a module id that
- * matches the package name, and a `require` list inside the shell's seed table.
- *
- * @returns {string[]} human-readable problems; empty means valid.
  */
 function laneUiPluginProblems() {
   const problems = [];
   const manifest = laneUiManifest();
+  for (const problem of laneManifestProblems(manifest, LANE_UI_PACKAGE, "lane-plugin-ui/package.json")) problems.push(problem);
 
   // dsh-client-modules:648-655 reads exactly this pair, and throws on a
   // declaration whose "./client" export is missing.
@@ -908,11 +1129,24 @@ function laneUiPluginProblems() {
     problems.push("lane-plugin-ui/lib/client.js declares no factory, so the module table cannot materialize it");
   }
 
-  // The bundle registers under the name the module table keys it by.
-  const idMatch = /id:\s*['"]([^'"]+)['"]/.exec(bundle);
-  if (idMatch === null) problems.push("lane-plugin-ui/lib/client.js does not declare a module id");
-  else if (idMatch[1] !== manifest.name) {
-    problems.push(`lane-plugin-ui/lib/client.js registers id '${idMatch[1]}' but the package is named '${manifest.name}'`);
+  // The bundle registers under the name the module table keys it by, and its
+  // section occupant carries the same id so a nav entry names one package
+  // rather than two half-names.
+  const ids = [...bundle.matchAll(/\bid:\s*['"]([^'"]+)['"]/g)].map((match) => match[1]);
+  if (ids.length === 0) problems.push("lane-plugin-ui/lib/client.js does not declare a module id");
+  for (const id of ids) {
+    if (id !== manifest.name) {
+      problems.push(`lane-plugin-ui/lib/client.js declares id '${id}' but the package is named '${manifest.name}'`);
+    }
+  }
+
+  // The bundle names the release it came from, so an installed page can be
+  // identified after the fact; the marker itself must never ship.
+  if (!bundle.includes(`my-workbench ${PKG_VERSION}`)) {
+    problems.push(`lane-plugin-ui/lib/client.js does not carry the rendered 'my-workbench ${PKG_VERSION}' provenance banner`);
+  }
+  if (bundle.includes("__MY_WORKBENCH_VERSION__")) {
+    problems.push("lane-plugin-ui/lib/client.js left its version marker unrendered");
   }
 
   // Only the nine seed specifiers resolve in the browser module table.
@@ -961,35 +1195,79 @@ async function laneUiHostProblem(file) {
  * half plus the browser half; no dependencies, nothing in any node_modules.
  */
 function installLaneUiPlugin(presetRoot, display, opts, counts) {
-  copyOne(join(DSH_LANE_UI_SRC, "package.json"), join(presetRoot, DSH_LANE_UI_DIR, "package.json"), display, counts);
+  const always = { ...display, regenerate: true };
+  writeAgent(
+    join(presetRoot, DSH_LANE_UI_DIR, "package.json"),
+    renderLaneManifest(laneUiManifest(), LANE_UI_PACKAGE, "lane-plugin-ui/package.json"),
+    always,
+    counts,
+  );
   copyOne(join(DSH_LANE_UI_SRC, "src", "index.js"), join(presetRoot, DSH_LANE_UI_DIR, "src", "index.js"), display, counts);
-  writeAgent(join(presetRoot, DSH_LANE_UI_DIR, "lib", "client.js"), laneUiClientSource(), display, counts);
+  writeAgent(join(presetRoot, DSH_LANE_UI_DIR, "lib", "client.js"), laneUiClientSource(), always, counts);
+}
+
+/** True when the path is at or below the user's home directory (for "~/" display). */
+function insideHome(path) {
+  const rel = relative(homedir(), resolve(path));
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
 /**
- * The profile directory whose user patch layer this CLI maintains, or undefined.
+ * The profile directories this CLI maintains, in the order it reports them.
  *
- * `web` wins because that is the DSH web profile this feature exists for; a home
- * with exactly one profile uses it; anything else is left alone and reported.
+ * One DSH process composes exactly ONE profile, and `dsh-client-modules` scans
+ * only that profile's loader entries — so a settings-page row is per profile,
+ * not per DSH home. A DSH home commonly has several: `web` for `dsh web` and
+ * `desktop` for DSH Desktop on the machine this was written for. Maintaining
+ * only one of them left the other without the page, and no profile NAME is
+ * stable enough to hardcode — DSH Desktop picks its own, and a user may have
+ * profiles this CLI has never heard of. So every real profile is maintained,
+ * and an entry that is not a profile is reported rather than written to.
  *
- * @returns {{ name: string, dir: string } | undefined} the chosen profile, or undefined.
+ * A directory counts as a profile when it carries one of its loader files
+ * (`cordis.yml`, the root entry list every profile has; or `cordis.patch.yml`,
+ * the user patch layer this CLI writes). A bare directory that has neither is
+ * used only when it is the single candidate — the layout of a DSH home that
+ * has run once, under any name. `node_modules` is DSH's shared dependency
+ * root, never a profile.
+ *
+ * @param {string} home - the DSH home.
+ * @param {string} [only] - maintain exactly this profile instead of every profile found.
+ * @returns {{ name: string, dir: string, source: "profile" | "only" | "single" }[]} the profiles to maintain; empty when none applies.
  */
-function findProfileDir(home) {
+function findProfileDirs(home, only) {
   const profilesDir = join(home, "profiles");
-  if (!existsSync(profilesDir)) return undefined;
-  const web = join(profilesDir, "web");
-  if (existsSync(join(web, PROFILE_PATCH_FILENAME)) || existsSync(join(web, PROFILE_ROOT_FILENAME))) {
-    return { name: "web", dir: web };
-  }
-  const names = [];
+  if (!existsSync(profilesDir)) return [];
+
+  const all = [];
   for (const name of readdirSync(profilesDir).sort()) {
-    if (name === "node_modules") continue;
+    if (name === PROFILE_LINK_DIR) continue;
     const dir = join(profilesDir, name);
-    if (!statSync(dir).isDirectory()) continue;
-    if (existsSync(join(dir, PROFILE_PATCH_FILENAME)) || existsSync(join(dir, PROFILE_ROOT_FILENAME))) names.push(name);
+    try {
+      if (!statSync(dir).isDirectory()) continue;
+    } catch {
+      continue; // a broken link or an unreadable entry is not a profile
+    }
+    all.push(name);
   }
-  if (names.length === 1) return { name: names[0], dir: join(profilesDir, names[0]) };
-  return undefined;
+  const initialized = (name) =>
+    [PROFILE_ROOT_FILENAME, PROFILE_PATCH_FILENAME, PROFILE_MANIFEST_FILENAME].some((file) => existsSync(join(profilesDir, name, file)));
+
+  // An explicitly named profile is maintained whether or not it looks
+  // initialized: the user named it, so the only way to find out is to write.
+  if (only !== undefined) {
+    return all.includes(only) ? [{ name: only, dir: join(profilesDir, only), source: "only" }] : [];
+  }
+
+  const profiles = all
+    .filter(initialized)
+    .map((name) => ({ name, dir: join(profilesDir, name), source: "profile" }));
+  if (profiles.length > 0) return profiles;
+
+  // Nothing initialized: a DSH home with exactly one profile dir is that one
+  // profile, which is what a home that has run once looks like.
+  if (all.length === 1) return [{ name: all[0], dir: join(profilesDir, all[0]), source: "single" }];
+  return [];
 }
 
 /** The managed block text for one profile's patch layer. */
@@ -1072,13 +1350,22 @@ function writeLaneUiPatchRow(profileDir, rowName, opts) {
 /**
  * Install the lane plugin package inside the preset directory: the host module
  * with its {{dep:...}} placeholders resolved to the deployment's own packages,
- * and the generated prompt module. The settings page ships separately, as the
- * profile-layer `lane-plugin-ui` package. Nothing is installed at profile level
- * by this function and no dependency command runs.
+ * the manifest stamped with this release's version, and the generated prompt
+ * module. The settings page ships separately, as the profile-layer
+ * `lane-plugin-ui` package. Nothing is installed at profile level by this
+ * function and no dependency command runs.
  */
 function installLanePlugin(presetRoot, display, opts, counts, specifiers, usedSlots) {
   const src = DSH_LANE_PLUGIN_SRC;
-  copyOne(join(src, "host-package", "package.json"), join(presetRoot, DSH_LANE_PLUGIN_DIR, "package.json"), display, counts);
+  // The manifest names the running release, so it refreshes like the stamp: the
+  // version is what makes an installed preset identifiable, and skip-if-exists
+  // would leave the first release's version there forever.
+  writeAgent(
+    join(presetRoot, DSH_LANE_PLUGIN_DIR, "package.json"),
+    renderLaneManifest(laneManifest(), LANE_HOST_PACKAGE, "host-package/package.json"),
+    { ...display, regenerate: true },
+    counts,
+  );
   writeAgent(join(presetRoot, DSH_LANE_PLUGIN_DIR, "src", "index.js"), renderLaneHost(specifiers), display, counts);
   writeAgent(join(presetRoot, DSH_LANE_PLUGIN_DIR, "src", "roster.generated.js"), laneRosterSource(), display, counts);
   writeAgent(join(presetRoot, DSH_LANE_PLUGIN_DIR, "src", "prompts.generated.js"), renderLanePrompts(usedSlots), display, counts);
@@ -1149,15 +1436,34 @@ function applyOpenbitfun(opts, counts) {
   const configDir = openbitfunConfigDir();
   const display = { ...opts, displayRoot: homedir(), displayPrefix: "~/" };
   const usedSlots = new Set();
-  const insideHome = relative(homedir(), resolve(configDir));
-  const shown =
-    insideHome === "" || (!insideHome.startsWith("..") && !isAbsolute(insideHome))
-      ? `~/${join(insideHome, "agents").split(sep).join("/")}`
-      : join(configDir, "agents").split(sep).join("/");
+  const shown = insideHome(configDir)
+    ? `~/${join(relative(homedir(), resolve(configDir)), "agents").split(sep).join("/")}`
+    : join(configDir, "agents").split(sep).join("/");
   console.log(`\n${shown}/  (user-level: agents/*.md)`);
   assembleBackend("openbitfun", join(configDir, "agents"), display, counts, usedSlots);
   warnUnusedSlots("openbitfun", usedSlots);
   console.log(`  note       restart OpenBitFun to pick up changes`);
+}
+
+/**
+ * How a profile's managed block ended up is the same sentence every time, and
+ * the verb is the whole message: `create` (the patch layer did not exist),
+ * `append` (it existed as a plain list), `overwrite` (the block was replaced in
+ * place, which is the idempotent re-run), `dry-run`, or an explicit skip.
+ */
+const PATCH_LABELS = {
+  added: "create   ",
+  updated: "overwrite",
+  unchanged: "skip     ",
+  "written-dry": "dry-run  ",
+};
+
+/** Print the exact row block for a profile this CLI did not write into. */
+function printLaneUiRowFallback(rowName) {
+  console.log(`  note       add this row to that profile's ${PROFILE_PATCH_FILENAME} by hand to get the page:`);
+  console.log(`             - insert:`);
+  console.log(`                 - id: my-workbench-lanes-ui`);
+  console.log(`                   name: '${rowName}'`);
 }
 
 /**
@@ -1168,16 +1474,20 @@ function applyOpenbitfun(opts, counts) {
  * page). Opt-in via --dsh; never touches the project directory, never installs
  * anything into the DSH profile or its node_modules, no downloads. DSH reads a
  * preset when a session mounts it, so a new session picks the change up.
- * Destinations are displayed relative to the home directory ("~/") when the DSH
- * home sits inside it.
+ *
+ * The settings page needs one row per PROFILE, because a DSH process composes
+ * exactly one profile and scans only that profile's loader entries. `--dsh`
+ * therefore maintains the marked block in every profile it finds (`web` for
+ * `dsh web`, `desktop` for DSH Desktop, and any other profile present), or in
+ * the single profile named by `--dsh-profile`. Destinations are displayed
+ * relative to the home directory ("~/") when the DSH home sits inside it.
  */
 function applyDsh(opts, counts) {
   const home = dshHome();
   const presetRoot = join(home, ".agent-presets", DSH_PRESET_ID);
-  const outsideHome = relative(homedir(), resolve(home));
   // A relocated DSH home (DSH_HOME outside the user's home) is displayed as the
   // absolute path it is; the default layout displays relative to home.
-  const userLevel = outsideHome === "" || (!outsideHome.startsWith("..") && !isAbsolute(outsideHome));
+  const userLevel = insideHome(home);
   const display = userLevel ? { ...opts, displayRoot: homedir(), displayPrefix: "~/" } : opts;
   const shown = userLevel ? `~/${relative(homedir(), presetRoot).split(sep).join("/")}` : presetRoot;
   // Resolve the plugin's two deployment imports BEFORE the first write: a DSH
@@ -1185,6 +1495,15 @@ function applyDsh(opts, counts) {
   const specifiers = resolveLaneDependencies(home, DSH_LANE_PLUGIN_DEPS);
   const usedSlots = new Set();
   console.log(`\n${shown}/  (user-level: preset.yml, agent.cordis.yml, lane-plugin/, lane-plugin-ui/)`);
+  // Warn before the first write, not after: a profile row written while DSH runs
+  // lands on disk but cannot reach the composition the running process already
+  // booted, so the symptom is a page that never appears rather than an error.
+  const live = dshRunning();
+  if (live.running && !opts.dryRun) {
+    console.warn("  warn       DSH appears to be running; it refuses profile changes while it is up, and a running process keeps the composition it booted with");
+    console.warn(`             matched: ${live.label}`);
+    console.warn("             close DSH (and DSH Desktop) first, or reopen it after this run to pick the changes up");
+  }
   copyOne(join(PKG_ROOT, "agents", "backends", "dsh", "preset.yml"), join(presetRoot, "preset.yml"), display, counts);
   writeAgent(join(presetRoot, "agent.cordis.yml"), renderDshComposition(usedSlots), display, counts);
   console.log(`  ${DSH_LANE_PLUGIN_DIR}/  (preset-mounted: host half + ${DSH_LANE_KEYS.length} specialist prompts)`);
@@ -1195,38 +1514,43 @@ function applyDsh(opts, counts) {
 
   // The settings page is a CLIENT plugin, and dsh-client-modules only scans the
   // profile loader's own entries — a row inside an agent preset is never seen.
-  // One profile row is therefore the minimum footprint, and it is the whole of it.
+  // One row per profile is therefore the minimum footprint, and the whole of it.
   const rowName = pathToFileURL(join(presetRoot, DSH_LANE_UI_DIR, "src", "index.js")).href;
-  const profile = findProfileDir(home);
-  if (profile === undefined) {
-    console.log(`  skip       no single profile directory under ${join(home, "profiles")}; the settings page was NOT mounted`);
-    console.log(`  note       add this row to your profile's ${PROFILE_PATCH_FILENAME} by hand to get the page:`);
-    console.log(`             - insert:`);
-    console.log(`                 - id: my-workbench-lanes-ui`);
-    console.log(`                   name: '${rowName}'`);
+  const where = (dir) => (userLevel ? `~/${relative(homedir(), dir).split(sep).join("/")}` : dir);
+  const profiles = findProfileDirs(home, opts.dshProfile);
+
+  if (profiles.length === 0) {
+    const profilesDir = join(home, "profiles");
+    const named =
+      opts.dshProfile === undefined ? "no profile directory under" : `--dsh-profile ${opts.dshProfile} names none of`;
+    console.log(`  skip       ${named} ${where(profilesDir)}; the settings page was NOT mounted`);
+    if (opts.dshProfile === undefined) {
+      const present = (existsSync(profilesDir) ? readdirSync(profilesDir) : [])
+        .filter((name) => name !== PROFILE_LINK_DIR)
+        .sort()
+        .join(", ");
+      console.log(
+        present === ""
+          ? `  note       start DSH once so it creates its profile directory, then rerun with --dsh`
+          : `  note       entries present: ${present}; none is a profile, so name one explicitly with --dsh-profile <name>`,
+      );
+    }
+    printLaneUiRowFallback(rowName);
   } else {
-    const patchFile = join(profile.dir, PROFILE_PATCH_FILENAME);
-    const patchExisted = existsSync(patchFile);
-    const outcome = writeLaneUiPatchRow(profile.dir, rowName, opts);
-    const where = userLevel ? `~/${relative(homedir(), profile.dir)}/${PROFILE_PATCH_FILENAME}` : patchFile;
-    if (outcome === "skipped") {
-      console.warn(`  warn       ${where} is not a plain patch list; the managed row was NOT written (appending there would corrupt the file)`);
-      console.log(`  note       add this row to it by hand to get the page:`);
-      console.log(`             - insert:`);
-      console.log(`                 - id: my-workbench-lanes-ui`);
-      console.log(`                   name: '${rowName}'`);
-    } else {
-      const label =
-        outcome === "unchanged"
-          ? "skip     "
-          : outcome === "written-dry"
-            ? "dry-run  "
-            : outcome === "updated"
-              ? "overwrite"
-              : patchExisted
-                ? "append   "
-                : "create   ";
-      console.log(`  ${label}  ${where}${opts.dryRun ? "  (dry-run)" : ""}`);
+    for (const profile of profiles) {
+      const patchFile = join(profile.dir, PROFILE_PATCH_FILENAME);
+      const patchExisted = existsSync(patchFile);
+      const outcome = writeLaneUiPatchRow(profile.dir, rowName, opts);
+      // A profile chosen by the fallback or by name is not the profile the user
+      // is looking at, so which one it is belongs in the line.
+      const scope = profile.source === "profile" ? "" : `  (${profile.source === "only" ? "named by --dsh-profile" : "the only profile directory"})`;
+      if (outcome === "skipped") {
+        console.warn(`  warn       ${where(patchFile)} is not a plain patch list; the managed row was NOT written (appending there would corrupt the file)`);
+        printLaneUiRowFallback(rowName);
+        continue;
+      }
+      const label = outcome === "added" && patchExisted ? "append   " : PATCH_LABELS[outcome];
+      console.log(`  ${label}  ${where(patchFile)}${scope}${opts.dryRun ? "  (dry-run)" : ""}`);
       console.log(`  note       one inert UI row; no tools, no packages installed`);
       if (outcome === "unchanged") console.log(`  note       the managed block was already current (idempotent)`);
     }

@@ -1,8 +1,8 @@
 {
   "name": "my-workbench-lanes",
-  "version": "0.1.0",
+  "version": "0.13.0",
   "private": true,
-  "description": "MyWorkbench specialist lanes as a packaged DSH agent-preset plugin: one delegation tool per specialist, each reading its provider/model/reasoningEffort pin from the plugin's own settings namespace, and each applying the specialist's read-only toolFilter. HOST HALF ONLY — the settings page ships as the separate profile-layer package ../lane-plugin-ui/, because client halves are only discovered on profile rows.",
+  "description": "MyWorkbench specialist lanes as a packaged DSH agent-preset plugin: one delegation tool per specialist, each reading its provider/model/reasoningEffort pin from the plugin's own settings namespace, and each applying the specialist's read-only toolFilter. HOST HALF ONLY — the settings page ships as the separate profile-layer package ../lane-plugin-ui/, because client halves are only discovered on profile rows. The version names the my-workbench release that rendered the installed copy: `my-workbench --dsh` writes its own version over this field, and the release gate fails if the two differ. DSH's plugin inventory reports it, so an installed preset is identifiable from the harness side.",
   "type": "module",
   "main": "src/index.js",
   "exports": {
