@@ -1799,6 +1799,11 @@ async function assembleCommand({ check }) {
   } catch (err) {
     dshFailures.push(`lane-plugin: ${err.message}`);
   }
+  // AFTER every consumer of the backend's slots, and never inside either try
+  // block: the composition is only ONE of them. Reporting here used to sit with
+  // the composition render, which fired before the lane prompts had been
+  // rendered — so a slot only a lane prompt uses (`design-skills`, from the
+  // designer lane) was reported unused on every run.
   warnUnusedSlots("dsh", dshSlots);
   // The lane settings page is the package that reaches the browser, so it gets
   // the checks whose failure would otherwise only be visible in a running GUI,
