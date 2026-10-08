@@ -1,8 +1,8 @@
 {
   "name": "my-workbench-lanes-ui",
-  "version": "0.1.0",
+  "version": "0.13.0",
   "private": true,
-  "description": "MyWorkbench lane settings page, packaged as a profile-layer DSH client plugin: it edits the settings namespace the MyWorkbench preset's lane host half owns.",
+  "description": "MyWorkbench lane settings page, packaged as a profile-layer DSH client plugin: it edits the settings namespace the MyWorkbench preset's lane host half owns. The version names the my-workbench release that rendered the installed copy: `my-workbench --dsh` writes its own version over this field, and the release gate fails if the two differ. The browser half carries the same version in its header comment, because a client package has no manifest field the shell reads.",
   "type": "module",
   "main": "src/index.js",
   "exports": {
