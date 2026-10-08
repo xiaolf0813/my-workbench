@@ -1776,7 +1776,6 @@ async function assembleCommand({ check }) {
   try {
     const rendered = renderDshComposition(dshSlots);
     if (!check) console.log(`rendered: agents/backends/dsh/agent.cordis.yml (${rendered.length} bytes)`);
-    warnUnusedSlots("dsh", dshSlots);
   } catch (err) {
     dshFailures.push(`agent.cordis.yml: ${err.message}`);
   }
@@ -1798,6 +1797,12 @@ async function assembleCommand({ check }) {
   } catch (err) {
     dshFailures.push(`lane-plugin: ${err.message}`);
   }
+  // AFTER every consumer of the backend's slots, and never inside either try
+  // block: the composition is only ONE of them. Reporting here used to sit with
+  // the composition render, which fired before the lane prompts had been
+  // rendered — so a slot only a lane prompt uses (`design-skills`, from the
+  // designer lane) was reported unused on every run.
+  warnUnusedSlots("dsh", dshSlots);
   // The lane settings page is the package that reaches the browser, so it gets
   // the checks whose failure would otherwise only be visible in a running GUI,
   // plus an import of its inert host half (which is what a profile row mounts).
