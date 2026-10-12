@@ -1,8 +1,6 @@
 //! my-workbench core engine — pure Rust port of the Node CLI engine plus the
 //! skill manager, usable by the Tauri shell, tests and any other host.
 //!
-//! Port contract, milestones and golden-test rules live in
-//! `docs/desktop/PLAN.md` (§3 DSH split, §4 core API, §6 golden gate).
 //! This crate must never depend on `tauri`.
 
 /// Crate version, mirrored from `Cargo.toml`; surfaced in the GUI About /

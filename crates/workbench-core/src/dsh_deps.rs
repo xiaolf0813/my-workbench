@@ -1,6 +1,6 @@
 //! Port of `bin/dsh-deps.js` — DSH lane-plugin dependency resolution.
 //!
-//! Pure file/JSON operations (PLAN.md §3): PATH-shim discovery, the upward
+//! Pure file/JSON operations: PATH-shim discovery, the upward
 //! realpath walk, `package.json` entry resolution and `file:` URL baking.
 //! Nothing here executes Node or DSH. `test/dsh-deps.test.js` is the
 //! behavioral spec; the unit tests below mirror its scenarios 1:1.

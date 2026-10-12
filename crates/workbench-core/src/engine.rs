@@ -7,7 +7,7 @@
 //! (the package root), i.e. `agents/` hangs below it. `EngineContext::source_root`
 //! supplies it for both bundled and local sources.
 //!
-//! Phase split (PLAN.md §4): `plan` performs zero writes and returns one
+//! Phase split: `plan` performs zero writes and returns one
 //! [`PlanItem`] per file (`create` | `skip` | `overwrite`; DSH managed blocks
 //! pass through) plus realm stamps and notes. `execute` replays a plan and
 //! writes exactly what plan decided — dry-run is not a flag here. Rendering is
@@ -855,7 +855,7 @@ fn write_bytes(dest: &Path, bytes: &[u8]) -> std::io::Result<()> {
 
 // -------------------------------------------------------------- public API
 
-/// Phase 1 — decide everything, write nothing (PLAN.md §4). Prerequisite
+/// Phase 1 — decide everything, write nothing. Prerequisite
 /// gates and the source-repo guard fail here with the CLI's friendly text.
 pub fn plan(sel: &Selection, ctx: &EngineContext) -> Result<Plan, WorkbenchError> {
     validate_selection(sel)?;
@@ -1069,7 +1069,7 @@ fn replay_action(
     Ok(false)
 }
 
-/// Tier 1 health check (PLAN.md §4): render-and-byte-compare drift for every
+/// Tier 1 health check: render-and-byte-compare drift for every
 /// file the plan WOULD write that already exists (version stamps included),
 /// the DSH preset's own byte-compare when that target is selected, plus the
 /// structural checks on the source. Tier 2 is the host shell's job — always
@@ -1185,7 +1185,7 @@ pub fn detect_environment(ctx: &EngineContext) -> EnvironmentInfo {
         .collect();
     EnvironmentInfo {
         home: ctx.home.clone(),
-        // The embedded content source version (PLAN §2 version alignment) —
+        // The embedded content source version (version alignment) —
         // the crate's own VERSION, not the context's (golden tests pin that
         // to keep byte-identity with the CLI stamps).
         source_version: crate::VERSION.to_string(),

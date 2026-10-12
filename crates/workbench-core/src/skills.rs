@@ -1,4 +1,4 @@
-//! Skill management (PLAN.md §5): install / update / delete ZCode-style
+//! Skill management: install / update / delete ZCode-style
 //! skills from GitHub repositories into a skill root (default
 //! `~/.agents/skills/`), with a per-file hash snapshot for safe updates.
 //!
@@ -21,7 +21,7 @@
 //!   network. Tests inject fixture responses and fixture tarballs built
 //!   in-process with `tar` + `flate2` — the suite is fully offline.
 //! - **Stateless core.** Caching, offline mode and config-directory placement
-//!   are the SHELL's job (SPEC.md §5.4, PLAN.md §5 "results cached locally").
+//!   are the SHELL's job (SPEC.md §5.4, "results cached locally").
 //!   This module touches only the paths it is given — the skill root plus a
 //!   per-run `.workbench-tmp-<name>` staging directory inside it — and keeps
 //!   no process-global state.
@@ -93,7 +93,7 @@ use crate::WorkbenchError;
 
 // ---------------------------------------------------------------- constants
 
-/// Hard network allowlist (PLAN.md §5): nothing else is ever contacted.
+/// Hard network allowlist: nothing else is ever contacted.
 const ALLOWED_HOSTS: [&str; 3] = [
     "api.github.com",
     "codeload.github.com",
@@ -104,7 +104,7 @@ const ALLOWED_HOSTS: [&str; 3] = [
 pub const MANIFEST_FILE: &str = ".workbench-skills.json";
 
 const MANIFEST_VERSION: u32 = 1;
-/// Optional listing index at the repo ROOT (PLAN.md §5: preferred listing).
+/// Optional listing index at the repo ROOT (preferred listing).
 const SKILLS_INDEX_FILE: &str = "skills.json";
 /// Update backups go here, as `<root>/.backups/<name>-<epoch-ms>/`.
 const BACKUPS_DIR: &str = ".backups";
@@ -206,7 +206,7 @@ pub struct GitHubResponse {
     pub body: Vec<u8>,
 }
 
-/// The injectable HTTP boundary (PLAN.md §5: everything testable offline).
+/// The injectable HTTP boundary (everything testable offline).
 /// Implementations must NOT follow redirects across hosts on their own —
 /// redirect handling belongs to the caller so the allowlist holds per hop.
 pub trait GitHubClient: Send + Sync {
@@ -340,7 +340,7 @@ fn host_of(url: &str) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
-/// HARD ALLOWLIST (PLAN.md §5): only the three GitHub hosts, https only.
+/// HARD ALLOWLIST: only the three GitHub hosts, https only.
 /// Userinfo (`https://token@api.github.com/`) is stripped before the check —
 /// the real host is everything after the last `@`. Exact host match also
 /// rejects lookalikes (`api.github.com.evil.com`) and explicit ports.
@@ -722,8 +722,8 @@ fn fetch_tarball_files(
 // -------------------------------------------------------------- public API
 
 /// Installed skills from the manifest, sorted by name (BTreeMap order).
-/// Offline-safe: this reads ONLY the manifest — the offline listing surface of
-/// PLAN.md §8 ("list/delete still work"). Entries whose name starts with `.`
+/// Offline-safe: this reads ONLY the manifest — the offline listing surface
+/// ("list/delete still work"). Entries whose name starts with `.`
 /// (`.backups` and friends) are never listed.
 pub fn list_installed(root: &Path) -> Result<Vec<InstalledSkill>, WorkbenchError> {
     let (manifest, warning) = read_manifest(root);
@@ -748,7 +748,7 @@ pub fn list_installed(root: &Path) -> Result<Vec<InstalledSkill>, WorkbenchError
     Ok(out)
 }
 
-/// Remote listing (PLAN.md §5): prefer the optional `skills.json` index at the
+/// Remote listing: prefer the optional `skills.json` index at the
 /// repo ROOT (`https://raw.githubusercontent.com/<repo>/<ref>/skills.json`,
 /// array of `{name, path}` objects or of strings); on 404/missing — or a
 /// 200 body that does not parse as an index — fall back to the Trees API

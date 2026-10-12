@@ -1,8 +1,8 @@
-//! Golden anti-drift gate (PLAN.md §6) — the hard byte-identity contract
+//! Golden anti-drift gate — the hard byte-identity contract
 //! between the Node CLI (`bin/my-workbench.js`) and the Rust port
 //! (`workbench-core`).
 //!
-//! For every scenario in the §6 matrix the gate builds two sibling sandbox
+//! For every scenario in its matrix the gate builds two sibling sandbox
 //! trees with IDENTICAL relative layout (`home/`, `project/`, `dsh-home/`):
 //! sandbox A is installed into by the real CLI (`node bin/my-workbench.js …`,
 //! spawned with a fully sandboxed environment), sandbox B by

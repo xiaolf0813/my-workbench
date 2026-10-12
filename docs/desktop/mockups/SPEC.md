@@ -239,7 +239,7 @@ Mono `owner/repo` + meta line (`@main · 8 个技能 · 公开` / lock icon + `@
 
 ## 7. Backend command mapping
 
-### Deploy (M1 — locks per PLAN.md)
+### Deploy (M1)
 | UI | Command | Notes |
 | --- | --- | --- |
 | App start; sidebar env card; 安装目标 ⭯; target dots | `detect_environment` | Returns per-target presence/version, Node presence/version, dsh home. Never blocks; results render as dots + text. |

@@ -108,7 +108,7 @@ export function buildSelection(
 
 /**
  * 内置源 version label: prefer EnvironmentInfo.sourceVersion (the embedded
- * content-source version, PLAN §2) and fall back to the Tauri app version,
+ * content-source version, version alignment) and fall back to the Tauri app version,
  * then to a dash placeholder in the browser / stub backend.
  */
 export function bundledVersionLabel(env: EnvironmentInfo | null, appVersion: string | null): string {

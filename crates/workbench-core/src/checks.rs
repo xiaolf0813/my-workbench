@@ -1,5 +1,5 @@
-//! Structural source checks — Tier 1 of the health check, pure Rust (PLAN.md
-//! §4). Ports of `bin/my-workbench.js`:
+//! Structural source checks — Tier 1 of the health check, pure Rust.
+//! Ports of `bin/my-workbench.js`:
 //!
 //! - [`agent_source_problems`] — `agentSourceProblems` (:526-557)
 //! - [`lane_plugin_problems`] — `lanePluginProblems` (:828-850)

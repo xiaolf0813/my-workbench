@@ -1,4 +1,4 @@
-//! Frozen shared contract for workbench-core (PLAN.md §4 "Core API").
+//! Frozen shared contract for workbench-core ("Core API").
 //!
 //! Data types every port lane compiles against. Lane-local types live in the
 //! lane's own module; changes to this file go through the orchestrator.
@@ -32,7 +32,7 @@ pub const APPLY_ORDER: [Target; 5] = [
 
 // -------------------------------------------------------- source & selection
 
-/// Content source mode (PLAN.md §4 "two modes"). `Bundled` resolves through
+/// Content source mode ("two modes"). `Bundled` resolves through
 /// [`EngineContext::bundled_root`]; `Local` carries the user-chosen root.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "lowercase")]
@@ -168,7 +168,7 @@ pub enum LogLevel {
 }
 
 /// Events streamed during `execute`; the Tauri shell forwards them to the
-/// frontend as `install-log` / `install-progress` (PLAN.md §4).
+/// frontend as `install-log` / `install-progress`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event", rename_all = "kebab-case", rename_all_fields = "camelCase")]
 pub enum InstallEvent {
@@ -231,7 +231,7 @@ pub struct StructuralProblem {
 }
 
 /// Tier 1 — always available, pure Rust: render byte-compare plus every
-/// structural check (PLAN.md §4).
+/// structural check.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tier1Report {
@@ -299,8 +299,7 @@ pub enum DshHomeSource {
 pub struct EnvironmentInfo {
     pub home: PathBuf,
     /// Version of the embedded content source (the crate's `VERSION`) —
-    /// surfaced in the GUI About / health-check page (PLAN §2 version
-    /// alignment).
+    /// surfaced in the GUI About / health-check page (version alignment).
     pub source_version: String,
     pub opencode: ToolStatus,
     pub node: ToolStatus,

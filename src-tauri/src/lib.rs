@@ -1,8 +1,8 @@
 //! Tauri 2 shell for the my-workbench desktop GUI.
 //!
 //! IPC wiring only — all deployment/skill business logic lives in
-//! `workbench-core` (see `docs/desktop/PLAN.md` §2). This file implements the
-//! M1 command surface over the ported engine (`docs/desktop/PLAN.md` §4):
+//! `workbench-core`. This file implements the
+//! M1 command surface over the ported engine:
 //!
 //! - `detect_environment` — engine detection, enriched with real
 //!   `opencode --version` / `node --version` probes (the crate never spawns
@@ -20,7 +20,7 @@
 //!   pre-install validation (structural checks + Tier 2 on the custom
 //!   source's rendered DSH artifacts).
 //!
-//! M2 (PLAN.md §5) adds the skill-management surface, all over
+//! M2 adds the skill-management surface, all over
 //! `workbench_core::skills`:
 //!
 //! - `skills_list_sources` / `skills_add_source` / `skills_update_source` /
@@ -611,8 +611,8 @@ fn tier2_prompts_problem(source_root: &Path, problems: &mut Vec<String>) {
     }
 }
 
-/// The full Tier 2 pass over one source root's DSH artifacts (PLAN §4, lock
-/// 6): Node absent → `Skipped` with no problems (the UI renders the locked
+/// The full Tier 2 pass over one source root's DSH artifacts (lock 6):
+/// Node absent → `Skipped` with no problems (the UI renders the locked
 /// skip notice); any check failing → `Fail` with the captured error text; all
 /// passing → `Pass`.
 fn run_tier2(source_root: &Path) -> Tier2Report {
@@ -636,7 +636,7 @@ fn run_tier2(source_root: &Path) -> Tier2Report {
 
 // ---------------------------------------------------------------- commands
 
-/// Detect the local environment for the Deploy page (PLAN §4): engine
+/// Detect the local environment for the Deploy page: engine
 /// detection (target homes, omos presence, PATH probes) enriched with real
 /// `opencode --version` / `node --version` output. An absent binary keeps
 /// `present: false` and no version; a present binary whose probe fails keeps
@@ -654,7 +654,7 @@ async fn detect_environment(app: AppHandle) -> Result<EnvironmentInfo, String> {
     Ok(info)
 }
 
-/// Phase 1 of the install (PLAN §4): per-file decisions (`create` | `skip` |
+/// Phase 1 of the install: per-file decisions (`create` | `skip` |
 /// `overwrite` | `managed-block`) plus realm stamps and notes. Zero writes —
 /// the preview pane renders this directly. Prerequisite gates and the
 /// source-repo guard fail here with the CLI's friendly text.
@@ -664,7 +664,7 @@ async fn plan_install(app: AppHandle, selection: Selection) -> Result<Plan, Stri
     engine::plan(&selection, &ctx).map_err(error_message)
 }
 
-/// Phase 2 (PLAN §4): replay a plan, streaming `install-log` /
+/// Phase 2: replay a plan, streaming `install-log` /
 /// `install-progress` events to the frontend and returning the final report.
 /// Runs on a blocking worker thread (the engine's file work must never sit on
 /// the main thread). A second execute while one is running is rejected with a
@@ -707,7 +707,7 @@ async fn execute_install(
     }
 }
 
-/// Set the cooperative cancel flag (PLAN §4 / design decision 1). Harmless
+/// Set the cooperative cancel flag (design decision 1). Harmless
 /// when nothing is running; the engine observes it only between file
 /// operations, so a cancelled run always stops before the next file and
 /// before the stamps.
@@ -716,7 +716,7 @@ fn cancel_install(state: State<'_, InstallState>) {
     state.cancel.store(true, Ordering::SeqCst);
 }
 
-/// Health check (PLAN §4): Tier 1 — engine render-and-byte-compare drift plus
+/// Health check: Tier 1 — engine render-and-byte-compare drift plus
 /// every structural check — then Tier 2 filled in by this shell: the three
 /// execution-state checks through the local Node on the source's rendered
 /// DSH artifacts. Node absent → `tier2.status = "skipped"` with the locked
@@ -730,7 +730,7 @@ async fn check_drift(app: AppHandle, selection: Selection) -> Result<DriftReport
     Ok(report)
 }
 
-/// Custom-source pre-install validation (PLAN §4 "deliberately stricter than
+/// Custom-source pre-install validation ("deliberately stricter than
 /// the CLI install path"): structural checks on the chosen `agents/` tree
 /// plus Tier 2 on ITS rendered DSH artifacts — no byte comparison is
 /// possible before an install, so `tier1.compared` stays 0. Every problem is
@@ -783,7 +783,7 @@ async fn validate_custom_source(app: AppHandle, source_root: String) -> Result<D
 
 // -------------------------------------------------- skills management (M2)
 
-/// Default subdirectory inside a skill repo (PLAN.md §5: "default skill
+/// Default subdirectory inside a skill repo ("default skill
 /// subdirectory `skills/`"), used when a command receives no subdir. An
 /// explicit empty subdir is kept — it means the repo root (the core's
 /// documented semantics).
@@ -792,7 +792,7 @@ const DEFAULT_SKILL_SUBDIR: &str = "skills";
 /// Settings + skill sources live in one file under the app config dir.
 const SETTINGS_FILE: &str = "settings.json";
 
-/// Remote-listing cache under the app cache dir (PLAN.md §5: "results cached
+/// Remote-listing cache under the app cache dir ("results cached
 /// locally" — the unauthenticated GitHub rate limit is 60 req/h).
 const LISTINGS_CACHE_FILE: &str = "skills-listings.json";
 const LISTINGS_CACHE_VERSION: u32 = 1;
@@ -806,7 +806,7 @@ const SKILL_PROGRESS_CHANNEL: &str = "skill-progress";
 const KEYRING_SERVICE: &str = "my-workbench";
 const KEYRING_USER: &str = "github-pat";
 
-/// User settings (PLAN.md §5): the skill root (default
+/// User settings: the skill root (default
 /// `<home>/.agents/skills`) and the UI language. Serialized camelCase
 /// (`skillsRoot`); missing fields fall back to the defaults.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1251,7 +1251,7 @@ fn skills_remove_source(app: AppHandle, index: usize) -> Result<Vec<SkillSourceC
 // ------------------------------------------------------------ skills ops (M2)
 
 /// Installed skills from `<skills_root>/.workbench-skills.json` —
-/// offline-safe (the manifest is the only thing read; PLAN.md §8 "list/delete
+/// offline-safe (the manifest is the only thing read; "list/delete
 /// still work").
 #[tauri::command]
 fn skills_list_installed(app: AppHandle) -> Result<Vec<InstalledSkill>, String> {

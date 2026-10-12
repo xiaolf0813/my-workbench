@@ -1,7 +1,7 @@
 // Typed IPC layer — mirrors the Rust/Tauri command contract (serde camelCase).
 // Every call is wrapped so a missing backend (plain `vite dev` browser session)
 // or a failing stub command degrades into a typed, renderable error — the UI
-// must never crash or white-screen (see docs/desktop/PLAN.md §4 / SPEC.md §7).
+// must never crash or white-screen (see SPEC.md §7).
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen as tauriListen, type Event } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
@@ -105,7 +105,7 @@ export interface DshInfo {
 
 export interface EnvironmentInfo {
   home: string;
-  /** Embedded content-source version (PLAN §2 version alignment); may be empty from the stub backend. */
+  /** Embedded content-source version (version alignment); may be empty from the stub backend. */
   sourceVersion: string;
   opencode: ToolStatus;
   node: ToolStatus;
@@ -114,7 +114,7 @@ export interface EnvironmentInfo {
   targets: { target: Target; detail: string }[];
 }
 
-/** Fixed apply order (PLAN.md §4): opencode → omos → claude → zcode → dsh. */
+/** Fixed apply order: opencode → omos → claude → zcode → dsh. */
 export const TARGET_ORDER: readonly Target[] = [
   "opencode",
   "omos",

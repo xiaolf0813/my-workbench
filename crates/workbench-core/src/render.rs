@@ -3,7 +3,7 @@
 //!
 //! Byte-level port of `bin/my-workbench.js` (:565-858). Every function here
 //! must produce byte-identical output to its JS counterpart — the golden gate
-//! (PLAN.md §6) proves it. Two families of details carry the parity burden:
+//! proves it. Two families of details carry the parity burden:
 //!
 //! - **`JSON.stringify` escaping** — `serde_json::to_string` must reproduce
 //!   V8's escaping exactly; the adversarial suite in this file's tests locks
@@ -667,7 +667,7 @@ mod tests {
 
     // ------------------------------------------------------- escaping suite
 
-    /// The highest-priority port risk (PLAN.md §6/§8): `serde_json::to_string`
+    /// The highest-priority port risk: `serde_json::to_string`
     /// must equal `JSON.stringify` byte for byte. Each assertion's expected
     /// text is hand-computed from ECMAScript's SerializeJSONProperty table.
     #[test]

@@ -1,5 +1,5 @@
 //! The DSH target — port of the DSH sections of `bin/my-workbench.js`
-//! (PLAN.md §3: the plugin itself stays authored JavaScript; only the pure
+//! (the plugin itself stays authored JavaScript; only the pure
 //! file/JSON operations live here).
 //!
 //! Installs, at user level under the DSH home (`$DSH_HOME` else `~/.dsh`):
