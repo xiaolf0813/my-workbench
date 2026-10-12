@@ -29,22 +29,6 @@
           "  - Grep",
           "  - Bash",
           "  - Skill"
-        ],
-        "openbitfun": [
-          "schema_version: 1",
-          "kind: subagent",
-          "id: designer",
-          "name: Designer",
-          "@description",
-          "tools:",
-          "  - Read",
-          "  - Glob",
-          "  - Grep",
-          "  - Write",
-          "  - Edit",
-          "  - Skill",
-          "  - ExecCommand",
-          "readonly: false"
         ]
       }
     },
@@ -71,19 +55,6 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
-        ],
-        "openbitfun": [
-          "schema_version: 1",
-          "kind: subagent",
-          "id: explorer",
-          "name: Explorer",
-          "@description",
-          "tools:",
-          "  - Read",
-          "  - Glob",
-          "  - Grep",
-          "  - ExecCommand",
-          "readonly: true"
         ]
       }
     },
@@ -106,21 +77,6 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
-        ],
-        "openbitfun": [
-          "schema_version: 1",
-          "kind: subagent",
-          "id: fixer",
-          "name: Fixer",
-          "@description",
-          "tools:",
-          "  - Read",
-          "  - Glob",
-          "  - Grep",
-          "  - Write",
-          "  - Edit",
-          "  - ExecCommand",
-          "readonly: false"
         ]
       }
     },
@@ -147,21 +103,6 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
-        ],
-        "openbitfun": [
-          "schema_version: 1",
-          "kind: subagent",
-          "id: librarian",
-          "name: Librarian",
-          "@description",
-          "tools:",
-          "  - WebSearch",
-          "  - WebFetch",
-          "  - Read",
-          "  - Glob",
-          "  - Grep",
-          "  - ExecCommand",
-          "readonly: true"
         ]
       }
     },
@@ -188,20 +129,6 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
-        ],
-        "openbitfun": [
-          "schema_version: 1",
-          "kind: subagent",
-          "id: observer",
-          "name: Observer",
-          "@description",
-          "tools:",
-          "  - Read",
-          "  - Glob",
-          "  - Grep",
-          "  - view_image",
-          "  - analyze_image",
-          "readonly: true"
         ]
       }
     },
@@ -228,19 +155,6 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
-        ],
-        "openbitfun": [
-          "schema_version: 1",
-          "kind: subagent",
-          "id: oracle",
-          "name: Oracle",
-          "@description",
-          "tools:",
-          "  - Read",
-          "  - Glob",
-          "  - Grep",
-          "  - ExecCommand",
-          "readonly: true"
         ]
       }
     },
@@ -256,33 +170,6 @@
           "@description",
           "model: zhipuai-coding-plan/glm-5.3-flash",
           "mode: all"
-        ],
-        "openbitfun": [
-          "schema_version: 1",
-          "kind: mode",
-          "id: orchestrator",
-          "name: Orchestrator",
-          "@description",
-          "tools:",
-          "  - Read",
-          "  - Glob",
-          "  - Grep",
-          "  - Write",
-          "  - Edit",
-          "  - Skill",
-          "  - ExecCommand",
-          "  - Task",
-          "  - AgentWait",
-          "  - TodoWrite",
-          "  - AskUserQuestion",
-          "  - WebSearch",
-          "  - WebFetch",
-          "  - view_image",
-          "  - analyze_image",
-          "  - get_goal",
-          "  - create_goal",
-          "  - update_goal",
-          "readonly: false"
         ]
       }
     },
@@ -310,18 +197,6 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
-        ],
-        "openbitfun": [
-          "schema_version: 1",
-          "kind: subagent",
-          "id: improver",
-          "name: Improver",
-          "@description",
-          "tools:",
-          "  - Read",
-          "  - Glob",
-          "  - Grep",
-          "readonly: true"
         ]
       }
     }

@@ -2,7 +2,7 @@
 
 English | [简体中文](README_CN.md)
 
-Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + DeepSeek Harness + OpenBitFun agent setup, installed into your project (or at user level with `--user`; ZCode, DSH and OpenBitFun are always user-level) with one command.
+Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + DeepSeek Harness agent setup, installed into your project (or at user level with `--user`; ZCode and DSH are always user-level) with one command.
 
 ```bash
 npx my-workbench
@@ -14,7 +14,6 @@ npx my-workbench
 - **`.claude/`** — the same specialists as native Claude Code subagents (`.claude/agents/*.md`). omos-agnostic: installed identically in every target.
 - **`~/.zcode/`** — opt-in ZCode support (`--zcode`): user-level global instructions plus the specialist subagents as ZCode user agents (`~/.zcode/agents/*.md`). Nothing is written inside the project.
 - **`~/.dsh/`** — opt-in DeepSeek Harness support (`--dsh`): one agent preset under `<DSH_HOME>/.agent-presets/my-workbench/` — the orchestrator prompt as the preset persona, plus a packaged **lane plugin** that owns the seven named specialist tools and a settings page for pinning each lane's model and reasoning effort. The tools are preset-scoped; the settings page needs one inert row in every DSH profile (`web` for `dsh web`, `desktop` for DSH Desktop), the entire profile-level footprint. Nothing is written inside the project.
-- **OpenBitFun** — opt-in OpenBitFun support (`--openbitfun`): the eight agents installed into the `agents/` directory of OpenBitFun's per-OS user config. Always user-level; nothing is written inside the project.
 
 ## OpenCode targets: native or omos
 
@@ -38,7 +37,6 @@ npx my-workbench --dry-run          # preview without writing
 npx my-workbench --zcode            # ZCode user-level setup only (~/.zcode)
 npx my-workbench --dsh              # DSH agent preset only (~/.dsh)
 npx my-workbench --dsh --dsh-profile desktop  # DSH preset + the desktop profile's page row only
-npx my-workbench --openbitfun       # OpenBitFun user-level agents only
 npx my-workbench assemble [--check] # in this repo: regenerate .claude/agents/ and .opencode/
 ```
 
@@ -46,7 +44,7 @@ Existing files are skipped unless `--force` is given, so re-running is safe.
 
 ## Version management
 
-Every install — and `assemble` in this repository — writes a small stamp file recording the version of the CLI that deployed there, **one per deployment realm**: `my-workbench.version` in the project root for project-level runs, and `~/.my-workbench.version` for user-level runs (`--user`, or the always-user-level ZCode/DSH/OpenBitFun targets). A mixed run (e.g. `npx my-workbench --claude --zcode`) stamps both. The stamp is refreshed unconditionally on every run, so it always names the running version.
+Every install — and `assemble` in this repository — writes a small stamp file recording the version of the CLI that deployed there, **one per deployment realm**: `my-workbench.version` in the project root for project-level runs, and `~/.my-workbench.version` for user-level runs (`--user`, or the always-user-level ZCode/DSH targets). A mixed run (e.g. `npx my-workbench --claude --zcode`) stamps both. The stamp is refreshed unconditionally on every run, so it always names the running version.
 
 ```bash
 npx my-workbench --upgrade   # compare deployed versions with the npm latest
@@ -65,20 +63,6 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 - The global file is `agents/prompts/orchestrator.md` — the orchestrator prompt drives the main agent, with the ZCode dispatch convention substituted from `agents/backends/zcode/slots/dispatch.md`.
 - Subagents run with `injectAgentsMd: false`: the global file is not injected into them, so every delegation brief must carry full context.
 - Opt-in only (`--zcode` or `zcode`) — the default targets remain `.opencode/` + `.claude/`. No omos, nothing downloaded. Existing files are skipped unless `--force`. Restart ZCode sessions to pick up changes.
-
-## OpenBitFun target
-
-`npx my-workbench --openbitfun` installs OpenBitFun support at **user level only**: the eight agent files (`orchestrator` plus the seven specialists) into the `agents/` directory of OpenBitFun's per-OS user config directory. Agents are plain markdown files with YAML frontmatter (`schema_version`/`kind`/`id`/`name`/`description`/`tools`/`readonly`; `kind: mode` for the orchestrator, `kind: subagent` for the specialists), so there is nothing to install inside a project.
-
-| OS | Config directory |
-| --- | --- |
-| Linux | `~/.config/openbitfun` (`$XDG_CONFIG_HOME` respected when set) |
-| macOS | `~/Library/Application Support/openbitfun` |
-| Windows | `%APPDATA%\openbitfun` (fallback `~/AppData/Roaming/openbitfun`) |
-
-- **Requires an existing OpenBitFun install**: the target refuses to run when the config directory does not exist — it fails fast, before writing anything, and names all three per-OS locations.
-- Opt-in only (`--openbitfun` or `openbitfun`) — the default targets remain `.opencode/` + `.claude/`. Nothing is downloaded, and existing files are skipped unless `--force`.
-- Restart OpenBitFun to pick up changes.
 
 ## DSH target
 
@@ -187,8 +171,6 @@ agents/
     │   └── package.json          # plugin node dependencies
     ├── zcode/
     │   └── slots/          # dispatch.md (every backend has it; not enumerated here)
-    ├── openbitfun/
-    │   └── slots/          # dispatch.md ({{slot:dispatch}} inside the orchestrator prompt)
     └── dsh/
         ├── lanes.json        # lane keys, tools, labels, permissions and model defaults
         ├── agent.cordis.yml  # preset composition; {{prompt:<agent>}} embeds prompts/<agent>.md
@@ -204,7 +186,7 @@ agents/
         └── slots/            # dispatch.md ({{slot:dispatch}} inside the orchestrator prompt)
 ```
 
-In your project, `.claude/agents/` and `.opencode/` are assembled from it. Edit `agents/`, then run `npx my-workbench assemble` (`--check` detects drift) — the same workflow works in this repository and in any target project. `agents/roster.json` supplies descriptions and backend frontmatter, and the check rejects orphan prompt bodies. Prompt bodies may reference `{{slot:<name>}}` placeholders; each backend supplies their text in `agents/backends/<backend>/slots/`, and a slot referenced by a prompt but missing for a backend fails assembly. The DSH composition embeds `{{prompt:<agent>}}`; `agents/backends/dsh/lanes.json` drives the installed lane prompt module, host roster and settings page labels. `assemble --check` renders these and the eight OpenBitFun agents, checks the page's `dsh.client`/`./client` declaration and browser imports, and imports its inert host half.
+In your project, `.claude/agents/` and `.opencode/` are assembled from it. Edit `agents/`, then run `npx my-workbench assemble` (`--check` detects drift) — the same workflow works in this repository and in any target project. `agents/roster.json` supplies descriptions and backend frontmatter, and the check rejects orphan prompt bodies. Prompt bodies may reference `{{slot:<name>}}` placeholders; each backend supplies their text in `agents/backends/<backend>/slots/`, and a slot referenced by a prompt but missing for a backend fails assembly. The DSH composition embeds `{{prompt:<agent>}}`; `agents/backends/dsh/lanes.json` drives the installed lane prompt module, host roster and settings page labels. `assemble --check` renders these, checks the page's `dsh.client`/`./client` declaration and browser imports, and imports its inert host half.
 
 ## Attribution
 

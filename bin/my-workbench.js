@@ -213,16 +213,11 @@ DSH target (opt-in only; user-level, writes to your DSH home)
   --dsh-profile <name>    with --dsh: maintain the settings-page row in this
                           profile only, instead of every profile found
 
-OpenBitFun target (opt-in only; user-level, writes to your OpenBitFun config)
-  --openbitfun            install the eight agent files into
-                          <OpenBitFun config>/agents/ (restart OpenBitFun to
-                          pick up changes)
-
 Options
   --user                  install at user level instead of the current project:
                           opencode/omos assets go to ~/.config/opencode/,
-                          Claude Code assets to ~/.claude/ (ZCode, DSH and
-                          OpenBitFun are always user-level and ignore this flag)
+                          Claude Code assets to ~/.claude/ (ZCode and DSH are
+                          always user-level and ignore this flag)
   --force                 overwrite files that already exist (default: skip them)
   --dry-run               print what would be copied without writing anything
   --upgrade               compare the deployment stamps (my-workbench.version
@@ -305,14 +300,6 @@ Notes
   desktop app makes DSH refuse profile changes, and a running process keeps the
   composition it booted with.
 
-  OpenBitFun target (--openbitfun or "openbitfun") is never part of the
-  default set. It installs the eight agent files into the agents/ directory
-  of OpenBitFun's user config dir — ~/.config/openbitfun on Linux
-  ($XDG_CONFIG_HOME respected), ~/Library/Application Support/openbitfun on
-  macOS, %APPDATA%\\openbitfun on Windows — and requires an existing
-  OpenBitFun install. Skips existing files unless --force, downloads
-  nothing, and changes are picked up after restarting OpenBitFun.
-
   Every install and assemble also stamps my-workbench.version (the running
   version, refreshed unconditionally) once per deployment realm — the project
   root for project-level runs, ~/.my-workbench.version for user-level runs;
@@ -329,7 +316,6 @@ Examples
   npx my-workbench --dsh              # DSH agent preset only (~/.dsh)
   npx my-workbench --dsh --dsh-profile desktop
                                       # DSH preset + the desktop profile's page row only
-  npx my-workbench --openbitfun       # OpenBitFun user-level agents only
   npx my-workbench --upgrade          # compare deployed versions, auto-upgrade when outdated
 `;
 
@@ -373,10 +359,6 @@ function parseArgs(argv) {
       case "--dsh":
       case "dsh":
         targets.add("dsh");
-        break;
-      case "--openbitfun":
-      case "openbitfun":
-        targets.add("openbitfun");
         break;
       case "--user":
         user = true;
@@ -601,7 +583,7 @@ function agentSourceProblems() {
   const names = new Set(Object.keys(roster));
   for (const [name, record] of Object.entries(roster)) {
     if (typeof record.description !== "string" || !record.description.trim()) problems.push(`agent '${name}' has no description`);
-    for (const backend of ["claude", "opencode", "zcode", "openbitfun"]) {
+    for (const backend of ["claude", "opencode", "zcode"]) {
       const lines = record.frontmatter?.[backend];
       if (name === "orchestrator" && backend === "zcode" && lines === undefined) continue; // ZCode uses AGENTS.md as its main agent.
       if (!Array.isArray(lines) || lines.filter((line) => line === "@description").length !== 1) problems.push(`agent '${name}' has invalid ${backend} frontmatter`);
@@ -844,23 +826,6 @@ function dshRunning() {
     }
   }
   return { running: false, label: "" };
-}
-
-/**
- * OpenBitFun's per-OS user config directory, the root its own agent files live
- * under (as <configDir>/agents/): ~/.config/openbitfun (XDG_CONFIG_HOME
- * respected) on Linux, ~/Library/Application Support/openbitfun on macOS,
- * %APPDATA%\openbitfun on Windows.
- */
-function openbitfunConfigDir() {
-  switch (process.platform) {
-    case "win32":
-      return join(process.env.APPDATA || join(homedir(), "AppData", "Roaming"), "openbitfun");
-    case "darwin":
-      return join(homedir(), "Library", "Application Support", "openbitfun");
-    default:
-      return join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "openbitfun");
-  }
 }
 
 /**
@@ -1426,26 +1391,6 @@ function applyZcode(opts, counts) {
 }
 
 /**
- * OpenBitFun target: installs ONLY at user level — the eight agent files in
- * <configDir>/agents/ of OpenBitFun's per-OS user config directory. Opt-in via
- * --openbitfun; never touches the project directory, no scopes, no downloads.
- * Requires an existing OpenBitFun install (its config directory must exist —
- * the gate in main() enforces that before anything is written).
- */
-function applyOpenbitfun(opts, counts) {
-  const configDir = openbitfunConfigDir();
-  const display = { ...opts, displayRoot: homedir(), displayPrefix: "~/" };
-  const usedSlots = new Set();
-  const shown = insideHome(configDir)
-    ? `~/${join(relative(homedir(), resolve(configDir)), "agents").split(sep).join("/")}`
-    : join(configDir, "agents").split(sep).join("/");
-  console.log(`\n${shown}/  (user-level: agents/*.md)`);
-  assembleBackend("openbitfun", join(configDir, "agents"), display, counts, usedSlots);
-  warnUnusedSlots("openbitfun", usedSlots);
-  console.log(`  note       restart OpenBitFun to pick up changes`);
-}
-
-/**
  * How a profile's managed block ended up is the same sentence every time, and
  * the verb is the whole message: `create` (the patch layer did not exist),
  * `append` (it existed as a plain list), `overwrite` (the block was replaced in
@@ -1746,27 +1691,6 @@ async function assembleCommand({ check }) {
     console.log(`stamped: ${VERSION_FILE}`);
   }
 
-  // The OpenBitFun agents install at user level, so no generated file lives in
-  // this repository to regenerate or compare. Render them anyway: a prompt body
-  // this tree no longer has, a roster entry that references it, or an
-  // unresolved {{slot:...}} fails here instead of at install time.
-  const openbitfunSlots = new Set();
-  const openbitfunFailures = [];
-  try {
-    const openbitfunBackend = loadBackend("openbitfun");
-    for (const name of Object.keys(openbitfunBackend.agents).sort()) {
-      const rendered = assembleAgent("openbitfun", name, openbitfunSlots);
-      if (!check) console.log(`rendered: agents/backends/openbitfun/  ${name}.md (${rendered.length} bytes)`);
-    }
-    warnUnusedSlots("openbitfun", openbitfunSlots);
-  } catch (err) {
-    openbitfunFailures.push(err.message);
-  }
-  if (openbitfunFailures.length > 0) {
-    for (const failure of openbitfunFailures) console.log(`${check ? "check FAILED" : "error"}: agents/backends/openbitfun/: ${failure}`);
-    outdated += openbitfunFailures.length;
-  }
-
   // The DSH preset and its lane plugin install at user level, so no generated
   // file lives in this repository to regenerate or compare. Render them anyway:
   // an unresolved placeholder or an invalid authored lane fails here instead
@@ -1838,7 +1762,7 @@ async function assembleCommand({ check }) {
   }
 
   if (check) {
-    if (outdated === 0) console.log("check OK: .claude/agents/ and .opencode/ match agents/ source; the dsh composition, lane plugin, lane settings page and openbitfun agents render");
+    if (outdated === 0) console.log("check OK: .claude/agents/ and .opencode/ match agents/ source; the dsh composition, lane plugin and lane settings page render");
     else {
       console.log(`check FAILED: ${outdated} file(s) outdated or unrenderable; run "my-workbench assemble" to regenerate`);
       process.exitCode = 1;
@@ -1873,9 +1797,9 @@ async function upgradeCommand(opts) {
   const home = homedir();
   // One stamp per deployment realm, at most two: the project root for
   // project-level targets, the home directory for --user and the
-  // user-level-only targets (zcode/dsh/openbitfun). A mixed selection checks both.
+  // user-level-only targets (zcode/dsh). A mixed selection checks both.
   const projectTargets = ["opencode", "omos", "claude"].filter((name) => opts.targets.has(name));
-  const userLevelOnly = ["zcode", "dsh", "openbitfun"].filter((name) => opts.targets.has(name));
+  const userLevelOnly = ["zcode", "dsh"].filter((name) => opts.targets.has(name));
   const roots = [];
   if (projectTargets.length > 0 && !opts.user) {
     roots.push({ file: join(process.cwd(), VERSION_FILE), label: VERSION_FILE, was: null });
@@ -2025,13 +1949,6 @@ async function main() {
   if (opts.targets.has("dsh") && !existsSync(dshHome())) {
     prereqFailures.push(`DSH is not installed (no ${dshHome()}); install DeepSeek Harness first, then rerun with --dsh`);
   }
-  if (opts.targets.has("openbitfun") && !existsSync(openbitfunConfigDir())) {
-    prereqFailures.push(
-      "OpenBitFun is not installed (none of its expected config dirs exists: " +
-        "~/.config/openbitfun, ~/Library/Application Support/openbitfun, %APPDATA%\\openbitfun" +
-        "); install OpenBitFun first, then rerun with --openbitfun",
-    );
-  }
   if (prereqFailures.length > 0) {
     for (const failure of prereqFailures) console.error(`error: ${failure}`);
     process.exitCode = 1;
@@ -2071,7 +1988,7 @@ async function main() {
   // ZCode and DSH are user-level-only targets with no project footprint; a run
   // that selects only those reports itself as a user-level install.
   const projectTargets = ["opencode", "omos", "claude"].filter((name) => opts.targets.has(name));
-  const userLevelLabels = { zcode: "ZCode", dsh: "DSH", openbitfun: "OpenBitFun" };
+  const userLevelLabels = { zcode: "ZCode", dsh: "DSH" };
   const userLevelOnly = Object.keys(userLevelLabels).filter((name) => opts.targets.has(name));
   const dry = opts.dryRun ? "  (dry-run)" : "";
   console.log(
@@ -2091,7 +2008,6 @@ async function main() {
   }
   if (opts.targets.has("zcode")) applyZcode(opts, counts);
   if (opts.targets.has("dsh")) applyDsh(opts, counts);
-  if (opts.targets.has("openbitfun")) applyOpenbitfun(opts, counts);
 
   // One stamp per deployment realm records what deployed there: the project
   // root for project-level targets, the home directory for --user and the

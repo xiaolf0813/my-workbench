@@ -50,7 +50,7 @@ pub fn agent_source_problems(source_root: &Path) -> Vec<String> {
         if js_trim(&entry.description).is_empty() {
             problems.push(format!("agent '{}' has no description", entry.name));
         }
-        for backend in ["claude", "opencode", "zcode", "openbitfun"] {
+        for backend in ["claude", "opencode", "zcode"] {
             let lines = entry.record.get("frontmatter").and_then(|f| f.get(backend));
             // ZCode uses AGENTS.md as its main agent.
             if entry.name == "orchestrator" && backend == "zcode" && lines.is_none() {
@@ -471,8 +471,7 @@ mod tests {
       "description": "The orchestrator.",
       "frontmatter": {
         "claude": ["name: orchestrator", "@description"],
-        "opencode": ["@description"],
-        "openbitfun": ["@description"]
+        "opencode": ["@description"]
       }
     },
     "explorer": {
@@ -480,8 +479,7 @@ mod tests {
       "frontmatter": {
         "claude": ["name: explorer", "@description"],
         "opencode": ["@description"],
-        "zcode": ["name: explorer", "@description"],
-        "openbitfun": ["@description"]
+        "zcode": ["name: explorer", "@description"]
       }
     }
   }
@@ -554,8 +552,7 @@ mod tests {
       "description": "  ",
       "frontmatter": {
         "claude": ["name: orchestrator", "@description", "@description"],
-        "opencode": ["@description"],
-        "openbitfun": "@description"
+        "opencode": "@description"
       }
     },
     "explorer": {
@@ -563,8 +560,7 @@ mod tests {
       "frontmatter": {
         "claude": ["name: explorer", "@description"],
         "opencode": ["@description"],
-        "zcode": ["no marker here"],
-        "openbitfun": ["@description"]
+        "zcode": ["no marker here"]
       }
     }
   }
@@ -573,10 +569,10 @@ mod tests {
         let problems = agent_source_problems(dir.path());
         assert!(problems.contains(&"agent 'orchestrator' has no description".to_string()), "{problems:?}");
         assert!(problems.contains(&"agent 'orchestrator' has invalid claude frontmatter".to_string()), "{problems:?}");
-        assert!(problems.contains(&"agent 'orchestrator' has invalid openbitfun frontmatter".to_string()), "{problems:?}");
+        assert!(problems.contains(&"agent 'orchestrator' has invalid opencode frontmatter".to_string()), "{problems:?}");
         assert!(problems.contains(&"agent 'explorer' has invalid zcode frontmatter".to_string()), "{problems:?}");
-        // non-array frontmatter (openbitfun: string) counts as invalid exactly once
-        assert_eq!(problems.iter().filter(|p| p.contains("openbitfun frontmatter")).count(), 1);
+        // non-array frontmatter (opencode: string) counts as invalid exactly once
+        assert_eq!(problems.iter().filter(|p| p.contains("opencode frontmatter")).count(), 1);
     }
 
     #[test]
@@ -592,7 +588,7 @@ mod tests {
   "agents": {
     "orchestrator": {
       "description": "d",
-      "frontmatter": { "claude": ["@description"], "openbitfun": ["@description"] }
+      "frontmatter": { "claude": ["@description"], "zcode": ["@description"] }
     }
   }
 }"#,

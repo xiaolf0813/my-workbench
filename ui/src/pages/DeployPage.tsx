@@ -60,7 +60,7 @@ interface LocalCheck {
   problems: string[];
 }
 
-const ALL_TARGETS: Target[] = ["opencode", "omos", "claude", "zcode", "dsh", "openbitfun"];
+const ALL_TARGETS: Target[] = ["opencode", "omos", "claude", "zcode", "dsh"];
 
 /** 安装方式 segmented options (SPEC §4.1). The pressed visual state (`.is-on`
  *  class AND `aria-pressed`) is derived from the single comparison
@@ -398,11 +398,6 @@ export function DeployPage({ env, envStatus, envError, refreshEnv, appVersion }:
         const s = dshCardState(env.dsh);
         return { dot: s.dot, text: s.text };
       }
-      if (t === "openbitfun") {
-        return env.openbitfun.exists
-          ? { dot: "ok", text: env.openbitfun.configDir }
-          : { dot: "off", text: "未找到配置目录 · 仍可安装" };
-      }
       // omos / claude / zcode: only a free-form detail string is available.
       const d = targetDetail(env, t);
       if (!detailPresent(d)) return { dot: "off", text: d && d.trim() ? d : "未检测到" };
@@ -556,7 +551,7 @@ export function DeployPage({ env, envStatus, envError, refreshEnv, appVersion }:
                   {localCheck.status === "pass" && (
                     <div className="fhint ok">
                       <Icon name="checkc" />
-                      agents/ 树有效 · 检测到 6 个后端 · dsh 插件结构完整
+                      agents/ 树有效 · 检测到 5 个后端 · dsh 插件结构完整
                     </div>
                   )}
                   {localCheck.status === "fail" && (

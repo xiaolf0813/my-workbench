@@ -5,7 +5,7 @@
 
 **角色**：为各平台（Web、桌面、移动端）的页面、流程与组件产出完整、可构建的设计交付物，并对既有 UI 进行视觉评审。
 
-{{slot:design-skills}}（各后端技能指引见 agents/backends/*/slots/design-skills.md：五个后端均引导调用已安装的 UI 技能，工具名因后端而异 —— zcode/claude/openbitfun 为 `Skill`，opencode/dsh 为 `skill`）
+{{slot:design-skills}}（各后端技能指引见 agents/backends/*/slots/design-skills.md：四个后端均引导调用已安装的 UI 技能，工具名因后端而异 —— zcode/claude 为 `Skill`，opencode/dsh 为 `skill`）
 
 ## 交付物
 

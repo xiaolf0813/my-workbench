@@ -2,7 +2,7 @@
 
 # my-workbench
 
-可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode + DeepSeek Harness + OpenBitFun 智能体配置，一条命令安装到你的项目（或用 `--user` 安装到用户级；ZCode、DSH 与 OpenBitFun 恒为用户级）。
+可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode + DeepSeek Harness 智能体配置，一条命令安装到你的项目（或用 `--user` 安装到用户级；ZCode 与 DSH 恒为用户级）。
 
 > 本文件为参考翻译，以[英文版](README.md)为准。
 
@@ -16,7 +16,6 @@ npx my-workbench
 - **`.claude/`** — 同一批专家智能体的 Claude Code 原生子智能体形态（`.claude/agents/*.md`）。与 omos 无关：所有目标中安装内容完全一致。
 - **`~/.zcode/`** — 可选的 ZCode 支持（`--zcode`）：用户级全局指令，外加各专家子智能体作为 ZCode 用户级 agents（`~/.zcode/agents/*.md`）。不在项目内写入任何内容。
 - **`~/.dsh/`** — 可选的 DeepSeek Harness 支持（`--dsh`）：在 `<DSH_HOME>/.agent-presets/my-workbench/` 安装一个 agent preset — orchestrator 提示词作为该 preset 的 persona，外加拥有七个具名专家工具与「MyWorkbench 赛道模型」设置页的打包 **lane 插件**。工具在 preset 作用域内；设置页需要在每个 DSH profile（Web GUI 的 `web`、桌面版的 `desktop`）各写一行惰性行，那是 profile 层的全部足迹。不在项目内写入任何内容。
-- **OpenBitFun** — 可选的 OpenBitFun 支持（`--openbitfun`）：把八个 agent 安装到 OpenBitFun 各操作系统用户配置目录下的 `agents/` 中。恒为用户级；不在项目内写入任何内容。
 
 ## OpenCode 目标：原生或 omos
 
@@ -40,7 +39,6 @@ npx my-workbench --dry-run          # 预览，不写入
 npx my-workbench --zcode            # 仅 ZCode 用户级安装（~/.zcode）
 npx my-workbench --dsh              # 仅 DSH agent preset（~/.dsh）
 npx my-workbench --dsh --dsh-profile desktop  # 仅写桌面版 profile 的页面行
-npx my-workbench --openbitfun       # 仅 OpenBitFun 用户级 agents
 npx my-workbench assemble [--check] # 本仓库内：重新生成 .claude/agents/ 和 .opencode/
 ```
 
@@ -48,7 +46,7 @@ npx my-workbench assemble [--check] # 本仓库内：重新生成 .claude/agents
 
 ## 版本管理
 
-每次安装（以及本仓库内的 `assemble`）都会写入一个小的标记文件，记录部署该处的 CLI 版本，**每个部署域（realm）一个**：项目级运行写在项目根目录的 `my-workbench.version`，用户级运行（`--user`，或恒为用户级的 ZCode/DSH/OpenBitFun 目标）写在 `~/.my-workbench.version`。混合运行（如 `npx my-workbench --claude --zcode`）会同时写两个。该标记每次运行都会无条件刷新，因此始终是当前运行版本。
+每次安装（以及本仓库内的 `assemble`）都会写入一个小的标记文件，记录部署该处的 CLI 版本，**每个部署域（realm）一个**：项目级运行写在项目根目录的 `my-workbench.version`，用户级运行（`--user`，或恒为用户级的 ZCode/DSH 目标）写在 `~/.my-workbench.version`。混合运行（如 `npx my-workbench --claude --zcode`）会同时写两个。该标记每次运行都会无条件刷新，因此始终是当前运行版本。
 
 ```bash
 npx my-workbench --upgrade   # compare deployed versions with the npm latest
@@ -58,7 +56,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 ## 用户级安装
 
-`npx my-workbench --user` 将同样的资产安装到用户级而非当前项目：OpenCode/omos 资产进入 `~/.config/opencode/`（其 XDG 配置目录；全局 agents 从 `~/.config/opencode/agents/` 读取），Claude Code 资产进入 `~/.claude/`（`settings.json` + `agents/*.md`）。用户级文件对所有项目生效，不用于版本控制；命名冲突时项目级 agents 优先于用户级。ZCode、DSH 与 OpenBitFun 恒为用户级，忽略 `--user`。
+`npx my-workbench --user` 将同样的资产安装到用户级而非当前项目：OpenCode/omos 资产进入 `~/.config/opencode/`（其 XDG 配置目录；全局 agents 从 `~/.config/opencode/agents/` 读取），Claude Code 资产进入 `~/.claude/`（`settings.json` + `agents/*.md`）。用户级文件对所有项目生效，不用于版本控制；命名冲突时项目级 agents 优先于用户级。ZCode 与 DSH 恒为用户级，忽略 `--user`。
 
 ## ZCode 目标
 
@@ -67,20 +65,6 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 - 全局文件就是 `agents/prompts/orchestrator.md` — orchestrator 提示词驱动主智能体，其中 ZCode 的派发约定由 `agents/backends/zcode/slots/dispatch.md` 填入。
 - 子智能体以 `injectAgentsMd: false` 运行：全局文件不会注入它们，因此每个委派简报必须自带完整上下文。
 - 仅按需启用（`--zcode` 或 `zcode`）— 默认目标仍是 `.opencode/` + `.claude/`。无 omos，不下载任何东西。已存在的文件除非 `--force` 否则跳过。重启 ZCode 会话以生效。
-
-## OpenBitFun 目标
-
-`npx my-workbench --openbitfun` 仅在**用户级**安装 OpenBitFun 支持：把八个 agent 文件（`orchestrator` 加七个专家）安装到 OpenBitFun 各操作系统用户配置目录下的 `agents/` 中。agent 是带 YAML frontmatter 的纯 markdown 文件（`schema_version`/`kind`/`id`/`name`/`description`/`tools`/`readonly`；orchestrator 为 `kind: mode`，专家为 `kind: subagent`），因此项目内无需安装任何内容。
-
-| 操作系统 | 配置目录 |
-| --- | --- |
-| Linux | `~/.config/openbitfun`（设置 `$XDG_CONFIG_HOME` 时优先） |
-| macOS | `~/Library/Application Support/openbitfun` |
-| Windows | `%APPDATA%\openbitfun`（回退 `~/AppData/Roaming/openbitfun`） |
-
-- **要求已安装 OpenBitFun**：配置目录不存在时目标拒绝运行 —— 在写入任何内容之前快速失败，并给出三个操作系统各自的预期路径。
-- 仅按需启用（`--openbitfun` 或 `openbitfun`）— 默认目标仍是 `.opencode/` + `.claude/`。不下载任何东西，已存在的文件除非 `--force` 否则跳过。
-- 重启 OpenBitFun 以生效。
 
 ## DSH 目标
 
@@ -189,8 +173,6 @@ agents/
     │   └── package.json          # 插件 node 依赖
     ├── zcode/
     │   └── slots/          # dispatch.md（每个后端都有，不逐一列出）
-    ├── openbitfun/
-    │   └── slots/          # dispatch.md（orchestrator 提示词内的 {{slot:dispatch}}）
     └── dsh/
         ├── lanes.json        # 赛道 key、工具、标签、权限和默认模型
         ├── agent.cordis.yml  # preset 组合文件；{{prompt:<agent>}} 内嵌 prompts/<agent>.md
@@ -206,7 +188,7 @@ agents/
         └── slots/            # dispatch.md（orchestrator 提示词内的 {{slot:dispatch}}）
 ```
 
-在你的项目中，`.claude/agents/` 和 `.opencode/` 由它组装而来。编辑 `agents/`，然后运行 `npx my-workbench assemble`（`--check` 检测漂移）— 同样的工作流适用于本仓库和任何目标项目。`agents/roster.json` 集中保存描述与各后端 frontmatter，检查会拒绝没有记录的提示词。提示词正文可以引用 `{{slot:<name>}}`；每个后端在 `agents/backends/<backend>/slots/` 中提供对应文本，缺少 slot 会导致组装失败。DSH 组合文件用 `{{prompt:<agent>}}` 嵌入提示词；`agents/backends/dsh/lanes.json` 驱动安装后的赛道提示词模块、host 名册和设置页面标签。`assemble --check` 会渲染这些内容及八个 OpenBitFun agents，检查页面包的 `dsh.client`/`./client` 声明和浏览器导入，并验证惰性 host 半可导入且不注册任何内容。
+在你的项目中，`.claude/agents/` 和 `.opencode/` 由它组装而来。编辑 `agents/`，然后运行 `npx my-workbench assemble`（`--check` 检测漂移）— 同样的工作流适用于本仓库和任何目标项目。`agents/roster.json` 集中保存描述与各后端 frontmatter，检查会拒绝没有记录的提示词。提示词正文可以引用 `{{slot:<name>}}`；每个后端在 `agents/backends/<backend>/slots/` 中提供对应文本，缺少 slot 会导致组装失败。DSH 组合文件用 `{{prompt:<agent>}}` 嵌入提示词；`agents/backends/dsh/lanes.json` 驱动安装后的赛道提示词模块、host 名册和设置页面标签。`assemble --check` 会渲染这些内容，检查页面包的 `dsh.client`/`./client` 声明和浏览器导入，并验证惰性 host 半可导入且不注册任何内容。
 
 ## 署名
 

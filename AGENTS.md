@@ -12,7 +12,6 @@
 | user level | `--user` | the same opencode/omos + claude assets under `~/.config/opencode/` + `~/.claude/` |
 | zcode | `--zcode` | `~/.zcode/AGENTS.md` (the orchestrator prompt as ZCode's global instruction file) + `~/.zcode/agents/*.md` |
 | dsh | `--dsh` | `<DSH_HOME>/.agent-presets/my-workbench/` (`DSH_HOME`, else `~/.dsh`); requires an existing DSH home |
-| openbitfun | `--openbitfun` | `<OpenBitFun config>/agents/*.md` — Linux `~/.config/openbitfun` (`$XDG_CONFIG_HOME` respected), macOS `~/Library/Application Support/openbitfun`, Windows `%APPDATA%\openbitfun`; requires an existing OpenBitFun install |
 
 Every target downloads nothing and writes nothing inside a project except the version stamp; existing files are skipped unless `--force`. Every install and assemble stamps `my-workbench.version` once per deployment realm (`<cwd>/my-workbench.version` for project deploys, `~/.my-workbench.version` for user-level deploys) — written unconditionally, never subject to skip/`--force`. `--upgrade` compares those stamps with the npm registry latest and, when one is behind, auto-upgrades by redeploying via `npx my-workbench@latest --force` — the one deliberate download, and it overwrites deployed files by design.
 
@@ -21,8 +20,6 @@ Every target downloads nothing and writes nothing inside a project except the ve
 **omos** requires OpenCode **and** a pre-existing user-level omos install in `~/.config/opencode`: the plugin loads from that user level, so my-workbench never pins a `"plugin"` entry. Its `orchestrator_append.md` restates the orchestrator's Skill awareness, Task persistence, and worktree path discipline rules, the subagent dispatch discipline (synchronous dispatch, wait in-turn), and the Response Convention, plus the universal Disciplines (kept in sync with `agents/prompts/orchestrator.md`), for the plugin-provided omos orchestrator prompt. Task-orchestration rules (delegation contract, lane interruption) are not restated — omos has its own task orchestration.
 
 **zcode** has no configurable main agent and no project-level subagents, so `~/.zcode/` is the whole install.
-
-**openbitfun** is user-level only and installs nothing but the eight agent files, so `<OpenBitFun config>/agents/` is the whole install; it requires an existing OpenBitFun install.
 
 **dsh** needs one deliberate exception, because the tools and the settings page mount at different levels: the preset owns the seven `subagent_*` tools and the `my-workbench-lanes` settings namespace (seeded from a recommended model mapping), while the page can only be served from a profile row — client halves are discovered on the profile loader's entries, never inside a preset, and a DSH process composes exactly one profile. `--dsh` therefore also maintains ONE marked, managed block holding one inert row in the `cordis.patch.yml` of EVERY profile it finds: no profile name is hardcoded (DSH Desktop names its own — `desktop` on the machine this was written for, beside `web` for `dsh web`), a profile being any directory under `<DSH_HOME>/profiles/` that carries `cordis.yml` or `cordis.patch.yml`, with `node_modules` never one of them. A profile-less `profiles/` gets the row printed, not guessed at, and `--dsh-profile <name>` narrows the write to one profile. `agents/backends/dsh/` and `docs/dsh-lane-plugin/` carry the details.
 
@@ -52,7 +49,7 @@ Every target downloads nothing and writes nothing inside a project except the ve
 | `agents/backends/omos/package.json` | `.opencode/package.json` |
 | `agents/roster.json` + `agents/disciplines.md` + `agents/prompts/*.md` + `agents/backends/*/slots/*.md` | `.claude/agents/*.md`, target `.opencode/agents/*.md` |
 | `agents/backends/dsh/lanes.json` + `agents/prompts/*.md` | installed DSH `roster.generated.js`, `prompts.generated.js`, and lane settings page roster |
-| `agents/backends/zcode/`, `agents/backends/dsh/`, `agents/backends/openbitfun/` | user-level only, nothing generated inside this repo: `~/.zcode/`, `~/.dsh/.agent-presets/my-workbench/`, and `<OpenBitFun config>/agents/` |
+| `agents/backends/zcode/`, `agents/backends/dsh/` | user-level only, nothing generated inside this repo: `~/.zcode/` and `~/.dsh/.agent-presets/my-workbench/` |
 
 Run `npx my-workbench assemble` in the repo root after editing any source (`--check` verifies without writing).
 

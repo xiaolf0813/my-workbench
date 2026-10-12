@@ -131,7 +131,7 @@ fn is_project_target(t: &Target) -> bool {
 }
 
 fn is_user_level_only_target(t: &Target) -> bool {
-    matches!(t, Target::Zcode | Target::Dsh | Target::Openbitfun)
+    matches!(t, Target::Zcode | Target::Dsh)
 }
 
 fn opencode_scope(sel: &Selection, ctx: &EngineContext) -> Scope {
@@ -612,52 +612,7 @@ fn collect_before_dsh(
     Ok(())
 }
 
-/// Targets after the DSH position in APPLY_ORDER: openbitfun (CLI :1148-1161).
-fn collect_after_dsh(
-    sel: &Selection,
-    ctx: &EngineContext,
-    source_root: &Path,
-    t: &mut Traversal,
-) -> Result<(), WorkbenchError> {
-    if sel.targets.contains(&Target::Openbitfun) {
-        let config_dir = openbitfun_config_dir(&ctx.home);
-        let mut slots = render::UsedSlots::new();
-        collect_backend_agents(
-            "openbitfun",
-            config_dir.join("agents"),
-            Target::Openbitfun,
-            source_root,
-            t,
-            &mut slots,
-        )?;
-        push_slot_warnings(t, "openbitfun", &slots);
-        t.notes
-            .push("restart OpenBitFun to pick up changes".to_string());
-    }
-    Ok(())
-}
-
 // ------------------------------------------------------- environment fns
-
-/// OpenBitFun's per-OS user config directory (CLI :715-724), rooted at the
-/// context home instead of `os.homedir()`.
-fn openbitfun_config_dir(home: &Path) -> PathBuf {
-    if cfg!(target_os = "macos") {
-        home.join("Library")
-            .join("Application Support")
-            .join("openbitfun")
-    } else if cfg!(windows) {
-        let base = std::env::var_os("APPDATA")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| home.join("AppData").join("Roaming"));
-        base.join("openbitfun")
-    } else {
-        let base = std::env::var_os("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| home.join(".config"));
-        base.join("openbitfun")
-    }
-}
 
 /// The alias→package map the lane plugin imports (CLI :104-107). The
 /// canonical copy lives with the DSH lane (`dsh::lane_plugin_dep_map`).
@@ -745,17 +700,6 @@ fn check_prerequisites(sel: &Selection, ctx: &EngineContext) -> Result<(), Workb
                 "DSH is not installed (no {}); install DeepSeek Harness first, then rerun with --dsh",
                 home.display()
             )));
-        }
-    }
-    if sel.targets.contains(&Target::Openbitfun) {
-        let dir = openbitfun_config_dir(&ctx.home);
-        if !dir.exists() {
-            return Err(WorkbenchError::Message(
-                "OpenBitFun is not installed (none of its expected config dirs exists: \
-                 ~/.config/openbitfun, ~/Library/Application Support/openbitfun, \
-                 %APPDATA%\\openbitfun); install OpenBitFun first, then rerun with --openbitfun"
-                    .to_string(),
-            ));
         }
     }
     Ok(())
@@ -935,17 +879,6 @@ pub fn plan(sel: &Selection, ctx: &EngineContext) -> Result<Plan, WorkbenchError
         notes.extend(outcome.notes);
     }
 
-    // Only the actions collected after the DSH splice (openbitfun) are new —
-    // t.actions still holds everything collected before it.
-    let n_before_openbitfun = t.actions.len();
-    collect_after_dsh(sel, ctx, &source_root, &mut t)?;
-    items.extend(
-        t.actions[n_before_openbitfun..]
-            .iter()
-            .map(|a| plan_item(a, sel.force)),
-    );
-    notes.append(&mut t.notes);
-
     let stamps = stamp_plans(sel, ctx);
     append_next_notes(sel, &items, &mut notes);
     Ok(Plan {
@@ -970,8 +903,6 @@ pub fn execute(
 
     let mut t = Traversal::default();
     collect_before_dsh(sel, ctx, &source_root, &mut t)?;
-    let n_before = t.actions.len();
-    collect_after_dsh(sel, ctx, &source_root, &mut t)?;
 
     let kinds: HashMap<PathBuf, PlanKind> = plan
         .items
@@ -994,7 +925,7 @@ pub fn execute(
     let mut cancelled = false;
 
     // Replay the pre-DSH items (opencode → omos → claude → zcode).
-    for action in &t.actions[..n_before] {
+    for action in &t.actions {
         if replay_action(action, &kinds, sink, &mut report, &mut done, total)? {
             cancelled = true;
             break;
@@ -1021,16 +952,6 @@ pub fn execute(
                 done,
                 total,
             });
-        }
-    }
-
-    // Replay the post-DSH items (openbitfun).
-    if !cancelled {
-        for action in &t.actions[n_before..] {
-            if replay_action(action, &kinds, sink, &mut report, &mut done, total)? {
-                cancelled = true;
-                break;
-            }
         }
     }
 
@@ -1163,7 +1084,6 @@ pub fn check_drift(
 
     let mut t = Traversal::default();
     collect_before_dsh(sel, ctx, &source_root, &mut t)?;
-    collect_after_dsh(sel, ctx, &source_root, &mut t)?;
 
     let mut compared = 0usize;
     let mut drifted = Vec::new();
@@ -1254,20 +1174,13 @@ pub fn check_drift(
 /// `opencode --version` / `node` itself).
 pub fn detect_environment(ctx: &EngineContext) -> EnvironmentInfo {
     let dsh_info = dsh::detect_dsh(&ctx.home);
-    let obf_dir = openbitfun_config_dir(&ctx.home);
     let omos_present = omos_user_level_present(&ctx.home);
     let opencode_present = find_on_path("opencode");
     let targets = APPLY_ORDER
         .iter()
         .map(|t| TargetStatus {
             target: *t,
-            detail: target_status_detail(
-                *t,
-                &dsh_info,
-                &obf_dir,
-                omos_present,
-                opencode_present,
-            ),
+            detail: target_status_detail(*t, &dsh_info, omos_present, opencode_present),
         })
         .collect();
     EnvironmentInfo {
@@ -1286,10 +1199,6 @@ pub fn detect_environment(ctx: &EngineContext) -> EnvironmentInfo {
         },
         omos_user_level: omos_present,
         dsh: dsh_info,
-        openbitfun: OpenBitFunInfo {
-            config_dir: obf_dir.clone(),
-            exists: obf_dir.is_dir(),
-        },
         targets,
     }
 }
@@ -1299,7 +1208,6 @@ pub fn detect_environment(ctx: &EngineContext) -> EnvironmentInfo {
 fn target_status_detail(
     target: Target,
     dsh: &DshInfo,
-    openbitfun_dir: &Path,
     omos_present: bool,
     opencode_present: bool,
 ) -> String {
@@ -1325,13 +1233,6 @@ fn target_status_detail(
                 "已找到 DSH 主目录".to_string()
             } else {
                 "未找到 DSH 主目录".to_string()
-            }
-        }
-        Target::Openbitfun => {
-            if openbitfun_dir.is_dir() {
-                "已找到配置目录".to_string()
-            } else {
-                "未找到配置目录".to_string()
             }
         }
     }

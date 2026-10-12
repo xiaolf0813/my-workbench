@@ -11,7 +11,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 /* Contract types (exactly the Rust serde shapes, camelCase)           */
 /* ------------------------------------------------------------------ */
 
-export type Target = "opencode" | "omos" | "claude" | "zcode" | "dsh" | "openbitfun";
+export type Target = "opencode" | "omos" | "claude" | "zcode" | "dsh";
 
 export type Source = { mode: "bundled" } | { mode: "local"; root: string };
 
@@ -103,11 +103,6 @@ export interface DshInfo {
   profilesCount: number;
 }
 
-export interface OpenBitFunInfo {
-  configDir: string;
-  exists: boolean;
-}
-
 export interface EnvironmentInfo {
   home: string;
   /** Embedded content-source version (PLAN §2 version alignment); may be empty from the stub backend. */
@@ -116,18 +111,16 @@ export interface EnvironmentInfo {
   node: ToolStatus;
   omosUserLevel: boolean;
   dsh: DshInfo;
-  openbitfun: OpenBitFunInfo;
   targets: { target: Target; detail: string }[];
 }
 
-/** Fixed apply order (PLAN.md §4): opencode → omos → claude → zcode → dsh → openbitfun. */
+/** Fixed apply order (PLAN.md §4): opencode → omos → claude → zcode → dsh. */
 export const TARGET_ORDER: readonly Target[] = [
   "opencode",
   "omos",
   "claude",
   "zcode",
   "dsh",
-  "openbitfun",
 ] as const;
 
 /* ------------------------------------------------------------------ */

@@ -140,17 +140,6 @@ fn seed_omos_marker(home: &Path) {
     .unwrap();
 }
 
-/// Fake OpenBitFun install: its per-OS config directory must exist for the
-/// CLI's prerequisite gate. Empty on both sides — nothing inside is written.
-fn seed_openbitfun_config(home: &Path) {
-    let dir = if cfg!(windows) {
-        home.join("AppData").join("openbitfun")
-    } else {
-        home.join(".config").join("openbitfun")
-    };
-    fs::create_dir_all(dir).unwrap();
-}
-
 /// Fake DSH home: TWO profiles (`web` with a cordis.yml plus a second one, so
 /// `findProfileDir` must pick `web`), and the profile-root module closure
 /// carrying the two packages the lane plugin imports (fixture style of
@@ -220,9 +209,9 @@ impl Drop for EnvGuard {
 }
 
 /// Point the AMBIENT environment (what `workbench-core` reads) at the Rust
-/// side's sandbox. `openbitfun` resolves through `APPDATA` on Windows and
-/// `XDG_CONFIG_HOME` elsewhere; both are set unconditionally, the unused one
-/// is simply never read.
+/// side's sandbox. `APPDATA` and `XDG_CONFIG_HOME` are set unconditionally so
+/// no ambient home-relative resolution leaks out of the sandbox; the unused
+/// one is simply never read.
 fn set_ambient_env(sandbox: &Sandbox, dsh: bool) {
     if dsh {
         std::env::set_var("DSH_HOME", &sandbox.dsh_home);
@@ -480,7 +469,6 @@ struct Case {
     force: bool,
     omos_marker: bool,
     dsh: bool,
-    openbitfun: bool,
     /// Some(content) pre-seeds both projects with every PRESEED destination.
     preseed: Option<&'static str>,
 }
@@ -503,9 +491,6 @@ fn run_install_case(
         }
         if case.dsh {
             seed_dsh_home(&sandbox.root);
-        }
-        if case.openbitfun {
-            seed_openbitfun_config(&sandbox.home);
         }
         if let Some(content) = case.preseed {
             preseed(&sandbox.project, content);
@@ -610,14 +595,6 @@ fn extra_asserts(case: &Case, core: &Sandbox, planned: &Plan) {
                 "the second profile must stay untouched"
             );
         }
-        "openbitfun" => {
-            let dir = if cfg!(windows) {
-                core.home.join("AppData").join("openbitfun").join("agents")
-            } else {
-                core.home.join(".config").join("openbitfun").join("agents")
-            };
-            assert!(fs::read_dir(&dir).unwrap().count() > 0, "openbitfun agents must be installed");
-        }
         "force" => {
             let jsonc = fs::read_to_string(core.project.join(".opencode/opencode.jsonc")).unwrap();
             assert_ne!(jsonc, "TAMPERED\n", "--force must overwrite the pre-seeded file");
@@ -690,7 +667,6 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             force: false,
             omos_marker: false,
             dsh: false,
-            openbitfun: false,
             preseed: None,
         },
         Case { // 2
@@ -701,7 +677,6 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             force: false,
             omos_marker: false,
             dsh: false,
-            openbitfun: false,
             preseed: None,
         },
         Case { // 3
@@ -712,7 +687,6 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             force: false,
             omos_marker: true,
             dsh: false,
-            openbitfun: false,
             preseed: None,
         },
         Case { // 4
@@ -723,7 +697,6 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             force: false,
             omos_marker: false,
             dsh: false,
-            openbitfun: false,
             preseed: None,
         },
         Case { // 5
@@ -734,21 +707,9 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             force: false,
             omos_marker: false,
             dsh: true,
-            openbitfun: false,
             preseed: None,
         },
         Case { // 6
-            name: "openbitfun",
-            cli_flags: &["--openbitfun"],
-            targets: &[Target::Openbitfun],
-            user_level: false,
-            force: false,
-            omos_marker: false,
-            dsh: false,
-            openbitfun: true,
-            preseed: None,
-        },
-        Case { // 7
             name: "force",
             cli_flags: &["--force"],
             targets: &[Target::Opencode, Target::Claude],
@@ -756,10 +717,9 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             force: true,
             omos_marker: false,
             dsh: false,
-            openbitfun: false,
             preseed: Some("TAMPERED\n"),
         },
-        Case { // 8
+        Case { // 7
             name: "skip",
             cli_flags: &[],
             targets: &[Target::Opencode, Target::Claude],
@@ -767,7 +727,6 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             force: false,
             omos_marker: false,
             dsh: false,
-            openbitfun: false,
             preseed: Some("SEEDED\n"),
         },
     ];
@@ -779,10 +738,10 @@ fn golden_end_to_end_cli_vs_workbench_core() {
         compare_trees(&cli, &core, case.name);
     }
 
-    // 9 — tamper-drift (Rust-side only): install via the CLI, tamper one
+    // 8 — tamper-drift (Rust-side only): install via the CLI, tamper one
     // file, then check_drift must report exactly that file.
     {
-        let base = run_dir.path().join("09-tamper-drift");
+        let base = run_dir.path().join("08-tamper-drift");
         let sandbox = Sandbox::create(&base.join("cli"));
         set_ambient_env(&sandbox, false);
         let (env_set, env_remove) = cli_env(&sandbox, false);
@@ -833,9 +792,9 @@ fn golden_end_to_end_cli_vs_workbench_core() {
         );
     }
 
-    // 10 — the --opencode/--omos mutex, on both sides (no tree compare).
+    // 9 — the --opencode/--omos mutex, on both sides (no tree compare).
     {
-        let base = run_dir.path().join("10-opencode-omos-mutex");
+        let base = run_dir.path().join("09-opencode-omos-mutex");
         let sandbox = Sandbox::create(&base.join("cli"));
         set_ambient_env(&sandbox, false);
         let (env_set, env_remove) = cli_env(&sandbox, false);

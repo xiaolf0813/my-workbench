@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 // ---------------------------------------------------------------- targets
 
-/// The six install targets.
+/// The five install targets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Target {
@@ -18,18 +18,16 @@ pub enum Target {
     Claude,
     Zcode,
     Dsh,
-    Openbitfun,
 }
 
 /// Fixed apply order, identical to the CLI:
-/// opencode → omos → claude → zcode → dsh → openbitfun.
-pub const APPLY_ORDER: [Target; 6] = [
+/// opencode → omos → claude → zcode → dsh.
+pub const APPLY_ORDER: [Target; 5] = [
     Target::Opencode,
     Target::Omos,
     Target::Claude,
     Target::Zcode,
     Target::Dsh,
-    Target::Openbitfun,
 ];
 
 // -------------------------------------------------------- source & selection
@@ -298,13 +296,6 @@ pub enum DshHomeSource {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct OpenBitFunInfo {
-    pub config_dir: PathBuf,
-    pub exists: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct EnvironmentInfo {
     pub home: PathBuf,
     /// Version of the embedded content source (the crate's `VERSION`) —
@@ -316,7 +307,6 @@ pub struct EnvironmentInfo {
     /// User-level omos present (the CLI's `omosUserLevelPresent` heuristics).
     pub omos_user_level: bool,
     pub dsh: DshInfo,
-    pub openbitfun: OpenBitFunInfo,
     /// Per-target advisory status dots — inform-only, never a gate
     /// (design decision 4).
     pub targets: Vec<TargetStatus>,
