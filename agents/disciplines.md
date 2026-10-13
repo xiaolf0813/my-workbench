@@ -31,3 +31,8 @@
 2. Run tests that create home-like layouts (config homes, profile trees, dot-directories) in a dedicated sandbox under the system temp directory or the repo's `tmp/`; never point a home or config environment variable at the real user home or an existing data directory, and never create test artifacts at the user-home root.
 3. Before batch destruction, present the complete target list and count; execute only the user-confirmed targets — approval of a task or test never authorizes cleanup beyond its declared scope.
 4. Refuse recursive deletion or overwrite of user-home top-level entries — credential stores (`.ssh`, `.aws`), agent or tool homes (`.zcode`, `.dsh`), session, profile, or config stores — even framed as cleanup, reset, or reinitialization. Stop and report.
+
+### UI Testing Discipline
+
+1. Locate UI controls through the platform's text tree first — Android `uiautomator dump`, iOS accessibility inspection, browser DOM/ARIA snapshot, desktop accessibility API — and address elements by the ids, text, and bounds that dump reports; fall back to screenshots only where no text tree exists.
+2. Screenshots judge visual appearance, never measure geometry; capture as few as the task allows, record each capture's findings in text immediately, and never re-capture to re-locate a control — accumulated images bloat the session and slow every later turn.
