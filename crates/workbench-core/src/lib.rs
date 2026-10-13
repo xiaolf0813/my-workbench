@@ -12,6 +12,7 @@ pub mod dsh;
 pub mod dsh_deps;
 pub mod engine;
 pub mod error;
+pub mod preserve;
 pub mod render;
 pub mod roster;
 pub mod skills;

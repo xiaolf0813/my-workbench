@@ -60,7 +60,7 @@ interface LocalCheck {
   problems: string[];
 }
 
-const ALL_TARGETS: Target[] = ["opencode", "omos", "claude", "zcode", "dsh"];
+const ALL_TARGETS: Target[] = ["opencode", "claude", "zcode", "dsh"];
 
 /** 安装方式 segmented options (SPEC §4.1). The pressed visual state (`.is-on`
  *  class AND `aria-pressed`) is derived from the single comparison
@@ -362,9 +362,6 @@ export function DeployPage({ env, envStatus, envError, refreshEnv, appVersion }:
       const next = new Set(prev);
       if (checked) {
         next.add(t);
-        // opencode / omos mutex — selecting one deselects the other (SPEC §4.1)
-        if (t === "opencode") next.delete("omos");
-        if (t === "omos") next.delete("opencode");
       } else {
         next.delete(t);
       }
@@ -398,7 +395,7 @@ export function DeployPage({ env, envStatus, envError, refreshEnv, appVersion }:
         const s = dshCardState(env.dsh);
         return { dot: s.dot, text: s.text };
       }
-      // omos / claude / zcode: only a free-form detail string is available.
+      // claude / zcode: only a free-form detail string is available.
       const d = targetDetail(env, t);
       if (!detailPresent(d)) return { dot: "off", text: d && d.trim() ? d : "未检测到" };
       return { dot: "ok", text: d as string };
@@ -408,13 +405,11 @@ export function DeployPage({ env, envStatus, envError, refreshEnv, appVersion }:
 
   const targetCard = (t: Target) => {
     const on = targets.has(t);
-    const disabled = (t === "opencode" && targets.has("omos")) || (t === "omos" && targets.has("opencode"));
-    const mutex = t === "omos" && targets.has("opencode");
     const det = detectionFor(t);
     const dshChip = t === "dsh" && env !== null && envStatus === "ready" && dshCardState(env.dsh).chip;
     return (
-      <label key={t} className={`tck${on ? " is-on" : ""}${disabled ? " is-dis" : ""}`}>
-        <input type="checkbox" checked={on} disabled={disabled} onChange={(e) => toggleTarget(t, e.target.checked)} />
+      <label key={t} className={`tck${on ? " is-on" : ""}`}>
+        <input type="checkbox" checked={on} onChange={(e) => toggleTarget(t, e.target.checked)} />
         <span className="trow">
           <span className="tbox">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -424,12 +419,8 @@ export function DeployPage({ env, envStatus, envError, refreshEnv, appVersion }:
           <span className="tname">{t}</span>
         </span>
         <span className="tstat">
-          <span className={`dot ${mutex ? "off" : det.dot}`} />
-          {mutex ? (
-            <span className="mutex">与 opencode 互斥</span>
-          ) : (
-            <span>{det.text}</span>
-          )}
+          <span className={`dot ${det.dot}`} />
+          <span>{det.text}</span>
         </span>
         {dshChip && (
           <span className="textra">
@@ -551,7 +542,7 @@ export function DeployPage({ env, envStatus, envError, refreshEnv, appVersion }:
                   {localCheck.status === "pass" && (
                     <div className="fhint ok">
                       <Icon name="checkc" />
-                      agents/ 树有效 · 检测到 5 个后端 · dsh 插件结构完整
+                      agents/ 树有效 · 检测到 4 个后端 · dsh 插件结构完整
                     </div>
                   )}
                   {localCheck.status === "fail" && (
@@ -671,10 +662,6 @@ export function DeployPage({ env, envStatus, envError, refreshEnv, appVersion }:
             </div>
             <div className="card-b">
               <div className="tgrid">{ALL_TARGETS.map(targetCard)}</div>
-              <div className="mutex-line">
-                <Icon name="info" />
-                <span>opencode 与 omos 为同一运行时的两种宿主形态，互斥；未检测到仍可安装。</span>
-              </div>
               {envStatus === "error" && (
                 <div className="fhint err" style={{ marginTop: 8 }}>
                   <Icon name="warn" />

@@ -637,7 +637,7 @@ fn run_tier2(source_root: &Path) -> Tier2Report {
 // ---------------------------------------------------------------- commands
 
 /// Detect the local environment for the Deploy page: engine
-/// detection (target homes, omos presence, PATH probes) enriched with real
+/// detection (target homes, PATH probes) enriched with real
 /// `opencode --version` / `node --version` output. An absent binary keeps
 /// `present: false` and no version; a present binary whose probe fails keeps
 /// `version: null` — detection never blocks anything (design decision 4).

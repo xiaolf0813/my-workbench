@@ -19,7 +19,7 @@
 //! must be compared — while the never-written members of the CLI's
 //! `isSkipped` set (`node_modules`, `package-lock.json`,
 //! `settings.local.json`) are pruned. Fixtures that merely stand in for a
-//! pre-existing tool install (the omos marker, the DSH module closure) all
+//! pre-existing tool install (the DSH module closure) all
 //! live under `node_modules` or are seeded identically on both sides, so the
 //! walk never sees engine-irrelevant bytes.
 //!
@@ -123,25 +123,8 @@ fn make_fixtures(run_dir: &Path) -> Fixtures {
     Fixtures { bin }
 }
 
-/// Fake user-level omos install: the marker directory the CLI's
-/// `omosUserLevelPresent` gate requires. Lives under `node_modules`, so the
-/// tree walk never sees it.
-fn seed_omos_marker(home: &Path) {
-    let dir = home
-        .join(".config")
-        .join("opencode")
-        .join("node_modules")
-        .join("oh-my-opencode-slim");
-    fs::create_dir_all(&dir).unwrap();
-    fs::write(
-        dir.join("package.json"),
-        r#"{"name":"oh-my-opencode-slim","version":"1.0.0"}"#,
-    )
-    .unwrap();
-}
-
-/// Fake DSH home: TWO profiles (`web` with a cordis.yml plus a second one, so
-/// `findProfileDir` must pick `web`), and the profile-root module closure
+/// Fake DSH home: TWO initialized profiles (`web` and `cli`, so the row
+/// maintenance must find and write both), and the profile-root module closure
 /// carrying the two packages the lane plugin imports (fixture style of
 /// test/dsh-deps.test.js `packageAt`). Identically seeded on both sides; the
 /// node_modules subtree is pruned from the walk.
@@ -180,6 +163,90 @@ fn preseed(project: &Path, content: &str) {
         fs::create_dir_all(dest.parent().unwrap()).unwrap();
         fs::write(&dest, content).unwrap();
     }
+}
+
+/// User-retuned files seeded identically into both sandboxes for the
+/// `preserve` cases — the exact hand edits a `--force` overwrite must honor:
+/// * agent markdown (frontmatter legs, unchanged): per-backend replace +
+///   insert — the render's `model:` line is replaced while the backend's
+///   reasoning key (`effort` / `variant` / `thoughtLevel`) is absent from the
+///   render and therefore inserted before the closing fence;
+/// * the two JSON seed stubs (ownership legs): user-realistic files (comments,
+///   env with token-like values, hooks, user model keys) where the stub's own
+///   key is user-MODIFIED in settings.json (reset to canonical, replace path)
+///   and DELETED from opencode.jsonc (re-inserted, insert path).
+/// Plus the same shapes at the user-level paths for the `preserve_user` case
+/// (see [`seed_preserve_user`]).
+fn seed_preserve(project: &Path, home: &Path) {
+    let claude_agents = project.join(".claude").join("agents");
+    fs::create_dir_all(&claude_agents).unwrap();
+    fs::write(
+        claude_agents.join("oracle.md"),
+        "---\nname: oracle\ndescription: \"old description\"\ntools: Read\nmodel: custom/pinned-claude\neffort: high\n---\n\nold body\n",
+    )
+    .unwrap();
+    fs::write(
+        project.join(".claude").join("settings.json"),
+        "{\n  \"$schema\": \"https://json.schemastore.org/claude-code-settings.json\",\n  \"agent\": \"user-pinned-orchestrator\",\n  \"model\": \"sonnet\",\n  \"effortLevel\": \"high\",\n  \"env\": {\n    \"ANTHROPIC_AUTH_TOKEN\": \"sk-user-example-token\",\n    \"MAX_THINKING_TOKENS\": \"32000\"\n  },\n  \"hooks\": {\n    \"PostToolUse\": [\n      { \"matcher\": \"Write\", \"hooks\": [ { \"type\": \"command\", \"command\": \"echo user-hook\" } ] }\n    ]\n  }\n}\n",
+    )
+    .unwrap();
+    let oc_agents = project.join(".opencode").join("agents");
+    fs::create_dir_all(&oc_agents).unwrap();
+    fs::write(
+        project.join(".opencode").join("opencode.jsonc"),
+        "{\n  // tuned by hand\n  \"model\": \"custom/pinned-oc\",\n  \"small_model\": \"custom/small-pin\",\n  \"agent\": {\n    \"orchestrator\": { \"model\": \"custom/oc-lead\" }\n  }\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        oc_agents.join("oracle.md"),
+        "---\ndescription: \"old\"\nmode: subagent\nmodel: custom/old-pin\nvariant: max\n---\n\nold body\n",
+    )
+    .unwrap();
+    fs::write(
+        oc_agents.join("observer.md"),
+        "---\ndescription: \"old\"\nmode: subagent\nmodel: custom/observer-pin$high\nvariant: max\n---\n\nold body\n",
+    )
+    .unwrap();
+    let zcode_agents = home.join(".zcode").join("agents");
+    fs::create_dir_all(&zcode_agents).unwrap();
+    fs::write(
+        zcode_agents.join("oracle.md"),
+        "---\nname: oracle\ndescription: \"old description\"\nmodel: custom/pinned-zcode\nthoughtLevel: max\ninjectAgentsMd: false\n---\n\nold body\n",
+    )
+    .unwrap();
+}
+
+/// The same hand edits at the USER-level destinations (`~/.claude/…`,
+/// `~/.config/opencode/…`) for the `preserve_user` case — the flipped stub
+/// shapes: settings.json without the owned `agent` key (deleted → the stub's
+/// member must be re-inserted) and opencode.jsonc with `$schema` present but
+/// user-modified (reset to canonical, replace path). The agent markdown legs
+/// ride the unchanged frontmatter preservation.
+fn seed_preserve_user(home: &Path) {
+    let claude_agents = home.join(".claude").join("agents");
+    fs::create_dir_all(&claude_agents).unwrap();
+    fs::write(
+        claude_agents.join("oracle.md"),
+        "---\nname: oracle\ndescription: \"old description\"\ntools: Read\nmodel: custom/user-claude\neffort: max\n---\n\nold body\n",
+    )
+    .unwrap();
+    fs::write(
+        home.join(".claude").join("settings.json"),
+        "{\n  \"model\": \"sonnet\",\n  \"env\": {\n    \"ANTHROPIC_AUTH_TOKEN\": \"sk-user-home-token\"\n  }\n}\n",
+    )
+    .unwrap();
+    let oc_agents = home.join(".config").join("opencode").join("agents");
+    fs::create_dir_all(&oc_agents).unwrap();
+    fs::write(
+        home.join(".config").join("opencode").join("opencode.jsonc"),
+        "{\n  // mine\n  \"$schema\": \"https://example.com/user-schema.json\",\n  \"model\": \"custom/user-oc\"\n}\n",
+    )
+    .unwrap();
+    fs::write(
+        oc_agents.join("oracle.md"),
+        "---\ndescription: \"old\"\nmode: subagent\nmodel: custom/user-oc-agent\nvariant: high\n---\n\nold body\n",
+    )
+    .unwrap();
 }
 
 // --------------------------------------------------------------------- env
@@ -467,15 +534,35 @@ struct Case {
     targets: &'static [Target],
     user_level: bool,
     force: bool,
-    omos_marker: bool,
     dsh: bool,
     /// Some(content) pre-seeds both projects with every PRESEED destination.
     preseed: Option<&'static str>,
+    /// Pre-seed both sandboxes with the user-retuned files of [`seed_preserve`]
+    /// (the preserve cases: `--force` must snapshot and restore them).
+    preserve_seed: bool,
+    /// Pre-seed both homes with the user-retuned user-level files of
+    /// [`seed_preserve_user`] (the `preserve_user` case).
+    preserve_seed_user: bool,
+    /// `--dsh-profile <name>` narrowing (CLI-only flag; None means every
+    /// profile).
+    dsh_profile: Option<&'static str>,
+    /// Run the install TWICE in both engines (see [`RERUN_TAMPER`]).
+    rerun: bool,
 }
 
+/// Destinations tampered with identical bytes on BOTH sides between the two
+/// runs of a `rerun` case: the regenerate trio must be repaired by the second
+/// run, while the plain byte-copy `preset.yml` must survive it untouched —
+/// locking the regenerate-vs-skip parity of a re-run.
+const RERUN_TAMPER: [&str; 3] = [
+    "dsh-home/.agent-presets/my-workbench/preset.yml",
+    "dsh-home/.agent-presets/my-workbench/lane-plugin/package.json",
+    "dsh-home/.agent-presets/my-workbench/lane-plugin-ui/lib/client.js",
+];
+
 /// Install the case via the CLI into sandbox A and via plan+execute into
-/// sandbox B; returns both sandboxes plus the core-side plan for extra
-/// per-case assertions.
+/// sandbox B; returns both sandboxes plus the core-side plan (the SECOND
+/// plan, when `case.rerun`) for extra per-case assertions.
 fn run_install_case(
     case: &Case,
     repo: &Path,
@@ -486,14 +573,17 @@ fn run_install_case(
     let core = Sandbox::create(&base.join("core"));
 
     for sandbox in [&cli, &core] {
-        if case.omos_marker {
-            seed_omos_marker(&sandbox.home);
-        }
         if case.dsh {
             seed_dsh_home(&sandbox.root);
         }
         if let Some(content) = case.preseed {
             preseed(&sandbox.project, content);
+        }
+        if case.preserve_seed {
+            seed_preserve(&sandbox.project, &sandbox.home);
+        }
+        if case.preserve_seed_user {
+            seed_preserve_user(&sandbox.home);
         }
     }
 
@@ -517,6 +607,7 @@ fn run_install_case(
         targets: case.targets.to_vec(),
         user_level: case.user_level,
         force: case.force,
+        dsh_profile: case.dsh_profile.map(str::to_owned),
     };
     let ctx = EngineContext {
         project_dir: core.project.clone(),
@@ -524,15 +615,103 @@ fn run_install_case(
         bundled_root: repo.to_path_buf(),
         version: workbench_core::VERSION.to_string(),
     };
-    let planned = plan(&selection, &ctx)
-        .unwrap_or_else(|e| panic!("case {}: workbench-core plan failed: {e}", case.name));
-    execute(&planned, &selection, &ctx, &NullSink)
-        .unwrap_or_else(|e| panic!("case {}: workbench-core execute failed: {e}", case.name));
+    let run_core = |selection: &Selection| -> Plan {
+        let planned = plan(selection, &ctx)
+            .unwrap_or_else(|e| panic!("case {}: workbench-core plan failed: {e}", case.name));
+        execute(&planned, selection, &ctx, &NullSink)
+            .unwrap_or_else(|e| panic!("case {}: workbench-core execute failed: {e}", case.name));
+        planned
+    };
+    let mut planned = run_core(&selection);
+
+    // A second invocation of both engines: identical tampering on both sides,
+    // then CLI again and a fresh plan+execute. The tree compare then proves
+    // the regenerate trio was repaired and the skip-rest survived, on both
+    // engines, with the same bytes.
+    if case.rerun {
+        for sandbox in [&cli, &core] {
+            for rel in RERUN_TAMPER {
+                fs::write(sandbox.root.join(rel), "TAMPERED-BY-GATE\n").unwrap();
+            }
+        }
+        let rerun = run_cli(repo, case.cli_flags, &cli.project, &env_set, &env_remove, &fixtures.bin)
+            .unwrap_or_else(|e| panic!("case {} (rerun): {e}", case.name));
+        assert_eq!(
+            rerun.status,
+            Some(0),
+            "case {} (rerun): the CLI exited with an error\n--- stderr ---\n{}\n--- stdout ---\n{}",
+            case.name,
+            rerun.stderr,
+            rerun.stdout
+        );
+        planned = run_core(&selection);
+    }
     (cli, core, planned)
 }
 
-/// Focused per-case assertions beyond the tree compare.
-fn extra_asserts(case: &Case, core: &Sandbox, planned: &Plan) {
+/// Focused per-case assertions beyond the tree compare. `side` runs the same
+/// checks against each sandbox: for the preserve cases the pinned frontmatter
+/// values must have survived and the JSON stubs must have reconciled exactly,
+/// in BOTH engines' trees.
+fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planned: &Plan) {
+    let assert_preserved = |side: &Sandbox| {
+        // ── frontmatter legs (unchanged) ─────────────────────────────────
+        // Every pinned value survived the --force overwrite…
+        let claude_oracle =
+            fs::read_to_string(side.project.join(".claude/agents/oracle.md")).unwrap();
+        assert!(
+            claude_oracle.contains("model: custom/pinned-claude"),
+            "the claude agent's retuned model line must survive --force"
+        );
+        // …and the render carries no `effort:` line, so the saved one must be
+        // INSERTED as the frontmatter block's new last line.
+        assert!(
+            claude_oracle.contains("effort: high\n---"),
+            "the claude agent's effort line must be inserted before the closing fence"
+        );
+        let oc_oracle =
+            fs::read_to_string(side.project.join(".opencode/agents/oracle.md")).unwrap();
+        assert!(oc_oracle.contains("model: custom/old-pin"));
+        assert!(
+            oc_oracle.contains("variant: max\n---"),
+            "the opencode agent's variant line must be inserted before the closing fence"
+        );
+        // The observer render carries neither `model:` nor `variant:`, so both
+        // saved lines must be INSERTED as the block's new last lines, in
+        // saved order.
+        let observer =
+            fs::read_to_string(side.project.join(".opencode/agents/observer.md")).unwrap();
+        assert!(
+            observer.contains("bash: false\nmodel: custom/observer-pin$high\nvariant: max\n---"),
+            "the added model and variant lines must be inserted before the closing fence"
+        );
+        // …while every non-model byte came from the render, not the preseed.
+        assert!(claude_oracle.contains("Strategic technical advisor"));
+        assert!(!claude_oracle.contains("old description"));
+        assert!(!claude_oracle.contains("old body"));
+        assert!(oc_oracle.contains("Strategic technical advisor"));
+        assert!(observer.contains("Visual analysis specialist"));
+
+        // ── JSON stub ownership legs ─────────────────────────────────────
+        // settings.json: the stub owns ONLY `agent` — the user-modified value
+        // is reset to canonical, and EVERY other user byte survives verbatim
+        // (schema, model, effortLevel, env incl. the token-like value, hooks).
+        let settings = fs::read_to_string(side.project.join(".claude/settings.json")).unwrap();
+        assert_eq!(
+            settings,
+            "{\n  \"$schema\": \"https://json.schemastore.org/claude-code-settings.json\",\n  \"agent\": \"orchestrator\",\n  \"model\": \"sonnet\",\n  \"effortLevel\": \"high\",\n  \"env\": {\n    \"ANTHROPIC_AUTH_TOKEN\": \"sk-user-example-token\",\n    \"MAX_THINKING_TOKENS\": \"32000\"\n  },\n  \"hooks\": {\n    \"PostToolUse\": [\n      { \"matcher\": \"Write\", \"hooks\": [ { \"type\": \"command\", \"command\": \"echo user-hook\" } ] }\n    ]\n  }\n}\n",
+            "settings.json must reset only the owned agent key and keep every user byte"
+        );
+        // opencode.jsonc: the stub owns ONLY `$schema` — deleted here, so its
+        // full member span is inserted before the closing brace; the comment
+        // and the user's own model/small_model/agent keys survive verbatim.
+        let jsonc = fs::read_to_string(side.project.join(".opencode/opencode.jsonc")).unwrap();
+        assert_eq!(
+            jsonc,
+            "{\n  // tuned by hand\n  \"model\": \"custom/pinned-oc\",\n  \"small_model\": \"custom/small-pin\",\n  \"agent\": {\n    \"orchestrator\": { \"model\": \"custom/oc-lead\" }\n  },\n  \"$schema\": \"https://opencode.ai/config.json\"\n}\n",
+            "opencode.jsonc must re-insert the owned $schema key and keep every user byte"
+        );
+    };
     match case.name {
         "default" => {
             assert_eq!(
@@ -558,32 +737,85 @@ fn extra_asserts(case: &Case, core: &Sandbox, planned: &Plan) {
                 core.home.join(".my-workbench.version")
             );
         }
-        "omos" => {
-            let append = core
-                .project
-                .join(".opencode")
-                .join("oh-my-opencode-slim")
-                .join("orchestrator_append.md");
-            let body = fs::read_to_string(&append).unwrap();
-            assert!(
-                !body.contains("{{disciplines}}"),
-                "the omos append must render its disciplines marker"
-            );
-        }
         "zcode" => {
             let agents_md = fs::read_to_string(core.home.join(".zcode").join("AGENTS.md")).unwrap();
             assert!(!agents_md.contains("{{slot:"), "zcode slots must be filled");
         }
         "dsh" => {
-            let web_row = core
+            // Both profiles are maintained: the row lands in web AND cli.
+            for name in ["web", "cli"] {
+                let row = fs::read_to_string(
+                    core.dsh_home.join("profiles").join(name).join("cordis.patch.yml"),
+                )
+                .unwrap();
+                assert!(
+                    row.contains("id: my-workbench-lanes-ui"),
+                    "the managed block row must land in the {name} profile"
+                );
+            }
+        }
+        "dsh_rerun" => {
+            let preset = core
                 .dsh_home
-                .join("profiles")
-                .join("web")
-                .join("cordis.patch.yml");
-            let row = fs::read_to_string(&web_row).unwrap();
+                .join(".agent-presets")
+                .join("my-workbench");
+            // The regenerate trio was tampered with identically on both sides
+            // and must come back as the fresh render…
+            assert_eq!(
+                fs::read(preset.join("lane-plugin/package.json")).unwrap(),
+                fs::read(repo.join("agents/backends/dsh/lane-plugin/host-package/package.json"))
+                    .unwrap()
+            );
+            assert_eq!(
+                fs::read(preset.join("lane-plugin-ui/lib/client.js")).unwrap(),
+                workbench_core::render::lane_ui_client_source(
+                    repo,
+                    &workbench_core::dsh::lanes(repo).unwrap(),
+                    workbench_core::VERSION
+                )
+                .unwrap()
+                .into_bytes()
+            );
+            // …while the plain preset.yml keeps its skip semantics.
+            assert_eq!(
+                fs::read_to_string(preset.join("preset.yml")).unwrap(),
+                "TAMPERED-BY-GATE\n",
+                "a non-regenerate file must survive a re-run without --force"
+            );
+            // And the second plan said exactly that.
+            let kind_of = |rel: &str| {
+                planned
+                    .items
+                    .iter()
+                    .find(|i| i.path == preset.join(rel))
+                    .unwrap_or_else(|| panic!("no plan item for {rel}"))
+                    .kind
+            };
+            assert_eq!(kind_of("preset.yml"), workbench_core::types::PlanKind::Skip);
+            assert_eq!(
+                kind_of("lane-plugin/package.json"),
+                workbench_core::types::PlanKind::Overwrite
+            );
+            assert_eq!(
+                kind_of("lane-plugin-ui/package.json"),
+                workbench_core::types::PlanKind::Overwrite
+            );
+            assert_eq!(
+                kind_of("lane-plugin-ui/lib/client.js"),
+                workbench_core::types::PlanKind::Overwrite
+            );
+        }
+        "dsh_profile" => {
+            let web_row = fs::read_to_string(
+                core.dsh_home
+                    .join("profiles")
+                    .join("web")
+                    .join("cordis.patch.yml"),
+            )
+            .unwrap();
             assert!(
-                row.contains("id: my-workbench-lanes-ui"),
-                "the managed block row must land in the web profile"
+                web_row.contains("id: my-workbench-lanes-ui"),
+                "the named profile gets the row"
             );
             assert!(
                 !core
@@ -592,12 +824,86 @@ fn extra_asserts(case: &Case, core: &Sandbox, planned: &Plan) {
                     .join("cli")
                     .join("cordis.patch.yml")
                     .exists(),
-                "the second profile must stay untouched"
+                "the unselected profile must stay untouched"
             );
         }
         "force" => {
+            // The pre-seeded bytes are not JSON at all: stub reconciliation
+            // must leave the user's files COMPLETELY untouched even under
+            // --force — user content is never overwritten with the stub.
             let jsonc = fs::read_to_string(core.project.join(".opencode/opencode.jsonc")).unwrap();
-            assert_ne!(jsonc, "TAMPERED\n", "--force must overwrite the pre-seeded file");
+            assert_eq!(
+                jsonc, "TAMPERED\n",
+                "--force must not overwrite an unparseable user file with the stub"
+            );
+            let settings =
+                fs::read_to_string(core.project.join(".claude/settings.json")).unwrap();
+            assert_eq!(settings, "TAMPERED\n");
+        }
+        "preserve" => {
+            assert_preserved(cli);
+            assert_preserved(core);
+        }
+        "preserve_zcode" => {
+            for side in [cli, core] {
+                let oracle =
+                    fs::read_to_string(side.home.join(".zcode/agents/oracle.md")).unwrap();
+                assert!(
+                    oracle.contains("model: custom/pinned-zcode"),
+                    "the zcode agent's retuned model line must survive --force"
+                );
+                // The render carries no `thoughtLevel:` line, so the saved one
+                // must be INSERTED as the block's new last line.
+                assert!(
+                    oracle.contains("thoughtLevel: max\n---"),
+                    "the zcode agent's thoughtLevel line must be inserted before the closing fence"
+                );
+                // Non-model bytes came from the render, not the preseed.
+                assert!(oracle.contains("Strategic technical advisor"));
+                assert!(!oracle.contains("old body"));
+            }
+        }
+        "preserve_user" => {
+            for side in [cli, core] {
+                // ── frontmatter legs (unchanged) ──
+                let claude_oracle =
+                    fs::read_to_string(side.home.join(".claude/agents/oracle.md")).unwrap();
+                assert!(claude_oracle.contains("model: custom/user-claude"));
+                assert!(claude_oracle.contains("effort: max\n---"));
+                assert!(claude_oracle.contains("Strategic technical advisor"));
+                assert!(!claude_oracle.contains("old body"));
+                let oc_oracle = fs::read_to_string(
+                    side.home.join(".config/opencode/agents/oracle.md"),
+                )
+                .unwrap();
+                assert!(oc_oracle.contains("model: custom/user-oc-agent"));
+                assert!(oc_oracle.contains("variant: high\n---"));
+                assert!(oc_oracle.contains("Strategic technical advisor"));
+                assert!(!oc_oracle.contains("old body"));
+                // ── JSON stub ownership legs ──
+                // ~/.claude/settings.json: the owned `agent` key was DELETED —
+                // its full member span is re-inserted before the closing
+                // brace; every user byte (model, env token) survives.
+                let settings =
+                    fs::read_to_string(side.home.join(".claude/settings.json")).unwrap();
+                assert_eq!(
+                    settings,
+                    "{\n  \"model\": \"sonnet\",\n  \"env\": {\n    \"ANTHROPIC_AUTH_TOKEN\": \"sk-user-home-token\"\n  },\n  \"agent\": \"orchestrator\"\n}\n",
+                    "the deleted agent key must be re-inserted whole"
+                );
+                // ~/.config/opencode/opencode.jsonc: `$schema` present but
+                // user-modified — reset to canonical; comment and model key
+                // survive.
+                let jsonc = fs::read_to_string(
+                    side.home.join(".config/opencode/opencode.jsonc"),
+                )
+                .unwrap();
+                assert_eq!(
+                    jsonc,
+                    "{\n  // mine\n  \"$schema\": \"https://opencode.ai/config.json\",\n  \"model\": \"custom/user-oc\"\n}\n",
+                    "the user-modified $schema value must reset to canonical"
+                );
+            }
         }
         "skip" => {
             // Proves both sides actually SKIPPED instead of rewriting. The
@@ -665,9 +971,12 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             targets: &[Target::Opencode, Target::Claude],
             user_level: false,
             force: false,
-            omos_marker: false,
             dsh: false,
             preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
         },
         Case { // 2
             name: "user",
@@ -675,73 +984,158 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             targets: &[Target::Opencode, Target::Claude],
             user_level: true,
             force: false,
-            omos_marker: false,
             dsh: false,
             preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
         },
         Case { // 3
-            name: "omos",
-            cli_flags: &["--omos"],
-            targets: &[Target::Omos],
-            user_level: false,
-            force: false,
-            omos_marker: true,
-            dsh: false,
-            preseed: None,
-        },
-        Case { // 4
             name: "zcode",
             cli_flags: &["--zcode"],
             targets: &[Target::Zcode],
             user_level: false,
             force: false,
-            omos_marker: false,
             dsh: false,
             preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
         },
-        Case { // 5
+        Case { // 4
             name: "dsh",
             cli_flags: &["--dsh"],
             targets: &[Target::Dsh],
             user_level: false,
             force: false,
-            omos_marker: false,
             dsh: true,
             preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
+        },
+        Case { // 5
+            // Runs --dsh TWICE in both engines with identical tampering in
+            // between: locks the regenerate-trio refresh plus skip-the-rest
+            // parity of a re-run.
+            name: "dsh_rerun",
+            cli_flags: &["--dsh"],
+            targets: &[Target::Dsh],
+            user_level: false,
+            force: false,
+            dsh: true,
+            preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: true,
         },
         Case { // 6
+            name: "dsh_profile",
+            cli_flags: &["--dsh", "--dsh-profile", "web"],
+            targets: &[Target::Dsh],
+            user_level: false,
+            force: false,
+            dsh: true,
+            preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: Some("web"),
+            rerun: false,
+        },
+        Case { // 7
             name: "force",
             cli_flags: &["--force"],
             targets: &[Target::Opencode, Target::Claude],
             user_level: false,
             force: true,
-            omos_marker: false,
             dsh: false,
             preseed: Some("TAMPERED\n"),
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
         },
-        Case { // 7
+        Case { // 8
             name: "skip",
             cli_flags: &[],
             targets: &[Target::Opencode, Target::Claude],
             user_level: false,
             force: false,
-            omos_marker: false,
             dsh: false,
             preseed: Some("SEEDED\n"),
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
+        },
+        Case { // 9
+            // --force over user-retuned files: agent markdown must snapshot
+            // the user's model lines and write them back into the fresh
+            // renders, while the two JSON stubs reconcile the stub's own keys
+            // into the user's files — all byte-identically (see seed_preserve
+            // for the rule paths and shapes covered).
+            name: "preserve",
+            cli_flags: &["--force"],
+            targets: &[Target::Opencode, Target::Claude],
+            user_level: false,
+            force: true,
+            dsh: false,
+            preseed: None,
+            preserve_seed: true,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
+        },
+        Case { // 10
+            // The same contract at the zcode user-level target: ~/.zcode/agents
+            // is an `agents/` destination, so its pins survive --force too.
+            name: "preserve_zcode",
+            cli_flags: &["--zcode", "--force"],
+            targets: &[Target::Zcode],
+            user_level: false,
+            force: true,
+            dsh: false,
+            preseed: None,
+            preserve_seed: true,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
+        },
+        Case { // 11
+            // The overwrite contract at the --user destinations: ~/.claude
+            // (agents + settings.json, stub-owned `agent` key re-inserted) and
+            // ~/.config/opencode (opencode.jsonc, user-modified `$schema`
+            // reset + agents) ride a user-level --force overwrite —
+            // byte-identically in both engines.
+            name: "preserve_user",
+            cli_flags: &["--user", "--force"],
+            targets: &[Target::Opencode, Target::Claude],
+            user_level: true,
+            force: true,
+            dsh: false,
+            preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: true,
+            dsh_profile: None,
+            rerun: false,
         },
     ];
 
     for (index, case) in cases.iter().enumerate() {
         let base = run_dir.path().join(format!("{:02}-{}", index + 1, case.name));
         let (cli, core, planned) = run_install_case(case, &repo, &fixtures, &base);
-        extra_asserts(case, &core, &planned);
+        extra_asserts(case, &repo, &cli, &core, &planned);
         compare_trees(&cli, &core, case.name);
     }
 
-    // 8 — tamper-drift (Rust-side only): install via the CLI, tamper one
+    // 9 — tamper-drift (Rust-side only): install via the CLI, tamper one
     // file, then check_drift must report exactly that file.
     {
-        let base = run_dir.path().join("08-tamper-drift");
+        let base = run_dir.path().join("09-tamper-drift");
         let sandbox = Sandbox::create(&base.join("cli"));
         set_ambient_env(&sandbox, false);
         let (env_set, env_remove) = cli_env(&sandbox, false);
@@ -766,6 +1160,7 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             targets: vec![Target::Opencode, Target::Claude],
             user_level: false,
             force: false,
+            dsh_profile: None,
         };
         let ctx = EngineContext {
             project_dir: sandbox.project.clone(),
@@ -789,55 +1184,6 @@ fn golden_end_to_end_cli_vs_workbench_core() {
                 .iter()
                 .any(|f| f.source_rel == "opencode.jsonc"),
             "untouched files must not be reported as drift"
-        );
-    }
-
-    // 9 — the --opencode/--omos mutex, on both sides (no tree compare).
-    {
-        let base = run_dir.path().join("09-opencode-omos-mutex");
-        let sandbox = Sandbox::create(&base.join("cli"));
-        set_ambient_env(&sandbox, false);
-        let (env_set, env_remove) = cli_env(&sandbox, false);
-        let run = run_cli(
-            &repo,
-            &["--opencode", "--omos"],
-            &sandbox.project,
-            &env_set,
-            &env_remove,
-            &fixtures.bin,
-        )
-        .unwrap_or_else(|e| panic!("mutex: {e}"));
-        assert_ne!(
-            run.status,
-            Some(0),
-            "the CLI must reject --opencode --omos; stdout:\n{}",
-            run.stdout
-        );
-        assert!(
-            run.stderr.contains("--omos cannot be combined with --opencode"),
-            "the CLI's rejection must name the mutex; stderr:\n{}",
-            run.stderr
-        );
-
-        let selection = Selection {
-            source: Source::Bundled,
-            project_dir: sandbox.project.clone(),
-            targets: vec![Target::Opencode, Target::Omos],
-            user_level: false,
-            force: false,
-        };
-        let ctx = EngineContext {
-            project_dir: sandbox.project.clone(),
-            home: sandbox.home.clone(),
-            bundled_root: repo.clone(),
-            version: workbench_core::VERSION.to_string(),
-        };
-        let err = plan(&selection, &ctx)
-            .expect_err("workbench-core must reject --opencode --omos");
-        assert!(
-            err.to_string()
-                .contains("--omos cannot be combined with --opencode"),
-            "core rejection must name the mutex: {err}"
         );
     }
 }

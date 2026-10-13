@@ -728,7 +728,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
                   <div class="path-in"><input id="localPath" value="D:\repos\my-fork" spellcheck="false" aria-label="本地源目录"></div>
                   <button class="btn btn-sm" style="height:32px"><svg class="ic"><use href="#i-folder"/></svg>浏览…</button>
                 </div>
-                <div class="fhint ok" id="localHintOk"><svg class="ic"><use href="#i-checkc"/></svg>agents/ 树有效 · 检测到 5 个后端 · dsh 插件结构完整</div>
+                <div class="fhint ok" id="localHintOk"><svg class="ic"><use href="#i-checkc"/></svg>agents/ 树有效 · 检测到 4 个后端 · dsh 插件结构完整</div>
                 <div class="fhint err" id="localHintErr" hidden><svg class="ic"><use href="#i-xc"/></svg>未找到 agents/ 目录 — 请选择包含 agents/ 的上层目录</div>
               </div>
             </div>
@@ -780,11 +780,6 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
                   <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">opencode</span></span>
                   <span class="tstat"><span class="dot ok"></span>已检测到 v0.6.3</span>
                 </label>
-                <label class="tck is-dis" data-t="omos">
-                  <input type="checkbox" disabled>
-                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">omos</span></span>
-                  <span class="tstat"><span class="dot off"></span><span class="mutex">与 opencode 互斥</span></span>
-                </label>
                 <label class="tck is-on" data-t="claude">
                   <input type="checkbox" checked>
                   <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">claude</span></span>
@@ -802,7 +797,6 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
                   <span class="textra" id="dshExtra"><span class="envchip">DSH_HOME 已覆盖</span></span>
                 </label>
               </div>
-              <div class="mutex-line"><svg class="ic"><use href="#i-info"/></svg><span>opencode 与 omos 为同一运行时的两种宿主形态，互斥；未检测到仍可安装。</span></div>
             </div>
           </div>
 
@@ -1483,39 +1477,19 @@ function applyLocalHint(){
   $('#localHintErr').hidden = ok;
 }
 
-/* ---------------- deploy: targets + mutex ---------------- */
+/* ---------------- deploy: targets ---------------- */
 $$('#tgrid .tck').forEach(l => {
   const input = l.querySelector('input');
   input.addEventListener('change', ()=>{
     const t = l.dataset.t;
     if(input.checked){
       state.targets.add(t);
-      if(t==='opencode'){ setTarget('omos', false, true); }
-      if(t==='omos'){ setTarget('opencode', false, true); }
     } else state.targets.delete(t);
     refreshMutex();
     invalidate();
   });
 });
-function setTarget(t, on, disabled){
-  const l = $(`.tck[data-t="${t}"]`), input = l.querySelector('input');
-  input.checked = on; input.disabled = disabled;
-  l.classList.toggle('is-on', on);
-  l.classList.toggle('is-dis', disabled);
-  if(on) state.targets.add(t); else state.targets.delete(t);
-}
 function refreshMutex(){
-  const oc = state.targets.has('opencode'), om = state.targets.has('omos');
-  const lOc = $('.tck[data-t="opencode"]'), lOm = $('.tck[data-t="omos"]');
-  if(oc && !lOc.querySelector('input').disabled) setTarget('omos', false, true);
-  if(om && !lOm.querySelector('input').disabled) setTarget('opencode', false, true);
-  if(!oc && !om){
-    const iOc = lOc.querySelector('input'), iOm = lOm.querySelector('input');
-    if(iOc.disabled && !iOc.checked){ iOc.disabled=false; lOc.classList.remove('is-dis'); }
-    if(iOm.disabled && !iOm.checked){ iOm.disabled=false; lOm.classList.remove('is-dis'); }
-  }
-  const mutexEl = lOm.querySelector('.mutex');
-  mutexEl.textContent = state.targets.has('opencode') ? '与 opencode 互斥' : (lOm.querySelector('input').disabled ? '与 opencode 互斥' : '未检测到');
   $('#tgtCount').textContent = `已选 ${state.targets.size} 个`;
   updatePrevalVisibility();
 }

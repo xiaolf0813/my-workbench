@@ -9,22 +9,20 @@ use std::path::PathBuf;
 
 // ---------------------------------------------------------------- targets
 
-/// The five install targets.
+/// The four install targets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Target {
     Opencode,
-    Omos,
     Claude,
     Zcode,
     Dsh,
 }
 
 /// Fixed apply order, identical to the CLI:
-/// opencode → omos → claude → zcode → dsh.
-pub const APPLY_ORDER: [Target; 5] = [
+/// opencode → claude → zcode → dsh.
+pub const APPLY_ORDER: [Target; 4] = [
     Target::Opencode,
-    Target::Omos,
     Target::Claude,
     Target::Zcode,
     Target::Dsh,
@@ -44,7 +42,7 @@ pub enum Source {
 }
 
 /// The GUI's install control state, mirroring the CLI flag matrix
-/// (`--opencode`/`--omos` mutex, `--user`, `--force`).
+/// (`--user`, `--force`, `--dsh-profile`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Selection {
@@ -53,10 +51,16 @@ pub struct Selection {
     /// picker). User-level-only selections (zcode) ignore it but it is
     /// always present; the source-repo guard compares against it.
     pub project_dir: PathBuf,
-    /// Must not contain both `Opencode` and `Omos`; must not be empty.
+    /// Must not be empty.
     pub targets: Vec<Target>,
     pub user_level: bool,
     pub force: bool,
+    /// `--dsh-profile <name>` (CLI-only; the desktop UI never sets it, hence
+    /// the serde default): narrow the DSH settings-page row to the one named
+    /// profile instead of every profile found. Validated like the CLI's
+    /// `parseArgs` (see [`crate::engine`]'s selection validation).
+    #[serde(default)]
+    pub dsh_profile: Option<String>,
 }
 
 // ---------------------------------------------------------- engine context
@@ -140,7 +144,7 @@ pub struct Plan {
     pub items: Vec<PlanItem>,
     pub stamps: Vec<StampPlan>,
     /// Plan-time notes: prerequisite risks, unchanged/skipped managed blocks,
-    /// omos-over-existing-agents warnings, install next-notes.
+    /// install next-notes.
     pub notes: Vec<String>,
 }
 
@@ -276,7 +280,8 @@ pub struct ToolStatus {
 }
 
 /// DSH detection (design decision 5): home, where it came from, existence,
-/// the single profile the managed-block row would target, candidate count.
+/// the first profile (sorted) the managed-block rows would target, candidate
+/// count.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DshInfo {
@@ -303,8 +308,6 @@ pub struct EnvironmentInfo {
     pub source_version: String,
     pub opencode: ToolStatus,
     pub node: ToolStatus,
-    /// User-level omos present (the CLI's `omosUserLevelPresent` heuristics).
-    pub omos_user_level: bool,
     pub dsh: DshInfo,
     /// Per-target advisory status dots — inform-only, never a gate
     /// (design decision 4).

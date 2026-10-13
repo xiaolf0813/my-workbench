@@ -174,7 +174,7 @@
       }
     },
     "improver": {
-      "description": "Retrospective analyst for agent failures: traces which agent produced unsatisfactory completed work, diagnoses the root cause, and proposes omos prompt/config fixes pending user confirmation. Use ONLY when the user reports that previously completed work is wrong or unsatisfactory - not for ordinary code bugs, new feature work, or in-progress verification.",
+      "description": "Retrospective analyst for agent failures: traces which agent produced unsatisfactory completed work, diagnoses the root cause, and proposes prompt/config fixes pending user confirmation. Use ONLY when the user reports that previously completed work is wrong or unsatisfactory - not for ordinary code bugs, new feature work, or in-progress verification.",
       "frontmatter": {
         "claude": [
           "name: improver",

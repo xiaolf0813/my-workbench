@@ -10,26 +10,20 @@ npx my-workbench
 
 `my-workbench` copies a curated multi-agent configuration into the current project:
 
-- **`.opencode/`** — OpenCode core config and native `.opencode/agents/` subagents: eight specialized agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `fixer`, `observer`, `improver`. Add the separate `--omos` target on top for the [oh-my-opencode-slim](https://github.com/alvinunreal/oh-my-opencode-slim) plugin scheme (short name: **omos**): multi-model council presets and prompt overrides.
-- **`.claude/`** — the same specialists as native Claude Code subagents (`.claude/agents/*.md`). omos-agnostic: installed identically in every target.
+- **`.opencode/`** — OpenCode core config and native `.opencode/agents/` subagents: eight specialized agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `fixer`, `observer`, `improver`.
+- **`.claude/`** — the same specialists as native Claude Code subagents (`.claude/agents/*.md`). Installed identically in every target.
 - **`~/.zcode/`** — opt-in ZCode support (`--zcode`): user-level global instructions plus the specialist subagents as ZCode user agents (`~/.zcode/agents/*.md`). Nothing is written inside the project.
 - **`~/.dsh/`** — opt-in DeepSeek Harness support (`--dsh`): one agent preset under `<DSH_HOME>/.agent-presets/my-workbench/` — the orchestrator prompt as the preset persona, plus a packaged **lane plugin** that owns the seven named specialist tools and a settings page for pinning each lane's model and reasoning effort. The tools are preset-scoped; the settings page needs one inert row in every DSH profile (`web` for `dsh web`, `desktop` for DSH Desktop), the entire profile-level footprint. Nothing is written inside the project.
 
-## OpenCode targets: native or omos
+## OpenCode target
 
-OpenCode support comes as two independent targets:
-
-- **`--opencode` (native)** — core config (`opencode.jsonc`) plus native `.opencode/agents/*.md` subagents. Requires the OpenCode app (`opencode` on PATH). Nothing is downloaded. The universal behavior rules (`agents/disciplines.md`) are appended to every agent's own prompt at assembly, so each agent carries them and the orchestrator never pastes them into a delegation brief. When a user-level omos install is detected (`~/.config/opencode`), it installs the omos way instead (omits assets, no native agents) to avoid agent conflicts.
-- **`--omos` (opt-in plugin scheme)** — copies only the omos project assets (oh-my-opencode-slim.jsonc, prompt overrides, plugin node dependencies) into `.opencode/`. Requires OpenCode **and** an existing user-level omos install (`~/.config/opencode`): the plugin loads from that user level, so my-workbench never pins a `"plugin"` entry and never downloads anything. It cannot be combined with `--opencode`.
-
-There is no consent flow: the explicit `--omos` flag is the explicit choice, and the prerequisite check fails fast if omos is not already installed.
+- **`--opencode` (native)** — core config (`opencode.jsonc`) plus native `.opencode/agents/*.md` subagents. Requires the OpenCode app (`opencode` on PATH). Nothing is downloaded. The universal behavior rules (`agents/disciplines.md`) are appended to every agent's own prompt at assembly, so each agent carries them and the orchestrator never pastes them into a delegation brief.
 
 ## Usage
 
 ```bash
 npx my-workbench                    # install both .opencode/ and .claude/
 npx my-workbench --opencode         # OpenCode setup only
-npx my-workbench --omos             # omos plugin scheme only (no native agents)
 npx my-workbench --claude           # Claude Code setup only
 npx my-workbench --user             # user-level install: ~/.config/opencode/ + ~/.claude/
 npx my-workbench --force            # overwrite files that already exist
@@ -40,7 +34,7 @@ npx my-workbench --dsh --dsh-profile desktop  # DSH preset + the desktop profile
 npx my-workbench assemble [--check] # in this repo: regenerate .claude/agents/ and .opencode/
 ```
 
-Existing files are skipped unless `--force` is given, so re-running is safe.
+Existing files are skipped unless `--force` is given, so re-running is safe. A `--force` overwrite snapshots and restores your model settings — the `model`/`effort`/`variant`/`thoughtLevel` lines of every `agents/*.md` (per backend) — so your retuned pins survive upgrades. The two JSON files it deploys are seed stubs, not owned files: `--force` reconciles only the stub's own keys (`agent` in `.claude/settings.json`, `$schema` in `opencode.jsonc`) into an existing file and never touches any other byte of it.
 
 ## Version management
 
@@ -54,7 +48,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 ## User-level install
 
-`npx my-workbench --user` installs the same assets at user level instead of the current project: OpenCode/omos assets go to `~/.config/opencode/` (its XDG config directory; global agents are read from `~/.config/opencode/agents/`) and Claude Code assets to `~/.claude/` (`settings.json` + `agents/*.md`). User-level files apply to every project and are not meant for version control; on name conflicts project-level agents win over user-level ones. ZCode is always user-level and ignores `--user`.
+`npx my-workbench --user` installs the same assets at user level instead of the current project: OpenCode assets go to `~/.config/opencode/` (its XDG config directory; global agents are read from `~/.config/opencode/agents/`) and Claude Code assets to `~/.claude/` (`settings.json` + `agents/*.md`). User-level files apply to every project and are not meant for version control; on name conflicts project-level agents win over user-level ones. ZCode is always user-level and ignores `--user`.
 
 ## ZCode target
 
@@ -62,7 +56,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 - The global file is `agents/prompts/orchestrator.md` — the orchestrator prompt drives the main agent, with the ZCode dispatch convention substituted from `agents/backends/zcode/slots/dispatch.md`.
 - Subagents run with `injectAgentsMd: false`: the global file is not injected into them, so every delegation brief must carry full context.
-- Opt-in only (`--zcode` or `zcode`) — the default targets remain `.opencode/` + `.claude/`. No omos, nothing downloaded. Existing files are skipped unless `--force`. Restart ZCode sessions to pick up changes.
+- Opt-in only (`--zcode` or `zcode`) — the default targets remain `.opencode/` + `.claude/`. Nothing is downloaded. Existing files are skipped unless `--force`. Restart ZCode sessions to pick up changes.
 
 ## DSH target
 
@@ -165,10 +159,6 @@ agents/
     ├── opencode/
     │   ├── slots/                # OpenCode-specific prompt text
     │   └── opencode.jsonc        # core config
-    ├── omos/
-    │   ├── oh-my-opencode-slim.jsonc       # omos project config
-    │   ├── oh-my-opencode-slim/  # prompt overrides (<agent>_append.md)
-    │   └── package.json          # plugin node dependencies
     ├── zcode/
     │   └── slots/          # dispatch.md (every backend has it; not enumerated here)
     └── dsh/

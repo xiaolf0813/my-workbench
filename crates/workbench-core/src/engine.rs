@@ -14,10 +14,10 @@
 //! done once per entry point (into [`Action`]s); execution never re-decides
 //! kinds, it only consults the plan.
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::*;
@@ -30,10 +30,6 @@ use crate::{checks, dsh, dsh_deps, render, roster};
 const VERSION_FILE: &str = "my-workbench.version";
 /// The user-realm stamp, hidden in the home directory (CLI :29).
 const HOME_VERSION_FILE: &str = ".my-workbench.version";
-/// npm package name of the omos plugin (CLI :35).
-const OMOS_PACKAGE: &str = "oh-my-opencode-slim";
-/// The ONE rendered asset: the omos orchestrator append (CLI :478).
-const OMOS_APPEND_REL: &str = "oh-my-opencode-slim/orchestrator_append.md";
 /// Progress phase label carried on [`InstallEvent::Progress`].
 /// Progress-line phase shown verbatim in the GUI progress row (`正在安装 · i/n · p%`).
 const PROGRESS_PHASE: &str = "正在安装";
@@ -46,33 +42,18 @@ struct CopySet {
     dest: &'static str,
     /// Entries copied as-is; directories are walked recursively.
     entries: &'static [&'static str],
-    /// The omos set renders exactly one asset (the orchestrator append).
-    is_omos: bool,
 }
 
 const SET_OPENCODE: CopySet = CopySet {
     backend_dir: "opencode",
     dest: ".opencode",
     entries: &["opencode.jsonc"],
-    is_omos: false,
-};
-
-const SET_OMOS: CopySet = CopySet {
-    backend_dir: "omos",
-    dest: ".opencode",
-    entries: &[
-        "oh-my-opencode-slim.jsonc",
-        "oh-my-opencode-slim",
-        "package.json",
-    ],
-    is_omos: true,
 };
 
 const SET_CLAUDE: CopySet = CopySet {
     backend_dir: "claude",
     dest: ".claude",
     entries: &["settings.json"],
-    is_omos: false,
 };
 
 // --------------------------------------------------------------- traversal
@@ -119,15 +100,14 @@ impl Traversal {
 }
 
 /// Per-target install scope (CLI :1726-1739). `dest` is "" at user level
-/// (files land directly in the scope root); `display` only feeds note text.
+/// (files land directly in the scope root).
 struct Scope {
     root: PathBuf,
     dest: &'static str,
-    display: String,
 }
 
 fn is_project_target(t: &Target) -> bool {
-    matches!(t, Target::Opencode | Target::Omos | Target::Claude)
+    matches!(t, Target::Opencode | Target::Claude)
 }
 
 fn is_user_level_only_target(t: &Target) -> bool {
@@ -139,14 +119,12 @@ fn opencode_scope(sel: &Selection, ctx: &EngineContext) -> Scope {
         Scope {
             root: ctx.home.join(".config").join("opencode"),
             dest: "",
-            display: "~/.config/opencode/".to_string(),
         }
     } else {
         Scope {
             // The user's picked project directory (Selection) is authoritative.
             root: sel.project_dir.clone(),
             dest: ".opencode",
-            display: ".opencode/".to_string(),
         }
     }
 }
@@ -156,14 +134,12 @@ fn claude_scope(sel: &Selection, ctx: &EngineContext) -> Scope {
         Scope {
             root: ctx.home.join(".claude"),
             dest: "",
-            display: "~/.claude/".to_string(),
         }
     } else {
         Scope {
             // The user's picked project directory (Selection) is authoritative.
             root: sel.project_dir.clone(),
             dest: ".claude",
-            display: ".claude/".to_string(),
         }
     }
 }
@@ -220,163 +196,6 @@ fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
     Ok(())
 }
 
-// -------------------------------------------------------- JS text helpers
-
-/// JS `\s` character class (used by the CLI's regexes and `.replace(/\s+$/)`).
-fn is_js_ws(c: char) -> bool {
-    matches!(
-        c,
-        '\t' | '\n'
-            | '\u{000B}'
-            | '\u{000C}'
-            | '\r'
-            | ' '
-            | '\u{00a0}'
-            | '\u{1680}'
-            | '\u{2028}'
-            | '\u{2029}'
-            | '\u{202f}'
-            | '\u{205f}'
-            | '\u{3000}'
-            | '\u{feff}'
-    ) || ('\u{2000}'..='\u{200a}').contains(&c)
-}
-
-fn trim_end_js(s: &str) -> &str {
-    s.trim_end_matches(is_js_ws)
-}
-
-fn trim_js(s: &str) -> &str {
-    s.trim_matches(is_js_ws)
-}
-
-/// JS `str.replace(/\s+/g, " ")`: collapse every whitespace run to one space.
-fn collapse_ws(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut in_ws = false;
-    for c in s.chars() {
-        if is_js_ws(c) {
-            in_ws = true;
-            continue;
-        }
-        if in_ws && !out.is_empty() {
-            out.push(' ');
-        }
-        in_ws = false;
-        out.push(c);
-    }
-    out
-}
-
-fn heading_regex() -> &'static regex::Regex {
-    static RE: OnceLock<regex::Regex> = OnceLock::new();
-    RE.get_or_init(|| regex::Regex::new(r"^#{1,6}\s+Response Convention\s*$").unwrap())
-}
-
-fn next_heading_regex() -> &'static regex::Regex {
-    static RE: OnceLock<regex::Regex> = OnceLock::new();
-    RE.get_or_init(|| regex::Regex::new(r"^#{1,6}(\s|$)").unwrap())
-}
-
-fn placeholder_line_regex() -> &'static regex::Regex {
-    static RE: OnceLock<regex::Regex> = OnceLock::new();
-    RE.get_or_init(|| regex::Regex::new(r"^\s*\{\{[\w:-]+\}\}\s*$").unwrap())
-}
-
-fn list_item_regex() -> &'static regex::Regex {
-    static RE: OnceLock<regex::Regex> = OnceLock::new();
-    RE.get_or_init(|| regex::Regex::new(r"^\s*(?:[-*+]|\d+[.)])[ \t]").unwrap())
-}
-
-// -------------------------------------------------- the one rendered asset
-
-/// Whitespace-normalized body of the one `Response Convention` section in one
-/// file (CLI :1256-1274): after the heading until the next ATX heading,
-/// placeholder lines removed, whitespace collapsed — except list-item-opening
-/// lines carry a `\0` sentinel so list structure changes still fail.
-fn response_convention_body(source_root: &Path, rel: &str) -> Result<String, WorkbenchError> {
-    let text = fs::read_to_string(source_root.join(rel))?;
-    let lines: Vec<&str> = text.split('\n').collect();
-    let heading_re = heading_regex();
-    let at: Vec<usize> = lines
-        .iter()
-        .enumerate()
-        .filter(|(_, l)| heading_re.is_match(l))
-        .map(|(i, _)| i)
-        .collect();
-    if at.is_empty() {
-        return Err(WorkbenchError::Message(format!(
-            "{rel} has no 'Response Convention' heading"
-        )));
-    }
-    if at.len() > 1 {
-        return Err(WorkbenchError::Message(format!(
-            "{rel} has {} 'Response Convention' headings; expected exactly one",
-            at.len()
-        )));
-    }
-    let next_re = next_heading_regex();
-    let placeholder_re = placeholder_line_regex();
-    let list_re = list_item_regex();
-    let mut body: Vec<String> = Vec::new();
-    for line in lines.iter().skip(at[0] + 1) {
-        if next_re.is_match(line) {
-            break;
-        }
-        if placeholder_re.is_match(line) {
-            continue;
-        }
-        if list_re.is_match(line) {
-            body.push(format!("\u{0}{line}"));
-        } else {
-            body.push((*line).to_string());
-        }
-    }
-    let joined = body.join(" ");
-    let collapsed = collapse_ws(&joined);
-    let text = trim_js(&collapsed);
-    if text.is_empty() {
-        return Err(WorkbenchError::Message(format!(
-            "{rel} has an empty 'Response Convention' section"
-        )));
-    }
-    Ok(text.to_string())
-}
-
-/// Fail unless both authored copies of the convention agree (CLI :1277-1283).
-fn assert_response_convention_sync(source_root: &Path) -> Result<(), WorkbenchError> {
-    const PROMPT: &str = "agents/prompts/orchestrator.md";
-    const APPEND: &str = "agents/backends/omos/oh-my-opencode-slim/orchestrator_append.md";
-    if response_convention_body(source_root, PROMPT)? != response_convention_body(source_root, APPEND)? {
-        return Err(WorkbenchError::Message(format!(
-            "'Response Convention' diverges between {PROMPT} and {APPEND} \
-             (heading depth, line wrapping and blank lines are ignored); align the two copies"
-        )));
-    }
-    Ok(())
-}
-
-/// Render the omos orchestrator append (CLI :1290-1302): substitute
-/// `{{disciplines}}` with the trimmed universal disciplines. JS
-/// `String.replace(string, …)` replaces the FIRST occurrence only.
-fn render_omos_append(source_root: &Path, source: &str) -> Result<String, WorkbenchError> {
-    assert_response_convention_sync(source_root)?;
-    const MARKER: &str = "{{disciplines}}";
-    if !source.contains(MARKER) {
-        return Err(WorkbenchError::Message(
-            "agents/backends/omos/oh-my-opencode-slim/orchestrator_append.md must contain {{disciplines}}"
-                .to_string(),
-        ));
-    }
-    let raw = fs::read_to_string(source_root.join("agents").join("disciplines.md"))?;
-    let disciplines = trim_end_js(&raw);
-    let mut out = source.to_string();
-    if let Some(at) = source.find(MARKER) {
-        out.replace_range(at..at + MARKER.len(), disciplines);
-    }
-    Ok(out)
-}
-
 // -------------------------------------------------------------- collection
 
 fn collect_copy_entries(
@@ -414,33 +233,26 @@ fn collect_copy_entries(
                     .strip_prefix(&src)
                     .expect("walked file lives under the entry");
                 let dest_rel = Path::new(entry).join(rel);
-                push_copy_action(set, target, &file, &dest_rel, scope, source_root, t)?;
+                push_copy_action(target, &file, &dest_rel, scope, t)?;
             }
         } else {
-            push_copy_action(set, target, &src, Path::new(entry), scope, source_root, t)?;
+            push_copy_action(target, &src, Path::new(entry), scope, t)?;
         }
     }
     Ok(())
 }
 
-/// Copy one asset (CLI :476-483): ONLY the omos orchestrator append is
-/// rendered; everything else copies byte-for-byte.
+/// Copy one asset (CLI :476-483): everything copies byte-for-byte.
 fn push_copy_action(
-    set: &CopySet,
     target: Target,
     src: &Path,
     dest_rel: &Path,
     scope: &Scope,
-    source_root: &Path,
     t: &mut Traversal,
 ) -> Result<(), WorkbenchError> {
     let source_rel = path_to_posix(dest_rel);
     let dest = scope_join(scope, dest_rel);
-    let content = if set.is_omos && source_rel == OMOS_APPEND_REL {
-        ActionContent::Text(render_omos_append(source_root, &fs::read_to_string(src)?)?)
-    } else {
-        ActionContent::Bytes(fs::read(src)?)
-    };
+    let content = ActionContent::Bytes(fs::read(src)?);
     t.actions.push(Action {
         target,
         dest,
@@ -499,28 +311,7 @@ fn push_slot_warnings(t: &mut Traversal, backend: &str, slots: &render::UsedSlot
     }
 }
 
-/// True when an omos install already exists at user level (CLI :486-494).
-fn omos_user_level_present(home: &Path) -> bool {
-    let cfg_dir = home.join(".config").join("opencode");
-    if cfg_dir.join("node_modules").join(OMOS_PACKAGE).exists() {
-        return true;
-    }
-    for name in ["opencode.json", "opencode.jsonc"] {
-        let file = cfg_dir.join(name);
-        if file.exists() {
-            // The CLI would crash on an unreadable file; the port treats it as
-            // not mentioning the package (lenient on purpose).
-            if let Ok(text) = fs::read_to_string(&file) {
-                if text.contains(OMOS_PACKAGE) {
-                    return true;
-                }
-            }
-        }
-    }
-    false
-}
-
-/// Targets before the DSH position in APPLY_ORDER: opencode → omos → claude →
+/// Targets before the DSH position in APPLY_ORDER: opencode → claude →
 /// zcode (CLI :1756-1763).
 fn collect_before_dsh(
     sel: &Selection,
@@ -531,39 +322,16 @@ fn collect_before_dsh(
     if sel.targets.contains(&Target::Opencode) {
         let scope = opencode_scope(sel, ctx);
         collect_copy_entries(&SET_OPENCODE, Target::Opencode, &scope, source_root, t)?;
-        if omos_user_level_present(&ctx.home) {
-            // CLI :1092-1103: switch wholesale to the omos assets — native
-            // agents would conflict with omos-provided agents.
-            t.notes.push(
-                "user-level omos install detected; installing the omos way: omos config + prompt overrides copied, native agents/ skipped to avoid agent conflicts (the plugin loads from user level)"
-                    .to_string(),
-            );
-            collect_copy_entries(&SET_OMOS, Target::Opencode, &scope, source_root, t)?;
-        } else {
-            let mut slots = render::UsedSlots::new();
-            collect_backend_agents(
-                "opencode",
-                scope_join(&scope, Path::new("agents")),
-                Target::Opencode,
-                source_root,
-                t,
-                &mut slots,
-            )?;
-            push_slot_warnings(t, "opencode", &slots);
-        }
-    }
-
-    if sel.targets.contains(&Target::Omos) {
-        // omos shares the opencode scope (CLI :1735).
-        let scope = opencode_scope(sel, ctx);
-        collect_copy_entries(&SET_OMOS, Target::Omos, &scope, source_root, t)?;
-        let agents_dir = scope_join(&scope, Path::new("agents"));
-        if agents_dir.exists() {
-            t.notes.push(format!(
-                "existing {}agents/ files may conflict with omos-provided agents; review them",
-                scope.display
-            ));
-        }
+        let mut slots = render::UsedSlots::new();
+        collect_backend_agents(
+            "opencode",
+            scope_join(&scope, Path::new("agents")),
+            Target::Opencode,
+            source_root,
+            t,
+            &mut slots,
+        )?;
+        push_slot_warnings(t, "opencode", &slots);
     }
 
     if sel.targets.contains(&Target::Claude) {
@@ -659,14 +427,24 @@ fn validate_selection(sel: &Selection) -> Result<(), WorkbenchError> {
             "no install target selected".to_string(),
         ));
     }
-    let has_opencode = sel.targets.contains(&Target::Opencode);
-    let has_omos = sel.targets.contains(&Target::Omos);
-    if has_opencode && has_omos {
-        // CLI parseArgs (:355-357).
-        return Err(WorkbenchError::Message(
-            "--omos cannot be combined with --opencode; --opencode already installs the omos way when a user-level omos install is detected"
-                .to_string(),
-        ));
+    // `--dsh-profile` validation, ported from the CLI's parseArgs: the value
+    // must be a real name and the flag only pairs with the DSH target.
+    if let Some(name) = sel.dsh_profile.as_deref() {
+        if name.is_empty() {
+            return Err(WorkbenchError::Message(
+                "--dsh-profile needs a profile name".to_string(),
+            ));
+        }
+        if name.starts_with('-') {
+            return Err(WorkbenchError::Message(format!(
+                "--dsh-profile needs a profile name, got '{name}'"
+            )));
+        }
+        if !sel.targets.contains(&Target::Dsh) {
+            return Err(WorkbenchError::Message(
+                "--dsh-profile only applies to the DSH target; add --dsh".to_string(),
+            ));
+        }
     }
     Ok(())
 }
@@ -678,20 +456,6 @@ fn check_prerequisites(sel: &Selection, ctx: &EngineContext) -> Result<(), Workb
         return Err(WorkbenchError::Message(
             "OpenCode is not installed (no 'opencode' on PATH); install OpenCode first".to_string(),
         ));
-    }
-    if sel.targets.contains(&Target::Omos) {
-        if !find_on_path("opencode") {
-            return Err(WorkbenchError::Message(
-                "OpenCode is not installed (no 'opencode' on PATH); install OpenCode first"
-                    .to_string(),
-            ));
-        }
-        if !omos_user_level_present(&ctx.home) {
-            return Err(WorkbenchError::Message(
-                "omos is not installed at user level (~/.config/opencode); install omos first, then rerun with --omos"
-                    .to_string(),
-            ));
-        }
     }
     if sel.targets.contains(&Target::Dsh) {
         let home = dsh::dsh_home(&ctx.home);
@@ -924,7 +688,7 @@ pub fn execute(
     let mut done = 0usize;
     let mut cancelled = false;
 
-    // Replay the pre-DSH items (opencode → omos → claude → zcode).
+    // Replay the pre-DSH items (opencode → claude → zcode).
     for action in &t.actions {
         if replay_action(action, &kinds, sink, &mut report, &mut done, total)? {
             cancelled = true;
@@ -1029,14 +793,30 @@ fn replay_action(
         }
         Some(PlanKind::Create) | Some(PlanKind::Overwrite) => {
             let overwrite = matches!(kinds.get(&action.dest), Some(PlanKind::Overwrite));
-            if let Err(e) = write_bytes(&action.dest, action.content.bytes()) {
-                log_event(
-                    sink,
-                    Some(action.target),
-                    LogLevel::Error,
-                    format!("写入 {} 失败：{e}", action.dest.display()),
-                );
-                return Err(e.into());
+            // An overwrite is per-destination: the two JSON stubs are seed
+            // content — the stub's OWN keys are reconciled into the existing
+            // file and everything else survives; agent markdown preserves the
+            // user's frontmatter model keys; everything else is a plain
+            // write. `None` means the file on disk is left COMPLETELY
+            // untouched (unparseable content or stub at a stub destination —
+            // user content is never overwritten with the stub; the CLI's
+            // copyOne keeps the same rule). Creates have nothing to
+            // preserve or reconcile.
+            let bytes: Option<Cow<'_, [u8]>> = if overwrite {
+                crate::preserve::overwrite_bytes(&action.dest, action.content.bytes())
+            } else {
+                Some(Cow::Borrowed(action.content.bytes()))
+            };
+            if let Some(bytes) = bytes {
+                if let Err(e) = write_bytes(&action.dest, &bytes) {
+                    log_event(
+                        sink,
+                        Some(action.target),
+                        LogLevel::Error,
+                        format!("写入 {} 失败：{e}", action.dest.display()),
+                    );
+                    return Err(e.into());
+                }
             }
             if overwrite {
                 report.overwritten += 1;
@@ -1174,13 +954,12 @@ pub fn check_drift(
 /// `opencode --version` / `node` itself).
 pub fn detect_environment(ctx: &EngineContext) -> EnvironmentInfo {
     let dsh_info = dsh::detect_dsh(&ctx.home);
-    let omos_present = omos_user_level_present(&ctx.home);
     let opencode_present = find_on_path("opencode");
     let targets = APPLY_ORDER
         .iter()
         .map(|t| TargetStatus {
             target: *t,
-            detail: target_status_detail(*t, &dsh_info, omos_present, opencode_present),
+            detail: target_status_detail(*t, &dsh_info, opencode_present),
         })
         .collect();
     EnvironmentInfo {
@@ -1197,7 +976,6 @@ pub fn detect_environment(ctx: &EngineContext) -> EnvironmentInfo {
             present: find_on_path("node"),
             version: None,
         },
-        omos_user_level: omos_present,
         dsh: dsh_info,
         targets,
     }
@@ -1205,23 +983,11 @@ pub fn detect_environment(ctx: &EngineContext) -> EnvironmentInfo {
 
 /// Per-target status detail strings — short zh status copy shown verbatim on
 /// the UI's target cards (detection is inform-only).
-fn target_status_detail(
-    target: Target,
-    dsh: &DshInfo,
-    omos_present: bool,
-    opencode_present: bool,
-) -> String {
+fn target_status_detail(target: Target, dsh: &DshInfo, opencode_present: bool) -> String {
     match target {
         Target::Opencode => {
             if opencode_present {
                 "已检测到".to_string()
-            } else {
-                "未检测到".to_string()
-            }
-        }
-        Target::Omos => {
-            if omos_present {
-                "已检测到用户级 omos".to_string()
             } else {
                 "未检测到".to_string()
             }
@@ -1319,6 +1085,7 @@ mod tests {
                 targets,
                 user_level,
                 force,
+                dsh_profile: None,
             }
         }
     }
@@ -1531,22 +1298,17 @@ mod tests {
             .iter()
             .any(|t| t.contains("跳过") && t.contains("opencode.jsonc")));
 
-        // With force: every existing file is overwritten, the jsonc among them.
+        // With force: every existing file is overwritten — except the jsonc, a
+        // seed-stub destination: "old contents" does not parse, so the user's
+        // bytes are left COMPLETELY untouched (never overwritten with the
+        // stub). The action still reports as an overwrite (silent reconcile).
         let sf = sb.sel(vec![Target::Opencode, Target::Claude], false, true);
         let pf = plan(&sf, &sb.ctx).unwrap();
         let item = pf.items.iter().find(|i| i.path == jsonc).unwrap();
         assert_eq!(item.kind, PlanKind::Overwrite);
         let report = execute(&pf, &sf, &sb.ctx, &CollectSink::default()).unwrap();
         assert_eq!(report.overwritten, pf.items.len());
-        let expected = fs::read(
-            repo_root()
-                .join("agents")
-                .join("backends")
-                .join("opencode")
-                .join("opencode.jsonc"),
-        )
-        .unwrap();
-        assert_eq!(fs::read(&jsonc).unwrap(), expected);
+        assert_eq!(fs::read(&jsonc).unwrap(), b"old contents");
     }
 
     #[test]
@@ -1622,6 +1384,7 @@ mod tests {
             targets: vec![Target::Claude],
             user_level: false,
             force: false,
+            dsh_profile: None,
         };
         let err = plan(&into_source, &ctx).unwrap_err();
         assert!(err.to_string().contains("source repository"), "{err}");
@@ -1654,6 +1417,7 @@ mod tests {
             targets: vec![Target::Claude],
             user_level: false,
             force: false,
+            dsh_profile: None,
         };
 
         // Scopes and the project stamp follow the picked dir.
@@ -1695,20 +1459,60 @@ mod tests {
     }
 
     #[test]
-    fn selection_validation_mutex_and_empty() {
+    fn selection_validation_rejects_empty() {
         let sb = sandbox();
-        let err = plan(
-            &sb.sel(vec![Target::Opencode, Target::Omos], false, false),
-            &sb.ctx,
-        )
-        .unwrap_err();
-        assert!(
-            err.to_string()
-                .contains("--omos cannot be combined with --opencode"),
-            "{err}"
-        );
         let err = plan(&sb.sel(Vec::new(), false, false), &sb.ctx).unwrap_err();
         assert!(err.to_string().contains("no install target selected"));
+    }
+
+    #[test]
+    fn dsh_profile_validation_matches_the_cli() {
+        // The clean-plan tail needs the engine's derived DSH home, which is
+        // only the sandbox's when the ambient DSH_HOME is unset.
+        if std::env::var("DSH_HOME").is_ok_and(|value| !value.is_empty()) {
+            return;
+        }
+        let sb = sandbox();
+        // The flag only pairs with the DSH target, and its value must be a
+        // real name (CLI parseArgs texts). Validation precedes every
+        // prerequisite, so these need no DSH home at all.
+        let mut s = sb.sel(vec![Target::Claude], false, false);
+        s.dsh_profile = Some("web".to_owned());
+        let err = plan(&s, &sb.ctx).unwrap_err();
+        assert!(
+            err.to_string().contains("--dsh-profile only applies to the DSH target"),
+            "{err}"
+        );
+
+        s.targets = vec![Target::Dsh];
+        s.dsh_profile = Some(String::new());
+        assert!(plan(&s, &sb.ctx)
+            .unwrap_err()
+            .to_string()
+            .contains("--dsh-profile needs a profile name"));
+        s.dsh_profile = Some("--force".to_owned());
+        let err = plan(&s, &sb.ctx).unwrap_err();
+        assert!(
+            err.to_string().contains("--dsh-profile needs a profile name, got '--force'"),
+            "{err}"
+        );
+
+        // A well-formed value plans cleanly (the profile need not exist — that
+        // is applyDsh's skip report, not a validation error).
+        let dsh_home = sb.ctx.home.join(".dsh");
+        let modules = dsh_home.join("profiles").join("node_modules");
+        for name in ["@deepseek-ai/dsh-tools", "@deepseek-ai/schemastery"] {
+            let pkg = modules.join(name);
+            fs::create_dir_all(&pkg).unwrap();
+            fs::write(
+                pkg.join("package.json"),
+                r#"{"version":"1.0.0","exports":"./index.mjs"}"#,
+            )
+            .unwrap();
+            fs::write(pkg.join("index.mjs"), "export default {}\n").unwrap();
+        }
+        s.dsh_profile = Some("web".to_owned());
+        assert!(plan(&s, &sb.ctx).is_ok());
     }
 
     #[test]
@@ -1791,109 +1595,6 @@ mod tests {
         assert!(report.stamps.is_empty(), "cancelled run writes no stamps");
         assert!(!sb.project_dir.join("my-workbench.version").exists());
         assert!(sink.finished_cancelled());
-    }
-
-    #[test]
-    fn omos_way_opencode_switch() {
-        let _probe = force_path_probe(true);
-        let sb = sandbox();
-        // Simulate a user-level omos install in the sandbox home.
-        let omos_marker = sb
-            .ctx
-            .home
-            .join(".config")
-            .join("opencode")
-            .join("node_modules")
-            .join(OMOS_PACKAGE);
-        fs::create_dir_all(&omos_marker).unwrap();
-
-        let s = sb.sel(vec![Target::Opencode], false, false);
-        let p = plan(&s, &sb.ctx).unwrap();
-
-        // omos assets instead of native agents.
-        let opencode_dir = sb.project_dir.join(".opencode");
-        assert!(
-            p.items
-                .iter()
-                .any(|i| i.path == opencode_dir.join("oh-my-opencode-slim.jsonc"))
-        );
-        assert!(
-            p.items
-                .iter()
-                .any(|i| i.path == opencode_dir.join("package.json"))
-        );
-        let append_path = opencode_dir
-            .join("oh-my-opencode-slim")
-            .join("orchestrator_append.md");
-        assert!(p.items.iter().any(|i| i.path == append_path));
-        assert!(
-            !p.items
-                .iter()
-                .any(|i| i.path.starts_with(opencode_dir.join("agents"))),
-            "native agents/ must be skipped in the omos way"
-        );
-        assert!(p
-            .notes
-            .iter()
-            .any(|n| n.contains("user-level omos install detected")));
-
-        execute(&p, &s, &sb.ctx, &CollectSink::default()).unwrap();
-        let append = fs::read_to_string(&append_path).unwrap();
-        assert!(
-            !append.contains("{{disciplines}}"),
-            "marker must be rendered"
-        );
-        let disciplines_raw =
-            fs::read_to_string(repo_root().join("agents").join("disciplines.md")).unwrap();
-        let disciplines = trim_end_js(&disciplines_raw);
-        assert!(append.contains(&disciplines), "disciplines must be inlined");
-        // Everything else copies byte-for-byte.
-        assert_eq!(
-            fs::read(opencode_dir.join("oh-my-opencode-slim.jsonc")).unwrap(),
-            fs::read(
-                repo_root()
-                    .join("agents")
-                    .join("backends")
-                    .join("omos")
-                    .join("oh-my-opencode-slim.jsonc")
-            )
-            .unwrap()
-        );
-    }
-
-    #[test]
-    fn omos_user_level_present_heuristics() {
-        let dir = tempfile::tempdir().unwrap();
-        assert!(!omos_user_level_present(dir.path()));
-
-        // node_modules marker.
-        fs::create_dir_all(
-            dir.path()
-                .join(".config")
-                .join("opencode")
-                .join("node_modules")
-                .join(OMOS_PACKAGE),
-        )
-        .unwrap();
-        assert!(omos_user_level_present(dir.path()));
-
-        // opencode.json mention.
-        let dir2 = tempfile::tempdir().unwrap();
-        let cfg = dir2.path().join(".config").join("opencode");
-        fs::create_dir_all(&cfg).unwrap();
-        fs::write(
-            cfg.join("opencode.json"),
-            format!(r#"{{ "plugin": [] }} // {OMOS_PACKAGE}"#),
-        )
-        .unwrap();
-        assert!(omos_user_level_present(dir2.path()));
-
-        // Config file without the package.
-        let dir3 = tempfile::tempdir().unwrap();
-        let cfg3 = dir3.path().join(".config").join("opencode");
-        fs::create_dir_all(&cfg3).unwrap();
-        fs::write(cfg3.join("opencode.jsonc"), r#"{}"#).unwrap();
-        assert!(!omos_user_level_present(dir3.path()));
     }
 
     #[test]

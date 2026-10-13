@@ -6,8 +6,9 @@
 //! the agent preset in `.agent-presets/my-workbench/` (preset.yml byte copy,
 //! rendered agent.cordis.yml, the lane-plugin host half with its `{{dep:…}}`
 //! placeholders baked to `file:` URLs, the generated roster/prompts modules,
-//! and the lane-plugin-ui page), plus exactly ONE managed block row in the
-//! chosen profile's `cordis.patch.yml`. Rendering comes from
+//! and the lane-plugin-ui page), plus ONE managed block row in the
+//! `cordis.patch.yml` of EVERY profile the home carries (or of the single
+//! profile named by `--dsh-profile`). Rendering comes from
 //! [`crate::render`]; dependency resolution from [`crate::dsh_deps`].
 
 use std::collections::BTreeMap;
@@ -36,6 +37,12 @@ pub const DSH_LANE_UI_DIR: &str = "lane-plugin-ui";
 /// Profile filenames the DSH target reads or maintains.
 pub const PROFILE_ROOT_FILENAME: &str = "cordis.yml";
 pub const PROFILE_PATCH_FILENAME: &str = "cordis.patch.yml";
+/// A profile's package manifest also proves the directory is a profile
+/// (`PROFILE_MANIFEST_FILENAME` in the CLI).
+pub const PROFILE_MANIFEST_FILENAME: &str = "package.json";
+/// `profiles/node_modules` — DSH's shared dependency root, never a profile
+/// (`PROFILE_LINK_DIR` in the CLI).
+pub const PROFILE_LINK_DIR: &str = "node_modules";
 
 /// Comment fence around the ONE profile row this target owns. Everything
 /// between the two lines is regenerated on every run; everything outside them
@@ -180,56 +187,131 @@ pub fn lanes(source_root: &Path) -> Result<Vec<LaneRecord>, WorkbenchError> {
     Ok(lanes)
 }
 
-/// The profile directory whose user patch layer this target maintains, or
-/// `None`. `web` wins (the DSH web profile this feature exists for) when it
-/// carries `cordis.yml` or `cordis.patch.yml`; a home with exactly one other
-/// profile uses it; anything else is left alone and reported.
-pub fn find_profile_dir(home: &Path) -> Option<PathBuf> {
+/// How one profile entered the maintained set (`source` in the CLI's
+/// `findProfileDirs`): a discovered profile, the single profile named by
+/// `--dsh-profile`, or the only directory of a never-configured home.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProfileSource {
+    /// A directory carrying one of the loader/manifest markers.
+    Profile,
+    /// Named by `--dsh-profile`; maintained whether or not it looks
+    /// initialized — the user named it, so the only way to find out is to
+    /// write.
+    Only,
+    /// The only directory under `profiles/`, none of them initialized — the
+    /// layout of a DSH home that has run once, under any name.
+    Single,
+}
+
+/// One profile directory the DSH target maintains.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProfileDir {
+    /// Directory name under `profiles/` (the `--dsh-profile` spelling).
+    pub name: String,
+    /// `profiles/<name>`, absolute.
+    pub dir: PathBuf,
+    pub source: ProfileSource,
+}
+
+/// The profile directories this target maintains, in sorted-name order
+/// (`findProfileDirs`). One DSH process composes exactly ONE profile and
+/// `dsh-client-modules` scans only that profile's loader entries — so the
+/// settings-page row is per profile, and every real profile is maintained:
+/// `web` for `dsh web`, `desktop` for DSH Desktop, and any profile this
+/// codebase has never heard of.
+///
+/// A directory counts as a profile when it carries one of its loader files
+/// (`cordis.yml`, the root entry list every profile has; `cordis.patch.yml`,
+/// the user patch layer this target writes) or its `package.json`. A bare
+/// directory with none of them is used only when it is the single candidate.
+/// `node_modules` is never a profile, and neither is a non-directory or a
+/// broken link.
+///
+/// `only` (the `--dsh-profile` value) narrows the set to exactly that name —
+/// kept whether or not it looks initialized — and names none of the
+/// directories when it does not exist.
+pub fn find_profile_dirs(home: &Path, only: Option<&str>) -> Vec<ProfileDir> {
     let profiles_dir = home.join("profiles");
-    if !profiles_dir.exists() {
-        return None;
+    if !profiles_dir.is_dir() {
+        return Vec::new();
     }
-    let web = profiles_dir.join("web");
-    if web.join(PROFILE_PATCH_FILENAME).exists() || web.join(PROFILE_ROOT_FILENAME).exists() {
-        return Some(web);
-    }
-    let mut names = Vec::new();
+
+    let is_profile_marker = |name: &str| {
+        [PROFILE_ROOT_FILENAME, PROFILE_PATCH_FILENAME, PROFILE_MANIFEST_FILENAME]
+            .iter()
+            .any(|file| profiles_dir.join(name).join(file).exists())
+    };
+
+    let mut all: Vec<String> = Vec::new();
     for name in sorted_readdir(&profiles_dir) {
-        if name == "node_modules" {
+        if name == PROFILE_LINK_DIR {
             continue;
         }
-        let dir = profiles_dir.join(&name);
-        match std::fs::metadata(&dir) {
-            Ok(meta) if meta.is_dir() => {}
+        // A broken link or an unreadable entry is not a profile (the JS
+        // `statSync` try/catch continue).
+        match std::fs::metadata(profiles_dir.join(&name)) {
+            Ok(meta) if meta.is_dir() => all.push(name),
             _ => continue,
         }
-        if dir.join(PROFILE_PATCH_FILENAME).exists() || dir.join(PROFILE_ROOT_FILENAME).exists() {
-            names.push(name);
-        }
     }
-    if names.len() == 1 {
-        Some(profiles_dir.join(names.remove(0)))
-    } else {
-        None
+
+    if let Some(only) = only {
+        return all
+            .iter()
+            .find(|name| name.as_str() == only)
+            .map(|name| ProfileDir {
+                name: name.clone(),
+                dir: profiles_dir.join(name),
+                source: ProfileSource::Only,
+            })
+            .into_iter()
+            .collect();
     }
+
+    let profiles: Vec<ProfileDir> = all
+        .iter()
+        .filter(|name| is_profile_marker(name))
+        .map(|name| ProfileDir {
+            name: name.clone(),
+            dir: profiles_dir.join(name),
+            source: ProfileSource::Profile,
+        })
+        .collect();
+    if !profiles.is_empty() {
+        return profiles;
+    }
+
+    // Nothing initialized: a DSH home with exactly one profile dir is that
+    // one profile, which is what a home that has run once looks like.
+    if all.len() == 1 {
+        let name = all.remove(0);
+        return vec![ProfileDir {
+            dir: profiles_dir.join(&name),
+            name,
+            source: ProfileSource::Single,
+        }];
+    }
+    Vec::new()
 }
 
 /// DSH detection for the environment panel: where the home came from,
-/// existence, the profile the managed-block row would target, and the number
-/// of profile directories under `profiles/` (`node_modules` excluded).
+/// existence, the first maintained profile (sorted order; the rows themselves
+/// target every profile), and the number of profile directories under
+/// `profiles/` (`node_modules` excluded).
 pub fn detect_dsh(home: &Path) -> DshInfo {
     let home_source = match std::env::var("DSH_HOME") {
         Ok(value) if !value.is_empty() => DshHomeSource::Env,
         _ => DshHomeSource::Default,
     };
     let exists = home.exists();
-    let profile = find_profile_dir(home)
-        .and_then(|dir| dir.file_name().map(|name| name.to_string_lossy().into_owned()));
+    let profile = find_profile_dirs(home, None)
+        .first()
+        .map(|profile| profile.name.clone());
     let profiles_dir = home.join("profiles");
     let profiles_count = if profiles_dir.exists() {
         sorted_readdir(&profiles_dir)
             .into_iter()
-            .filter(|name| name != "node_modules")
+            .filter(|name| name != PROFILE_LINK_DIR)
             .filter(|name| {
                 std::fs::metadata(profiles_dir.join(name))
                     .map(|meta| meta.is_dir())
@@ -423,12 +505,16 @@ enum DshOutput {
         dest_rel: &'static str,
         source_rel: String,
         from: PathBuf,
+        /// `writeAgent` with `regenerate: true` — see [`Self::regenerates`].
+        regenerate: bool,
     },
     /// Rendered text.
     Rendered {
         dest_rel: &'static str,
         source_rel: String,
         text: String,
+        /// `writeAgent` with `regenerate: true` — see [`Self::regenerates`].
+        regenerate: bool,
     },
 }
 
@@ -443,6 +529,23 @@ impl DshOutput {
         match self {
             DshOutput::Copy { source_rel, .. } | DshOutput::Rendered { source_rel, .. } => {
                 source_rel
+            }
+        }
+    }
+
+    /// `regenerate` marks content the CLI OWNS ENTIRELY and that names the
+    /// running release (`writeAgent`'s doc, :430-433): written on EVERY run,
+    /// like the version stamp, because skip-if-exists would freeze the first
+    /// release that ever deployed it. Re-derived from the CLI call sites:
+    /// `installLanePlugin` passes `{ ...display, regenerate: true }` to the
+    /// host manifest, and `installLaneUiPlugin` builds `always =
+    /// { ...display, regenerate: true }` for the UI manifest and the browser
+    /// bundle — the three release-stamped artifacts. Every other entry uses
+    /// plain skip-if-exists semantics.
+    fn regenerates(&self) -> bool {
+        match self {
+            DshOutput::Copy { regenerate, .. } | DshOutput::Rendered { regenerate, .. } => {
+                *regenerate
             }
         }
     }
@@ -463,6 +566,13 @@ impl DshOutput {
 /// The full preset file set, rendered (`installLanePlugin` + `installLaneUiPlugin`
 /// + the two top files of `applyDsh`). Rendering runs here even in plan mode so
 /// a broken source fails before any write, exactly like the CLI flow.
+///
+/// The two manifests are byte copies of their authored sources rather than
+/// re-serialized JSON: the CLI renders them as
+/// `JSON.stringify({ ...source, version: PKG_VERSION }, null, 2)`, and its
+/// `laneManifestProblems` check requires the authored copy to carry exactly
+/// that version — so the bytes coincide, and the golden gate compares them
+/// against the CLI's rendered output on every run.
 fn dsh_outputs(
     source_root: &Path,
     lanes: &[LaneRecord],
@@ -474,16 +584,22 @@ fn dsh_outputs(
 
     let dsh_src = source_root.join("agents").join("backends").join("dsh");
     Ok(vec![
+        // applyDsh: copyOne — plain skip-if-exists.
         DshOutput::Copy {
             dest_rel: "preset.yml",
             source_rel: source_rel("agents/backends/dsh/preset.yml"),
             from: dsh_src.join("preset.yml"),
+            regenerate: false,
         },
+        // applyDsh: writeAgent, plain.
         DshOutput::Rendered {
             dest_rel: "agent.cordis.yml",
             source_rel: source_rel("agents/backends/dsh/agent.cordis.yml"),
             text: render::render_dsh_composition(source_root)?,
+            regenerate: false,
         },
+        // installLanePlugin: writeAgent with regenerate — the host manifest
+        // names the running release.
         DshOutput::Copy {
             dest_rel: "lane-plugin/package.json",
             source_rel: source_rel("agents/backends/dsh/lane-plugin/host-package/package.json"),
@@ -491,36 +607,47 @@ fn dsh_outputs(
                 .join("lane-plugin")
                 .join("host-package")
                 .join("package.json"),
+            regenerate: true,
         },
         DshOutput::Rendered {
             dest_rel: "lane-plugin/src/index.js",
             source_rel: source_rel("agents/backends/dsh/lane-plugin/host-package/src/index.js"),
             text: render::render_lane_host(source_root, resolved_deps)?,
+            regenerate: false,
         },
         DshOutput::Rendered {
             dest_rel: "lane-plugin/src/roster.generated.js",
             source_rel: source_rel("agents/backends/dsh/lane-plugin/src/roster.generated.js"),
             text: render::lane_roster_source(lanes),
+            regenerate: false,
         },
         DshOutput::Rendered {
             dest_rel: "lane-plugin/src/prompts.generated.js",
             source_rel: source_rel("agents/backends/dsh/lane-plugin/src/prompts.generated.js"),
             text: render::render_lane_prompts(source_root, lanes)?,
+            regenerate: false,
         },
+        // installLaneUiPlugin: writeAgent with regenerate — the UI manifest.
         DshOutput::Copy {
             dest_rel: "lane-plugin-ui/package.json",
             source_rel: source_rel("agents/backends/dsh/lane-plugin-ui/package.json"),
             from: dsh_src.join("lane-plugin-ui").join("package.json"),
+            regenerate: true,
         },
+        // installLaneUiPlugin: copyOne — plain.
         DshOutput::Copy {
             dest_rel: "lane-plugin-ui/src/index.js",
             source_rel: source_rel("agents/backends/dsh/lane-plugin-ui/src/index.js"),
             from: dsh_src.join("lane-plugin-ui").join("src").join("index.js"),
+            regenerate: false,
         },
+        // installLaneUiPlugin: writeAgent with regenerate — the browser
+        // bundle's provenance banner is the only place its version can live.
         DshOutput::Rendered {
             dest_rel: "lane-plugin-ui/lib/client.js",
             source_rel: source_rel("agents/backends/dsh/lane-plugin-ui/lib/client.js"),
-            text: render::lane_ui_client_source(source_root, lanes)?,
+            text: render::lane_ui_client_source(source_root, lanes, crate::VERSION)?,
+            regenerate: true,
         },
     ])
 }
@@ -567,8 +694,8 @@ fn log(sink: &dyn EventSink, level: LogLevel, text: impl Into<String>) {
 // ----------------------------------------------------------------------- plan
 
 /// DSH plan: zero writes; per-file Create/Skip/Overwrite items under the
-/// preset root plus one `ManagedBlock` item when the patch row would be added
-/// or updated (an unchanged or skipped row becomes notes). Dependency
+/// preset root plus one `ManagedBlock` item per profile whose patch row would
+/// be added or updated (an unchanged or skipped row becomes notes). Dependency
 /// resolution happened upstream — `resolved_deps` is the alias → `file:` URL
 /// map [`dsh_deps::resolve_lane_dependencies`] produced.
 pub fn plan_dsh(
@@ -597,10 +724,13 @@ pub fn plan_dsh_in(
     for output in &outputs {
         let dest = preset.join(output.dest_rel());
         let exists = dest.exists();
-        let kind = if exists && !sel.force {
-            PlanKind::Skip
-        } else if exists {
+        // writeAgent's gate: `exists && !force && !regenerate` skips. A
+        // regenerate entry is therefore NEVER a skip — it is written on every
+        // run; force only decides whether the plain entries may overwrite.
+        let kind = if exists && (sel.force || output.regenerates()) {
             PlanKind::Overwrite
+        } else if exists {
+            PlanKind::Skip
         } else {
             PlanKind::Create
         };
@@ -619,29 +749,26 @@ pub fn plan_dsh_in(
     }
 
     let row_name = lane_ui_row_name(&preset);
-    match find_profile_dir(home) {
-        None => {
-            outcome.notes.push(format!(
-                "未在 {} 下找到唯一 profile 目录，设置页未写入",
-                home.join("profiles").display()
-            ));
-            outcome.notes.push(manual_row_note(
-                &format!("你的 profile 的 {PROFILE_PATCH_FILENAME}"),
-                &row_name,
-            ));
-        }
-        Some(profile_dir) => {
-            let (result, _) = compute_lane_ui_patch_row(&profile_dir, &row_name)?;
+    let profiles = find_profile_dirs(home, sel.dsh_profile.as_deref());
+    if profiles.is_empty() {
+        outcome.notes.extend(no_profile_notes(home, sel.dsh_profile.as_deref()));
+        outcome.notes.push(manual_row_note(
+            &format!("你的 profile 的 {PROFILE_PATCH_FILENAME}"),
+            &row_name,
+        ));
+    } else {
+        for profile in &profiles {
+            let (result, _) = compute_lane_ui_patch_row(&profile.dir, &row_name)?;
             match result {
                 PatchOutcome::Unchanged => {
                     outcome
                         .notes
-                        .push("受管块已是最新，无需更改".to_owned());
+                        .push(format!("{} 的受管块已是最新，无需更改", profile.name));
                 }
                 PatchOutcome::Skipped => {
                     outcome.notes.push(format!(
                         "{} 不是纯补丁列表，受管行未写入（直接追加会破坏该文件）",
-                        profile_dir.join(PROFILE_PATCH_FILENAME).display()
+                        profile.dir.join(PROFILE_PATCH_FILENAME).display()
                     ));
                     outcome
                         .notes
@@ -651,8 +778,8 @@ pub fn plan_dsh_in(
                     outcome.managed_blocks += 1;
                     outcome.items.push(PlanItem {
                         target: Target::Dsh,
-                        path: profile_dir.join(PROFILE_PATCH_FILENAME),
-                        source_rel: profile_source_rel(home, &profile_dir),
+                        path: profile.dir.join(PROFILE_PATCH_FILENAME),
+                        source_rel: profile_source_rel(home, &profile.dir),
                         kind: PlanKind::ManagedBlock,
                     });
                 }
@@ -663,6 +790,37 @@ pub fn plan_dsh_in(
         .notes
         .push("DSH 在会话启动时读取预设：请打开新会话并选择该预设".to_owned());
     Ok(outcome)
+}
+
+/// The notes for a run that found no profile to mount (`applyDsh`'s empty-set
+/// branch): why nothing was written, plus the entries actually present when
+/// that helps name one.
+fn no_profile_notes(home: &Path, dsh_profile: Option<&str>) -> Vec<String> {
+    let profiles_dir = home.join("profiles");
+    let mut notes = Vec::new();
+    match dsh_profile {
+        Some(name) => notes.push(format!(
+            "--dsh-profile {name} 未命中 {} 下的任何目录，设置页未写入",
+            profiles_dir.display()
+        )),
+        None => {
+            notes.push(format!(
+                "未在 {} 下找到可用 profile 目录，设置页未写入",
+                profiles_dir.display()
+            ));
+            let present = sorted_readdir(&profiles_dir)
+                .into_iter()
+                .filter(|name| name != PROFILE_LINK_DIR)
+                .collect::<Vec<_>>()
+                .join(", ");
+            notes.push(if present.is_empty() {
+                "请先启动一次 DSH 以创建 profile 目录，然后重新运行 --dsh".to_owned()
+            } else {
+                format!("现有条目：{present}；没有可用 profile，请用 --dsh-profile <name> 显式指定")
+            });
+        }
+    }
+    notes
 }
 
 /// The manual-row instructions for a profile the target could not mount
@@ -691,8 +849,8 @@ fn profile_source_rel(home: &Path, profile_dir: &Path) -> String {
 /// DSH execute: resolves the plugin's two deployment imports BEFORE the first
 /// write (a DSH home that cannot supply them fails with nothing
 /// half-installed), then writes the preset file set with log events and
-/// cooperative cancellation between files, and finally maintains the single
-/// profile patch row.
+/// cooperative cancellation between files, and finally maintains the managed
+/// row in every profile found (or the one named by `--dsh-profile`).
 pub fn execute_dsh(
     source_root: &Path,
     ctx: &EngineContext,
@@ -768,7 +926,9 @@ pub fn execute_dsh_in(
         let dest = preset.join(dest_rel);
         let shown = display_path(&dest, &ctx.home, user_level);
         let exists = dest.exists();
-        if exists && !sel.force {
+        // writeAgent's gate, verbatim: `exists && !force && !regenerate` skips.
+        // The three release-stamped artifacts regenerate unconditionally.
+        if exists && !sel.force && !output.regenerates() {
             outcome.skipped += 1;
             log(sink, LogLevel::Info, format!("跳过 {shown}（已存在）"));
             continue;
@@ -788,10 +948,15 @@ pub fn execute_dsh_in(
         } else {
             outcome.created += 1;
         }
+        let refresh = if output.regenerates() && exists && !sel.force {
+            "（已刷新：由本发行版渲染）"
+        } else {
+            ""
+        };
         log(
             sink,
             LogLevel::Info,
-            format!("{} {shown}", if exists { "覆盖" } else { "新建" }),
+            format!("{} {shown}{refresh}", if exists { "覆盖" } else { "新建" }),
         );
     }
 
@@ -801,37 +966,38 @@ pub fn execute_dsh_in(
 
     // The settings page is a CLIENT plugin, and dsh-client-modules only scans
     // the profile loader's own entries — a row inside an agent preset is never
-    // seen. One profile row is therefore the minimum footprint, and it is the
-    // whole of it.
+    // seen. One row per profile is therefore the minimum footprint, and it is
+    // the whole of it.
     let row_name = lane_ui_row_name(&preset);
-    match find_profile_dir(home) {
-        None => {
-            log(
-                sink,
-                LogLevel::Info,
-                format!(
-                    "未在 {} 下找到唯一 profile 目录，设置页未写入",
-                    home.join("profiles").display()
-                ),
-            );
-            log(
-                sink,
-                LogLevel::Info,
-                manual_row_note(
-                    &format!("你的 profile 的 {PROFILE_PATCH_FILENAME}"),
-                    &row_name,
-                ),
-            );
+    let profiles = find_profile_dirs(home, sel.dsh_profile.as_deref());
+    if profiles.is_empty() {
+        for note in no_profile_notes(home, sel.dsh_profile.as_deref()) {
+            log(sink, LogLevel::Info, note);
         }
-        Some(profile_dir) => {
-            let patch_file = profile_dir.join(PROFILE_PATCH_FILENAME);
+        log(
+            sink,
+            LogLevel::Info,
+            manual_row_note(
+                &format!("你的 profile 的 {PROFILE_PATCH_FILENAME}"),
+                &row_name,
+            ),
+        );
+    } else {
+        for profile in &profiles {
+            if sink.is_cancelled() {
+                return Ok(outcome);
+            }
+            let patch_file = profile.dir.join(PROFILE_PATCH_FILENAME);
             let patch_existed = patch_file.exists();
-            let shown = display_path(
-                &patch_file,
-                &ctx.home,
-                user_level,
-            );
-            match write_lane_ui_patch_row(&profile_dir, &row_name)? {
+            let shown = display_path(&patch_file, &ctx.home, user_level);
+            // A profile chosen by the fallback or by name is not the profile
+            // the user is looking at, so which one it is belongs in the line.
+            let scope = match profile.source {
+                ProfileSource::Profile => "",
+                ProfileSource::Only => "（由 --dsh-profile 指定）",
+                ProfileSource::Single => "（唯一 profile 目录）",
+            };
+            match write_lane_ui_patch_row(&profile.dir, &row_name)? {
                 PatchOutcome::Skipped => {
                     log(
                         sink,
@@ -843,7 +1009,11 @@ pub fn execute_dsh_in(
                     log(sink, LogLevel::Info, manual_row_note("该文件", &row_name));
                 }
                 PatchOutcome::Unchanged => {
-                    log(sink, LogLevel::Info, format!("跳过 {shown}（已是最新）"));
+                    log(
+                        sink,
+                        LogLevel::Info,
+                        format!("跳过 {shown}{scope}（已是最新）"),
+                    );
                     log(
                         sink,
                         LogLevel::Info,
@@ -858,7 +1028,7 @@ pub fn execute_dsh_in(
                 PatchOutcome::Added => {
                     outcome.managed_blocks += 1;
                     let label = if patch_existed { "追加" } else { "新建" };
-                    log(sink, LogLevel::Info, format!("{label} {shown}"));
+                    log(sink, LogLevel::Info, format!("{label} {shown}{scope}"));
                     log(
                         sink,
                         LogLevel::Info,
@@ -867,7 +1037,7 @@ pub fn execute_dsh_in(
                 }
                 PatchOutcome::Updated => {
                     outcome.managed_blocks += 1;
-                    log(sink, LogLevel::Info, format!("覆盖 {shown}"));
+                    log(sink, LogLevel::Info, format!("覆盖 {shown}{scope}"));
                     log(
                         sink,
                         LogLevel::Info,
@@ -895,8 +1065,9 @@ const MANAGED_PATCH_DRIFT_REL: &str = "cordis.patch.yml (managed block)";
 
 /// Byte-compare what a DSH install WOULD write against what is on disk: the
 /// nine preset files through the same render/copy set [`plan_dsh_in`] and
-/// [`execute_dsh_in`] install, plus the single managed profile row. See
-/// [`drift_dsh_with_compared`] for the exact semantics.
+/// [`execute_dsh_in`] install, plus the managed row of every profile found
+/// (drift reports on the full set — it has no `--dsh-profile` to narrow by).
+/// See [`drift_dsh_with_compared`] for the exact semantics.
 pub fn drift_dsh(
     source_root: &Path,
     home: &Path,
@@ -912,13 +1083,13 @@ pub fn drift_dsh(
 /// Semantics (`assemble --check` drift applied to an installed preset): a
 /// preset file that exists on disk is compared byte-for-byte against
 /// [`DshOutput::content_bytes`] and reported when it differs; one that is not
-/// installed is not compared. The managed row is compared through
+/// installed is not compared. Each profile's managed row is compared through
 /// [`compute_lane_ui_patch_row`]: an unchanged block is not drift, a shape the
 /// install refuses to touch writes nothing and therefore is not drift either,
 /// and a block the install would add or rewrite is ONE drift entry attributed
-/// to the patch file — even when the patch file does not exist yet, since the
-/// row is the install's only profile-layer footprint and its absence is
-/// exactly what a rerun repairs. `force` is accepted but deliberately
+/// to that profile's patch file — even when the patch file does not exist yet,
+/// since the row is the install's only profile-layer footprint and its absence
+/// is exactly what a rerun repairs. `force` is accepted but deliberately
 /// ignored: drift is a content difference regardless of the overwrite flag.
 pub fn drift_dsh_with_compared(
     source_root: &Path,
@@ -948,13 +1119,13 @@ pub fn drift_dsh_with_compared(
         }
     }
 
-    if let Some(profile_dir) = find_profile_dir(home) {
+    for profile in &find_profile_dirs(home, None) {
         let row_name = lane_ui_row_name(&preset);
-        let (outcome, _) = compute_lane_ui_patch_row(&profile_dir, &row_name)?;
+        let (outcome, _) = compute_lane_ui_patch_row(&profile.dir, &row_name)?;
         compared += 1;
         if matches!(outcome, PatchOutcome::Added | PatchOutcome::Updated) {
             drifted.push(DriftFile {
-                path: profile_dir.join(PROFILE_PATCH_FILENAME),
+                path: profile.dir.join(PROFILE_PATCH_FILENAME),
                 source_rel: MANAGED_PATCH_DRIFT_REL.to_owned(),
                 target: Target::Dsh,
             });
@@ -1002,6 +1173,10 @@ mod tests {
     }
 
     fn selection(force: bool) -> Selection {
+        selection_with_profile(force, None)
+    }
+
+    fn selection_with_profile(force: bool, dsh_profile: Option<&str>) -> Selection {
         Selection {
             source: crate::types::Source::Bundled,
             // Inert here: DSH is user-level-only, so nothing reads the
@@ -1010,6 +1185,7 @@ mod tests {
             targets: vec![Target::Dsh],
             user_level: true,
             force,
+            dsh_profile: dsh_profile.map(str::to_owned),
         }
     }
 
@@ -1256,52 +1432,96 @@ mod tests {
         assert!(lanes.len() >= 7, "the repo currently authors 7 lanes");
     }
 
-    // -- find_profile_dir ---------------------------------------------------------
+    // -- find_profile_dirs --------------------------------------------------------
+
+    fn profile_names(profiles: &[ProfileDir]) -> Vec<String> {
+        profiles.iter().map(|p| p.name.clone()).collect()
+    }
 
     #[test]
-    fn find_profile_dir_prefers_web_then_exactly_one_then_none() {
+    fn find_profile_dirs_maintains_every_initialized_profile() {
         let dir = tempfile::tempdir().unwrap();
         let home = dir.path().join("home");
 
         // No profiles directory at all.
-        assert_eq!(find_profile_dir(&home), None);
+        assert!(find_profile_dirs(&home, None).is_empty());
 
         // Empty profiles directory.
         std::fs::create_dir_all(home.join("profiles")).unwrap();
-        assert_eq!(find_profile_dir(&home), None);
+        assert!(find_profile_dirs(&home, None).is_empty());
 
-        // Profiles without either profile file.
+        // Bare directories without any marker are not profiles.
         std::fs::create_dir_all(home.join("profiles").join("alpha")).unwrap();
         std::fs::create_dir_all(home.join("profiles").join("beta")).unwrap();
-        assert_eq!(find_profile_dir(&home), None);
+        assert!(find_profile_dirs(&home, None).is_empty());
 
-        // Exactly one non-web profile carrying cordis.yml.
-        std::fs::write(home.join("profiles").join("alpha").join("cordis.yml"), "x: 1").unwrap();
+        // Every initialized profile is maintained, in sorted order — no
+        // hardcoded name wins.
+        std::fs::write(home.join("profiles").join("beta").join("cordis.yml"), "").unwrap();
+        std::fs::write(home.join("profiles").join("alpha").join("cordis.patch.yml"), "").unwrap();
+        let found = find_profile_dirs(&home, None);
+        assert_eq!(profile_names(&found), vec!["alpha", "beta"]);
+        assert!(found.iter().all(|p| p.source == ProfileSource::Profile));
+
+        // A package.json alone also proves a directory is a profile.
+        std::fs::create_dir_all(home.join("profiles").join("gamma")).unwrap();
+        std::fs::write(home.join("profiles").join("gamma").join("package.json"), "{}").unwrap();
         assert_eq!(
-            find_profile_dir(&home),
-            Some(home.join("profiles").join("alpha"))
+            profile_names(&find_profile_dirs(&home, None)),
+            vec!["alpha", "beta", "gamma"]
         );
 
-        // web wins over everything the moment it carries a profile file.
-        std::fs::create_dir_all(home.join("profiles").join("web")).unwrap();
-        std::fs::write(home.join("profiles").join("web").join("cordis.patch.yml"), "").unwrap();
-        assert_eq!(find_profile_dir(&home), Some(home.join("profiles").join("web")));
-
-        // Multiple non-web candidates stay untouched.
-        std::fs::remove_dir_all(home.join("profiles").join("web")).unwrap();
-        std::fs::write(home.join("profiles").join("beta").join("cordis.patch.yml"), "").unwrap();
-        assert_eq!(find_profile_dir(&home), None);
-
-        // node_modules and loose files are never candidates.
+        // node_modules, loose files and broken entries are never candidates.
         std::fs::create_dir_all(home.join("profiles").join("node_modules").join("pkg")).unwrap();
         std::fs::write(home.join("profiles").join("loose"), "").unwrap();
-        assert_eq!(find_profile_dir(&home), None);
+        assert_eq!(
+            profile_names(&find_profile_dirs(&home, None)),
+            vec!["alpha", "beta", "gamma"]
+        );
+    }
+
+    #[test]
+    fn find_profile_dirs_falls_back_to_the_only_bare_directory() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        std::fs::create_dir_all(home.join("profiles").join("solo")).unwrap();
+
+        let found = find_profile_dirs(&home, None);
+        assert_eq!(profile_names(&found), vec!["solo"]);
+        assert_eq!(found[0].source, ProfileSource::Single);
+    }
+
+    #[test]
+    fn find_profile_dirs_only_names_one_profile_or_none() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path().join("home");
+        for name in ["web", "desktop"] {
+            std::fs::create_dir_all(home.join("profiles").join(name)).unwrap();
+        }
+        std::fs::write(home.join("profiles").join("web").join("cordis.yml"), "").unwrap();
+        std::fs::write(home.join("profiles").join("desktop").join("cordis.yml"), "").unwrap();
+
+        // A named profile is maintained whether or not it looks initialized.
+        let found = find_profile_dirs(&home, Some("desktop"));
+        assert_eq!(profile_names(&found), vec!["desktop"]);
+        assert_eq!(found[0].source, ProfileSource::Only);
+
+        // A bare directory is still reachable by name.
+        std::fs::create_dir_all(home.join("profiles").join("fresh")).unwrap();
+        let found = find_profile_dirs(&home, Some("fresh"));
+        assert_eq!(profile_names(&found), vec!["fresh"]);
+        assert_eq!(found[0].source, ProfileSource::Only);
+
+        // A name that is none of the directories, or the shared dependency
+        // root, names nothing — never a guess.
+        assert!(find_profile_dirs(&home, Some("nope")).is_empty());
+        assert!(find_profile_dirs(&home, Some(PROFILE_LINK_DIR)).is_empty());
     }
 
     // -- detect_dsh -----------------------------------------------------------------
 
     #[test]
-    fn detect_dsh_reports_existence_profile_and_count() {
+    fn detect_dsh_reports_existence_first_profile_and_count() {
         let dir = tempfile::tempdir().unwrap();
         let home = dir.path().join("dsh-home");
         std::fs::create_dir_all(home.join("profiles").join("web")).unwrap();
@@ -1312,7 +1532,8 @@ mod tests {
 
         let info = detect_dsh(&home);
         assert!(info.exists);
-        assert_eq!(info.profile.as_deref(), Some("web"));
+        // The rows target every profile; the panel names the first (sorted).
+        assert_eq!(info.profile.as_deref(), Some("cli"));
         assert_eq!(info.profiles_count, 2, "node_modules is not a profile");
         let expected_source = match std::env::var("DSH_HOME") {
             Ok(value) if !value.is_empty() => DshHomeSource::Env,
@@ -1487,8 +1708,8 @@ mod tests {
 
     // -- plan / execute -------------------------------------------------------------
 
-    /// Fake DSH home with a `web` profile (wins) and an `editor` profile,
-    /// both carrying profile files, plus the package closure.
+    /// Fake DSH home with a `web` profile carrying user patch content and an
+    /// `editor` profile (both maintained), plus the package closure.
     fn install_fixture(dir: &Path) -> (PathBuf, PathBuf) {
         let user_home = dir.join("user-home");
         let home = fake_home_with_packages(dir);
@@ -1505,7 +1726,7 @@ mod tests {
     }
 
     #[test]
-    fn plan_previews_the_files_and_the_managed_block() {
+    fn plan_previews_the_files_and_every_managed_block() {
         let dir = tempfile::tempdir().unwrap();
         let source_root = repo_root();
         assert!(
@@ -1521,47 +1742,80 @@ mod tests {
         assert_eq!(outcome.created, 9, "nine preset files: {outcome:?}");
         assert_eq!(outcome.skipped, 0);
         assert_eq!(outcome.overwritten, 0);
-        assert_eq!(outcome.managed_blocks, 1);
-        assert_eq!(outcome.items.len(), 10);
+        assert_eq!(outcome.managed_blocks, 2, "web and editor are both profiles");
+        assert_eq!(outcome.items.len(), 11);
         assert!(outcome.items.iter().all(|item| item.target == Target::Dsh));
         assert_eq!(outcome.items[0].kind, PlanKind::Create);
         assert_eq!(outcome.items[0].source_rel, "agents/backends/dsh/preset.yml");
-        let managed = outcome
+        let managed: Vec<&PlanItem> = outcome
             .items
             .iter()
-            .find(|item| item.kind == PlanKind::ManagedBlock)
-            .expect("one managed block item");
-        assert_eq!(
-            managed.path,
-            home.join("profiles").join("web").join(PROFILE_PATCH_FILENAME)
-        );
-        assert_eq!(managed.source_rel, "profiles/web/cordis.patch.yml");
+            .filter(|item| item.kind == PlanKind::ManagedBlock)
+            .collect();
+        assert_eq!(managed[0].path, home.join("profiles").join("editor").join(PROFILE_PATCH_FILENAME));
+        assert_eq!(managed[0].source_rel, "profiles/editor/cordis.patch.yml");
+        assert_eq!(managed[1].path, home.join("profiles").join("web").join(PROFILE_PATCH_FILENAME));
+        assert_eq!(managed[1].source_rel, "profiles/web/cordis.patch.yml");
         assert_eq!(
             outcome.notes,
             vec!["DSH 在会话启动时读取预设：请打开新会话并选择该预设"]
         );
 
-        // Existing files without force plan as skips; the unchanged block plans as a note.
-        std::fs::create_dir_all(preset_root(&home)).unwrap();
-        std::fs::write(preset_root(&home).join("preset.yml"), "stale").unwrap();
+        // Existing files without force plan as skips — except the three
+        // release-stamped artifacts, which regenerate on every run.
+        for rel in [
+            "preset.yml",
+            "lane-plugin/package.json",
+            "lane-plugin-ui/package.json",
+            "lane-plugin-ui/lib/client.js",
+        ] {
+            let dest = preset_root(&home).join(rel);
+            std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+            std::fs::write(&dest, "stale").unwrap();
+        }
         let second = plan_dsh_in(&source_root, &selection(false), &specifiers, &home).unwrap();
-        assert_eq!(second.created, 8);
-        assert_eq!(second.skipped, 1);
+        assert_eq!(second.created, 5);
+        assert_eq!(second.skipped, 1, "preset.yml exists and force is off");
+        assert_eq!(
+            second.overwritten, 3,
+            "the regenerate trio refreshes without force"
+        );
         assert_eq!(
             second.items[0].kind,
             PlanKind::Skip,
             "preset.yml exists and force is off"
         );
+        assert_eq!(second.items[2].kind, PlanKind::Overwrite, "host manifest");
+        assert_eq!(second.items[6].kind, PlanKind::Overwrite, "UI manifest");
+        assert_eq!(second.items[8].kind, PlanKind::Overwrite, "browser bundle");
+        // Both rows would still be written — they do not exist yet.
+        assert_eq!(second.managed_blocks, 2);
 
-        // With force, the one existing file plans as an overwrite.
+        // With force, the plain existing file plans as an overwrite too.
         let forced = plan_dsh_in(&source_root, &selection(true), &specifiers, &home).unwrap();
-        assert_eq!(forced.overwritten, 1);
-        assert_eq!(forced.created, 8);
+        assert_eq!(forced.overwritten, 4);
+        assert_eq!(forced.created, 5);
         assert_eq!(forced.skipped, 0);
+
+        // A current block plans as a note instead of a managed item.
+        let row_name = lane_ui_row_name(&preset_root(&home));
+        let current = format!("{}\n", lane_ui_patch_block(&row_name));
+        std::fs::write(home.join("profiles").join("web").join(PROFILE_PATCH_FILENAME), &current)
+            .unwrap();
+        let third = plan_dsh_in(&source_root, &selection(false), &specifiers, &home).unwrap();
+        assert_eq!(third.managed_blocks, 1);
+        assert!(
+            third
+                .notes
+                .iter()
+                .any(|note| note.contains("web 的受管块已是最新")),
+            "{:?}",
+            third.notes
+        );
     }
 
     #[test]
-    fn execute_installs_preset_plugin_and_the_web_profile_row() {
+    fn execute_installs_preset_plugin_and_rows_in_every_profile() {
         let dir = tempfile::tempdir().unwrap();
         let source_root = repo_root();
         let (_user_home, home) = install_fixture(dir.path());
@@ -1574,7 +1828,7 @@ mod tests {
         assert_eq!(outcome.created, 9);
         assert_eq!(outcome.skipped, 0);
         assert_eq!(outcome.overwritten, 0);
-        assert_eq!(outcome.managed_blocks, 1);
+        assert_eq!(outcome.managed_blocks, 2, "web and editor both get the row");
 
         let preset = preset_root(&home);
         // Byte copies.
@@ -1622,8 +1876,14 @@ mod tests {
         );
         let client =
             std::fs::read_to_string(preset.join("lane-plugin-ui/lib/client.js")).unwrap();
-        assert_eq!(client, render::lane_ui_client_source(&source_root, &lanes).unwrap());
+        assert_eq!(
+            client,
+            render::lane_ui_client_source(&source_root, &lanes, crate::VERSION).unwrap()
+        );
         assert!(!client.contains("__MY_WORKBENCH_LANES__"));
+        // The provenance banner names the release; the marker never ships.
+        assert!(client.contains(&format!("my-workbench {}", crate::VERSION)));
+        assert!(!client.contains("__MY_WORKBENCH_VERSION__"));
 
         let host = std::fs::read_to_string(preset.join("lane-plugin/src/index.js")).unwrap();
         // The two real placeholders are baked; the doc comment's `{{dep:…}}`
@@ -1632,18 +1892,21 @@ mod tests {
         assert!(!host.contains("{{dep:dsh-tools}}"));
         assert!(!host.contains("{{dep:schemastery}}"));
 
-        // The web profile won and kept its user content.
-        let patch =
+        // BOTH profiles got the row; web kept its user content, editor's patch
+        // layer was created around the block.
+        let web_patch =
             std::fs::read_to_string(home.join("profiles/web/cordis.patch.yml")).unwrap();
-        assert!(patch.starts_with("# mine\n- keep: yes\n\n"));
-        assert!(patch.contains(LANE_UI_BLOCK_BEGIN));
-        assert!(patch.contains(LANE_UI_BLOCK_END));
+        assert!(web_patch.starts_with("# mine\n- keep: yes\n\n"));
+        assert!(web_patch.contains(LANE_UI_BLOCK_BEGIN));
+        assert!(web_patch.contains(LANE_UI_BLOCK_END));
+        let editor_patch =
+            std::fs::read_to_string(home.join("profiles/editor/cordis.patch.yml")).unwrap();
         let row = lane_ui_row_name(&preset);
-        assert!(patch.contains(&format!("      name: '{row}'")));
-        // The losing profile was never touched.
-        assert!(!home.join("profiles/editor/cordis.patch.yml").exists());
+        assert!(editor_patch.contains(LANE_UI_BLOCK_BEGIN));
+        assert!(editor_patch.contains(&format!("      name: '{row}'")));
 
-        // A second run is idempotent: everything skips, the block is unchanged.
+        // A second run refreshes the regenerate trio and skips the rest; the
+        // blocks are unchanged.
         let second = execute_dsh_in(
             &source_root,
             &ctx,
@@ -1655,20 +1918,89 @@ mod tests {
         )
         .unwrap();
         assert_eq!(second.created, 0);
-        assert_eq!(second.skipped, 9);
-        assert_eq!(second.overwritten, 0);
+        assert_eq!(second.skipped, 6);
+        assert_eq!(second.overwritten, 3, "the release-stamped trio refreshes");
         assert_eq!(second.managed_blocks, 0);
+
+        // Tampering with a regenerate artifact is repaired by the rerun.
+        std::fs::write(preset.join("lane-plugin-ui/lib/client.js"), "tampered").unwrap();
+        execute_dsh_in(
+            &source_root,
+            &ctx,
+            &selection(false),
+            &VecSink::default(),
+            &home,
+            "",
+            None,
+        )
+        .unwrap();
+        assert_eq!(
+            std::fs::read_to_string(preset.join("lane-plugin-ui/lib/client.js")).unwrap(),
+            render::lane_ui_client_source(&source_root, &lanes, crate::VERSION).unwrap()
+        );
     }
 
     #[test]
-    fn execute_without_a_single_profile_installs_the_preset_but_mounts_nothing() {
+    fn execute_narrows_the_row_to_the_named_profile() {
+        let dir = tempfile::tempdir().unwrap();
+        let source_root = repo_root();
+        let (_user_home, home) = install_fixture(dir.path());
+        let ctx = engine_context(&dir.path().join("user-home"));
+        let sink = VecSink::default();
+
+        // `editor` is maintained (initialized or not is beside the point: the
+        // user named it); `web` is left entirely alone.
+        let outcome = execute_dsh_in(
+            &source_root,
+            &ctx,
+            &selection_with_profile(false, Some("editor")),
+            &sink,
+            &home,
+            "",
+            None,
+        )
+        .unwrap();
+        assert_eq!(outcome.created, 9);
+        assert_eq!(outcome.managed_blocks, 1);
+        assert!(home.join("profiles/editor/cordis.patch.yml").exists());
+        assert_eq!(
+            std::fs::read_to_string(home.join("profiles/web/cordis.patch.yml")).unwrap(),
+            "# mine\n- keep: yes\n",
+            "the unselected profile is left alone"
+        );
+        let texts = sink.log_texts();
+        assert!(texts.iter().any(|text| text.contains("--dsh-profile 指定")), "{texts:?}");
+
+        // A named profile that does not exist is reported, never guessed at.
+        let sink = VecSink::default();
+        let outcome = execute_dsh_in(
+            &source_root,
+            &ctx,
+            &selection_with_profile(false, Some("nope")),
+            &sink,
+            &home,
+            "",
+            None,
+        )
+        .unwrap();
+        assert_eq!(outcome.managed_blocks, 0);
+        let texts = sink.log_texts();
+        assert!(
+            texts.iter().any(|text| text.contains("nope 未命中") && text.contains("设置页未写入")),
+            "{texts:?}"
+        );
+        assert!(texts.iter().any(|text| text.contains("手动加入")));
+    }
+
+    #[test]
+    fn execute_without_usable_profiles_installs_the_preset_but_mounts_nothing() {
         let dir = tempfile::tempdir().unwrap();
         let source_root = repo_root();
         let home = fake_home_with_packages(dir.path());
+        // Two bare directories: none is a profile, and there is no single one
+        // to fall back on.
         std::fs::create_dir_all(home.join("profiles").join("alpha")).unwrap();
-        std::fs::write(home.join("profiles").join("alpha").join("cordis.yml"), "").unwrap();
         std::fs::create_dir_all(home.join("profiles").join("beta")).unwrap();
-        std::fs::write(home.join("profiles").join("beta").join("cordis.yml"), "").unwrap();
 
         let user_home = dir.path().join("user-home");
         let ctx = engine_context(&user_home);
@@ -1682,8 +2014,11 @@ mod tests {
         assert!(
             texts
                 .iter()
-                .any(|text| text.contains("唯一 profile 目录")
-                    && text.contains("设置页未写入")),
+                .any(|text| text.contains("未在") && text.contains("设置页未写入")),
+            "{texts:?}"
+        );
+        assert!(
+            texts.iter().any(|text| text.contains("现有条目：alpha, beta")),
             "{texts:?}"
         );
         assert!(texts.iter().any(|text| text.contains("手动加入")));
@@ -1701,7 +2036,15 @@ mod tests {
             planned
                 .notes
                 .iter()
-                .any(|note| note.contains("唯一 profile 目录")),
+                .any(|note| note.contains("未在") && note.contains("设置页未写入")),
+            "{:?}",
+            planned.notes
+        );
+        assert!(
+            planned
+                .notes
+                .iter()
+                .any(|note| note.contains("现有条目：alpha, beta")),
             "{:?}",
             planned.notes
         );
@@ -1832,7 +2175,8 @@ mod tests {
         assert_eq!(drifted[0].source_rel, MANAGED_PATCH_DRIFT_REL);
 
         // Deleting the patch file entirely: the install would re-add the row.
-        // `web` keeps its cordis.yml so it stays the chosen profile.
+        // `web` keeps its cordis.yml, so it stays a maintained profile (the
+        // editor row is current and reports nothing).
         std::fs::write(home.join("profiles").join("web").join("cordis.yml"), "root: y\n").unwrap();
         std::fs::remove_file(&patch).unwrap();
         let drifted = drift_dsh(&source_root, &home, false).unwrap();

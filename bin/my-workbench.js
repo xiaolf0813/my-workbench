@@ -17,7 +17,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, isAbsolute, join, relative, resolve, sep, basename } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const PKG_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -31,9 +31,6 @@ const HOME_VERSION_FILE = `.${VERSION_FILE}`;
 /** The running package version, from the package.json shipped beside this CLI. */
 const PKG_VERSION = JSON.parse(readFileSync(join(PKG_ROOT, "package.json"), "utf8")).version;
 
-/** npm package name of the omos plugin; detected at user level (~/.config/opencode) to gate the omos target. */
-const OMOS_PACKAGE = "oh-my-opencode-slim";
-
 /** Entries copied for each target set. Names are copied as-is; dirs are walked recursively. */
 const SETS = {
   opencode: {
@@ -41,12 +38,6 @@ const SETS = {
     dest: ".opencode",
     /** Native OpenCode setup: core config; agents are assembled separately. */
     entries: ["opencode.jsonc"],
-  },
-  omos: {
-    label: ".opencode/  (oh-my-opencode-slim: config, prompt overrides, plugin deps)",
-    from: join(PKG_ROOT, "agents", "backends", "omos"),
-    dest: ".opencode",
-    entries: ["oh-my-opencode-slim.jsonc", "oh-my-opencode-slim", "package.json"],
   },
   claude: {
     from: join(PKG_ROOT, "agents", "backends", "claude"),
@@ -191,10 +182,6 @@ Commands
 Targets (default: both)
   --opencode              set up .opencode/ (core config + native agents)
   --claude                set up .claude/ (Claude Code agents + shared settings)
-  --omos                  add the omos plugin scheme to .opencode/
-                          (requires OpenCode + a user-level omos install;
-                          plugin loads from user level — nothing is pinned;
-                          exclusive with --opencode)
 
 ZCode target (opt-in only; user-level, writes to your home directory)
   --zcode                 install ~/.zcode/AGENTS.md + ~/.zcode/agents/*.md
@@ -215,7 +202,7 @@ DSH target (opt-in only; user-level, writes to your DSH home)
 
 Options
   --user                  install at user level instead of the current project:
-                          opencode/omos assets go to ~/.config/opencode/,
+                          OpenCode assets go to ~/.config/opencode/,
                           Claude Code assets to ~/.claude/ (ZCode and DSH are
                           always user-level and ignore this flag)
   --force                 overwrite files that already exist (default: skip them)
@@ -236,22 +223,15 @@ Options
 
 Notes
   The single source of truth is agents/: prompts/ holds each prompt body
-  once (with its omos attribution notice), roster.json holds agent
+  once (with its attribution notice), roster.json holds agent
   descriptions and backend frontmatter, and backends/<name>/ holds
   target-specific assets. This repository's .claude/agents/ and .opencode/ are
   generated from it — edit agents/ and run "my-workbench assemble".
 
-  OpenCode support is split into two targets. --opencode is the native
-  setup: core config (opencode.jsonc) plus native
-  .opencode/agents/ subagents assembled from the omos-derived prompts.
-  When a user-level omos install is detected, --opencode installs the
-  omos way instead — omos config + prompt overrides, no native agents —
-  to avoid conflicting with omos-provided agents. --omos is a separate
-  opt-in backend that copies the omos project assets
-  (oh-my-opencode-slim.jsonc, prompt overrides, package.json) into
-  .opencode/; it requires OpenCode plus an existing user-level omos
-  install (~/.config/opencode). The plugin loads from that user level, so
-  my-workbench never pins a "plugin" entry and never downloads anything.
+  --opencode is the native setup: core config (opencode.jsonc) plus native
+  .opencode/agents/ subagents assembled from the shared prompt bodies in
+  agents/prompts/. my-workbench never pins a "plugin" entry and never
+  downloads anything.
 
   ZCode target (--zcode or "zcode") is never part of the default set. It
   installs the orchestrator prompt as the global ~/.zcode/AGENTS.md, plus
@@ -309,7 +289,6 @@ Notes
 Examples
   npx my-workbench                    # copy both .opencode/ and .claude/
   npx my-workbench --opencode         # OpenCode setup only
-  npx my-workbench --omos             # omos plugin scheme only (no native agents)
   npx my-workbench claude --force     # positional target form, overwrite existing files
   npx my-workbench --user             # user-level: ~/.config/opencode/ + ~/.claude/
   npx my-workbench --zcode            # ZCode user-level setup only (~/.zcode)
@@ -343,10 +322,6 @@ function parseArgs(argv) {
       case "--opencode":
       case "opencode":
         targets.add("opencode");
-        break;
-      case "--omos":
-      case "omos":
-        targets.add("omos");
         break;
       case "--claude":
       case "claude":
@@ -400,10 +375,6 @@ function parseArgs(argv) {
     throw new Error(`--dsh-profile only applies to the DSH target; add --dsh\n\n${HELP}`);
   }
 
-  if (targets.has("opencode") && targets.has("omos")) {
-    throw new Error(`--omos cannot be combined with --opencode; --opencode already installs the omos way when a user-level omos install is detected\n\n${HELP}`);
-  }
-
   if (upgrade && (force || dryRun)) {
     throw new Error(`--upgrade cannot be combined with --force or --dry-run: it reads version stamps and copies nothing\n\n${HELP}`);
   }
@@ -428,12 +399,356 @@ function walk(root, dir, onFile) {
   }
 }
 
+// ── user model-setting preservation ─────────────────────────────────────────
+//
+// An overwrite (`--force`, or the `--upgrade` re-run that carries it) would
+// otherwise clobber the model settings a user retuned by hand. When a writer
+// is about to overwrite an existing `agents/*.md` destination it first
+// snapshots the user's model settings from the file on disk, then writes the
+// fresh render with those values spliced back in. There is no model logic —
+// no validation, no defaults, no merging: a pure byte-level save and restore
+// of what the user had. Preservation rides the INSTALL path only (main() sets
+// the writers' `preserve` option); the assemble command renders this
+// repository's own artifacts and must stay a pure render.
+
+// The per-backend key inventories, verified against each backend's actual
+// data: zcode's thinking knob is `thoughtLevel`, a Claude Code subagent's only
+// reasoning knob is `effort`, and OpenCode's reasoning selector is `variant`.
+const ZCODE_AGENT_KEYS = ["model", "thoughtLevel"];
+const CLAUDE_AGENT_KEYS = ["model", "effort"];
+const OPENCODE_AGENT_KEYS = ["model", "variant"];
+
+/**
+ * Which user-retuned model settings a destination file carries, if any: the
+ * per-backend key lines of every `<...>/agents/<name>.md` destination, keyed
+ * by the grandparent directory (`.zcode` → model + thoughtLevel; `.claude` →
+ * model + effort; `.opencode`/`opencode` — the latter is the user-level
+ * `~/.config/opencode/agents/` layout — → model + variant). The two JSON
+ * stubs (`.claude/settings.json`, `opencode.jsonc`) are NOT preservation
+ * destinations — see the stub-ownership section below. DSH destinations match
+ * nothing — their lane pins live in `<DSH_HOME>/settings.yaml`, which this
+ * tool never writes.
+ */
+function modelSettingsRule(dest) {
+  const base = basename(dest);
+  const parent = basename(dirname(dest));
+  if (base.endsWith(".md") && parent === "agents") {
+    const grandparent = basename(dirname(dirname(dest)));
+    const keys =
+      grandparent === ".zcode" ? ZCODE_AGENT_KEYS
+      : grandparent === ".claude" ? CLAUDE_AGENT_KEYS
+      : grandparent === ".opencode" || grandparent === "opencode" ? OPENCODE_AGENT_KEYS
+      : null;
+    if (keys !== null) return { kind: "frontmatter", keys };
+  }
+  return null;
+}
+
+/** A frontmatter line carries `key` when it is `<key>:` after optional
+ *  spaces/tabs (the per-key `/^[ \t]*<key>:.*$/` rule). */
+function isFrontmatterKeyLine(line, key) {
+  return line.replace(/^[ \t]+/, "").startsWith(key + ":");
+}
+
+/** The key a frontmatter line opens with (`^[ \t]*<key>:`), or null. */
+function frontmatterKeyOf(line) {
+  const stripped = line.replace(/^[ \t]+/, "");
+  const colon = stripped.indexOf(":");
+  return colon === -1 ? null : stripped.slice(0, colon);
+}
+
+/** The user's frontmatter lines for the rule's keys — the FIRST line per key,
+ *  collected in old-file order. Absent keys contribute nothing; a file without
+ *  a frontmatter block saves nothing. */
+function snapshotFrontmatterKeys(text, keys) {
+  const lines = text.split("\n");
+  if (lines[0] !== "---") return [];
+  const close = lines.indexOf("---", 1); // the closing fence of the frontmatter block
+  if (close === -1) return [];
+  const saved = [];
+  for (let i = 1; i < close; i++) {
+    const key = frontmatterKeyOf(lines[i]);
+    if (key !== null && keys.includes(key) && !saved.some((s) => s.key === key)) {
+      saved.push({ key, line: lines[i] });
+    }
+  }
+  return saved;
+}
+
+/** Write the saved lines into the fresh render's frontmatter block, per key
+ *  independently and in saved order: replace the FIRST line carrying that
+ *  key, or insert the saved line as the block's new last line (immediately
+ *  before the closing `---`) when the render carries none — a model-only file
+ *  still restores model, a thoughtLevel-only file still restores
+ *  thoughtLevel. A render without a frontmatter block is returned unchanged. */
+function restoreFrontmatterKeys(saved, text) {
+  const lines = text.split("\n");
+  if (lines[0] !== "---") return text;
+  let close = lines.indexOf("---", 1);
+  if (close === -1) return text;
+  for (const { key, line } of saved) {
+    let replaced = false;
+    for (let i = 1; i < close; i++) {
+      if (isFrontmatterKeyLine(lines[i], key)) {
+        lines[i] = line;
+        replaced = true;
+        break;
+      }
+    }
+    if (!replaced) {
+      lines.splice(close, 0, line);
+      close++;
+    }
+  }
+  return lines.join("\n");
+}
+
+/** One JSONC token: kind "string" (with its raw, unescaped text), a structural
+ *  character ("{", "}", "[", "]", ",", ":"), or an "atom" — any other run of
+ *  characters (numbers, literals). Whitespace and comments produce no tokens.
+ *  Returns null when the text has an unterminated string or comment; the
+ *  caller no-ops, never errors. */
+function scanJsoncTokens(text) {
+  const tokens = [];
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === " " || c === "\t" || c === "\n" || c === "\r") {
+      i++;
+    } else if (c === "/" && text[i + 1] === "/") {
+      const nl = text.indexOf("\n", i);
+      i = nl === -1 ? text.length : nl; // the newline itself is not comment
+    } else if (c === "/" && text[i + 1] === "*") {
+      const end = text.indexOf("*/", i + 2);
+      if (end === -1) return null;
+      i = end + 2;
+    } else if (c === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1; // `\x` consumes two chars
+      if (j >= text.length) return null;
+      tokens.push({ kind: "string", start: i, end: j + 1, text: text.slice(i + 1, j) });
+      i = j + 1;
+    } else if ("{}[],:".includes(c)) {
+      tokens.push({ kind: c, start: i, end: i + 1 });
+      i++;
+    } else {
+      let j = i;
+      while (
+        j < text.length &&
+        !" \t\n\r\"".includes(text[j]) &&
+        !"{}[],:".includes(text[j]) &&
+        !(text[j] === "/" && (text[j + 1] === "/" || text[j + 1] === "*"))
+      ) {
+        j++;
+      }
+      tokens.push({ kind: "atom", start: i, end: j });
+      i = j;
+    }
+  }
+  return tokens;
+}
+
+/**
+ * The members of the object whose opening `{` is the token at openIdx: its
+ * closing `}` token index and each member's key with the token span of its
+ * value (from the first token after the `:` to the last token before the
+ * member's terminator — the next `,` at the member's depth, or the object's
+ * closing `}`; nested brackets are skipped with a depth counter). Callers
+ * only feed it token streams that already passed parseJsoncRoot's whole-
+ * document validation. Returns null for a member list that is not
+ * `string ":" value` pairs.
+ */
+function parseObjectMembers(tokens, openIdx) {
+  let depth = 0;
+  let close = -1;
+  for (let k = openIdx; k < tokens.length; k++) {
+    if (tokens[k].kind === "{") depth++;
+    else if (tokens[k].kind === "}") {
+      depth--;
+      if (depth === 0) {
+        close = k;
+        break;
+      }
+    }
+  }
+  if (close === -1) return null;
+  const members = [];
+  let i = openIdx + 1;
+  while (i < close) {
+    if (tokens[i].kind !== "string" || tokens[i + 1]?.kind !== ":") return null;
+    let j = i + 2;
+    let inner = 0;
+    let start = -1;
+    let end = -1;
+    while (j <= close) {
+      const kind = tokens[j].kind;
+      if (inner === 0 && (kind === "," || j === close)) break;
+      if (start === -1) start = j;
+      end = j;
+      if (kind === "{" || kind === "[") inner++;
+      else if (kind === "}" || kind === "]") inner--;
+      j++;
+    }
+    if (start === -1 || j > close) return null; // empty value, or member never terminated
+    members.push({ key: tokens[i].text, keyStart: i, start, end });
+    i = j + 1; // past the comma; lands past close when the member list ends
+  }
+  return { close, members };
+}
+
+/**
+ * The root object of a JSONC document, parsed for top-level members only
+ * (the same member records parseObjectMembers yields for a nested object).
+ * Returns null for anything the scanner rejects — root not an object,
+ * unbalanced braces or brackets, tokens after the root closes, or a member
+ * list that is not `string ":" value` pairs — and the caller no-ops.
+ */
+function parseJsoncRoot(text) {
+  const tokens = scanJsoncTokens(text);
+  if (tokens === null || tokens.length === 0 || tokens[0].kind !== "{") return null;
+  let braces = 0;
+  let brackets = 0;
+  let close = -1; // token index of the "}" that closes the root
+  for (let k = 0; k < tokens.length; k++) {
+    const kind = tokens[k].kind;
+    if (kind === "{") braces++;
+    else if (kind === "[") brackets++;
+    else if (kind === "}") {
+      braces--;
+      if (braces < 0) return null;
+      if (braces === 0 && brackets === 0 && close === -1) close = k;
+    } else if (kind === "]") {
+      brackets--;
+      if (brackets < 0) return null;
+    }
+  }
+  if (braces !== 0 || brackets !== 0 || close !== tokens.length - 1) return null;
+  const parsed = parseObjectMembers(tokens, 0);
+  if (parsed === null) return null;
+  return { tokens, close, members: parsed.members };
+}
+
+// ── JSON stub ownership ─────────────────────────────────────────────────────
+//
+// `.claude/settings.json` and `opencode.jsonc` are SEED STUBS: the deploy's
+// intent for them is to place the stub content, never to own the file. The
+// keys my-workbench owns are exactly those present in the stub — derived by
+// parsing the stub bytes (`agent` in settings.json, `$schema` in
+// opencode.jsonc today), never hardcoded. On a `--force` overwrite the stub's
+// own keys are reconciled into the existing file (canonical value replaces
+// the value span; a missing key is inserted whole) and every other byte of
+// the user's file survives verbatim — comments, hooks, env, anything. An
+// unparseable file (or stub) is left COMPLETELY untouched: user content is
+// never overwritten with the stub. Like preservation this rides the install
+// path only, and it is not snapshot-based: the canonical values always come
+// from the stub.
+
+/**
+ * The two JSON stub destinations whose owned keys an install reconciles on
+ * force: `settings.json` inside a `.claude/` directory (project and
+ * `~/.claude/`) and `opencode.jsonc` in the opencode config roots (project
+ * `.opencode/` and `~/.config/opencode/`).
+ */
+function isJsonStubDest(dest) {
+  const base = basename(dest);
+  const parent = basename(dirname(dest));
+  if (base === "settings.json" && parent === ".claude") return true;
+  return base === "opencode.jsonc" && (parent === ".opencode" || parent === "opencode");
+}
+
+/**
+ * The stub's owned top-level keys, derived by parsing the stub. Each entry
+ * carries the canonical value text (spliced over an existing value span) and
+ * the full member span text `"<key>": <value>` (inserted whole when the key
+ * is missing); the first occurrence wins per key. Null when the stub does
+ * not parse — a packaging bug: reconciliation no-ops.
+ */
+function stubOwnedMembers(stub) {
+  const root = parseJsoncRoot(stub);
+  if (root === null) return null;
+  const owned = [];
+  for (const m of root.members) {
+    if (owned.some((o) => o.key === m.key)) continue;
+    owned.push({
+      key: m.key,
+      value: stub.slice(root.tokens[m.start].start, root.tokens[m.end].end),
+      member: stub.slice(root.tokens[m.keyStart].start, root.tokens[m.end].end),
+    });
+  }
+  return owned;
+}
+
+/**
+ * Splice one owned key into the existing content: replace the value span of
+ * the key's first occurrence (the user's key spelling and surrounding
+ * whitespace/comments survive), or insert the stub's full member span before
+ * the root's closing `}` — after its whitespace run, `,\n  ` prefix, no
+ * comma into an empty root. Null when the content does not parse: the caller
+ * leaves the file completely untouched.
+ */
+function reconcileOwnedKey(key, value, member, text) {
+  const root = parseJsoncRoot(text);
+  if (root === null) return null;
+  const found = root.members.find((m) => m.key === key);
+  if (found !== undefined) {
+    const from = root.tokens[found.start].start;
+    const to = root.tokens[found.end].end;
+    return text.slice(0, from) + value + text.slice(to);
+  }
+  let at = root.tokens[root.close].start; // immediately before the closing "}"…
+  while (at > 0 && " \t\n\r".includes(text[at - 1])) at--; // …back over its whitespace run
+  return text.slice(0, at) + (root.members.length === 0 ? "" : ",") + `\n  ${member}` + text.slice(at);
+}
+
+/**
+ * The reconciled content for an overwrite of a stub destination: every
+ * stub-owned key spliced into the existing file. Null when the file must be
+ * left COMPLETELY untouched — either side missing, not valid UTF-8, or
+ * unparseable.
+ */
+function reconcileJsonStub(stub, existing) {
+  if (stub === null || existing === null) return null;
+  const owned = stubOwnedMembers(stub);
+  if (owned === null) return null;
+  let text = existing;
+  for (const { key, value, member } of owned) {
+    const next = reconcileOwnedKey(key, value, member, text);
+    if (next === null) return null;
+    text = next;
+  }
+  return text;
+}
+
+/** A file's text, or null when it is not valid UTF-8 (nothing is preserved then). */
+function readUtf8(file) {
+  const bytes = readFileSync(file);
+  const text = bytes.toString("utf8");
+  return Buffer.from(text, "utf8").equals(bytes) ? text : null;
+}
+
+/**
+ * The fresh render with the user's model settings from the existing file
+ * written back in, or null when nothing is preserved (no rule for this
+ * destination, nothing saved, or either text not valid UTF-8) — the caller
+ * writes the fresh bytes unchanged. Pure save and restore: the saved lines
+ * are re-inserted verbatim, nothing is validated or merged. (The two JSON
+ * stub destinations are not preservation destinations — see the
+ * stub-ownership section above.)
+ */
+function preserveModelSettings(dest, existing, fresh) {
+  const rule = modelSettingsRule(dest);
+  if (rule === null || existing === null || fresh === null) return null;
+  const saved = snapshotFrontmatterKeys(existing, rule.keys);
+  if (saved.length === 0) return null;
+  return restoreFrontmatterKeys(saved, fresh);
+}
+
 /**
  * Copy one file with skip/force/dry-run semantics. displayRoot/displayPrefix
  * only control how the destination is displayed (user-level installs pass the
  * home directory and "~/"); defaults keep the project-relative display.
  */
-function copyOne(src, dest, { force, dryRun, displayRoot = process.cwd(), displayPrefix = "" }, counts) {
+function copyOne(src, dest, { force, dryRun, preserve = false, displayRoot = process.cwd(), displayPrefix = "" }, counts) {
   const rel = displayPrefix + relative(displayRoot, dest);
   const exists = existsSync(dest);
 
@@ -444,7 +759,30 @@ function copyOne(src, dest, { force, dryRun, displayRoot = process.cwd(), displa
   }
   if (!dryRun) {
     mkdirSync(dirname(dest), { recursive: true });
-    copyFileSync(src, dest);
+    // Overwrite semantics, install path only (preserve is not set for
+    // assemble): the two JSON stubs are seed content — the stub's OWN keys
+    // are reconciled into the existing file and everything else survives
+    // (null reconcile: an unparseable file or stub is left COMPLETELY
+    // untouched); every other destination preserves the user's frontmatter
+    // model keys where ruled. null content → plain copy of the source bytes.
+    let content = null; // bytes to write
+    let keep = false; // leave the existing file untouched
+    if (exists && preserve) {
+      const stub = readUtf8(src);
+      const existing = readUtf8(dest);
+      if (isJsonStubDest(dest)) {
+        const merged = reconcileJsonStub(stub, existing);
+        if (merged === null) keep = true;
+        else content = merged;
+      } else {
+        const preserved = preserveModelSettings(dest, existing, stub);
+        if (preserved !== null) content = preserved;
+      }
+    }
+    if (!keep) {
+      if (content !== null) writeFileSync(dest, content);
+      else copyFileSync(src, dest);
+    }
   }
   counts[exists ? "overwritten" : "created"]++;
   console.log(`  ${exists ? "overwrite" : "create   "}  ${rel}${dryRun ? "  (dry-run)" : ""}`);
@@ -460,8 +798,12 @@ function copyOne(src, dest, { force, dryRun, displayRoot = process.cwd(), displa
  * release: it is written on every run, like the version stamp, because skip-if-
  * exists would freeze the first release that ever deployed it. Only files with no
  * user-editable content may ask for it.
+ *
+ * `preserve` (the install path only — main() sets it) makes an overwrite first
+ * snapshot the user's model settings from the destination on disk and write
+ * them back into the fresh render; see the preservation section above.
  */
-function writeAgent(dest, content, { force, dryRun, regenerate = false, displayRoot = process.cwd(), displayPrefix = "" }, counts) {
+function writeAgent(dest, content, { force, dryRun, preserve = false, regenerate = false, displayRoot = process.cwd(), displayPrefix = "" }, counts) {
   const rel = displayPrefix + relative(displayRoot, dest);
   const exists = existsSync(dest);
 
@@ -472,7 +814,11 @@ function writeAgent(dest, content, { force, dryRun, regenerate = false, displayR
   }
   if (!dryRun) {
     mkdirSync(dirname(dest), { recursive: true });
-    writeFileSync(dest, content);
+    // An overwrite of a preserve-rule destination first snapshots the user's
+    // model settings from the file on disk and writes them back into the fresh
+    // render (null: nothing preserved — the render as-is).
+    const preserved = exists && preserve ? preserveModelSettings(dest, readUtf8(dest), content) : null;
+    writeFileSync(dest, preserved !== null ? preserved : content);
   }
   counts[exists ? "overwritten" : "created"]++;
   const why = dryRun ? "  (dry-run)" : regenerate && exists && !force ? "  (refreshed: rendered from this release)" : "";
@@ -513,38 +859,12 @@ function copyEntries(set, entries, targetRoot, dest, opts, counts) {
     }
     if (statSync(src).isDirectory()) {
       walk(src, src, (fileAbs) =>
-        copyOneRendered(set, fileAbs, join(entry, relative(src, fileAbs)), join(targetRoot, dest, entry, relative(src, fileAbs)), opts, counts),
+        copyOne(fileAbs, join(targetRoot, dest, entry, relative(src, fileAbs)), opts, counts),
       );
     } else {
-      copyOneRendered(set, src, entry, join(targetRoot, dest, entry), opts, counts);
+      copyOne(src, join(targetRoot, dest, entry), opts, counts);
     }
   }
-}
-
-/**
- * Copy one asset file. The omos orchestrator append renders its
- * {{disciplines}} marker on every deployment scope — the marker must never
- * ship raw outside this repository's source tree; everything else copies
- * byte-for-byte.
- */
-function copyOneRendered(set, src, backendRel, dest, opts, counts) {
-  const rel = backendRel.split(sep).join("/");
-  if (basename(set.from) === "omos" && rel === "oh-my-opencode-slim/orchestrator_append.md") {
-    writeAgent(dest, renderOpencodeAsset("omos", rel, readFileSync(src, "utf8")), opts, counts);
-    return;
-  }
-  copyOne(src, dest, opts, counts);
-}
-
-/** True when an omos install already exists at user level (~/.config/opencode). */
-function omosUserLevelPresent() {
-  const cfgDir = join(homedir(), ".config", "opencode");
-  if (existsSync(join(cfgDir, "node_modules", OMOS_PACKAGE))) return true;
-  for (const name of ["opencode.json", "opencode.jsonc"]) {
-    const file = join(cfgDir, name);
-    if (existsSync(file) && readFileSync(file, "utf8").includes(OMOS_PACKAGE)) return true;
-  }
-  return false;
 }
 
 /** True when the OpenCode app is installed (an `opencode` binary on PATH). */
@@ -612,7 +932,7 @@ function agentSourceProblems() {
 
 /**
  * Read one shared prompt body verbatim; a backend template may only reference
- * prompts that exist. This is the raw body of ONE agent, before the omos
+ * prompts that exist. This is the raw body of ONE agent, before the
  * attribution notice is dropped and the universal disciplines appended — every
  * delivery path of a prompt starts here.
  */
@@ -686,7 +1006,7 @@ function warnUnusedSlots(backendName, usedSlots) {
 /**
  * Assemble one agent markdown file for a backend: its frontmatter lines from
  * agents/backends/<backend>.json joined with the shared prompt body from
- * agents/prompts/<name>.md (which carries the omos attribution notice), with
+ * agents/prompts/<name>.md (which carries the attribution notice), with
  * {{slot:...}} placeholders filled from the backend's slots/ and the universal
  * disciplines appended last — a delivered agent prompt is body + disciplines,
  * the same pair every other backend delivers.
@@ -1337,32 +1657,14 @@ function installLanePlugin(presetRoot, display, opts, counts, specifiers, usedSl
 }
 
 
-/** Native OpenCode target: core config plus native agents/ subagents. When a
- *  user-level omos install is detected, installs the omos way instead —
- *  native agents would conflict with omos-provided agents. scope = {root,
- *  dest, display} from the per-target scope resolution in main(). */
+/** Native OpenCode target: core config plus native agents/ subagents.
+ *  scope = {root, dest, display} from the per-target scope resolution in main(). */
 function applyOpencode(scope, opts, counts) {
   const set = SETS.opencode;
   console.log(`\n${scope.display}  (opencode.jsonc)`);
   copyEntries(set, set.entries, scope.root, scope.dest, opts, counts);
-  if (omosUserLevelPresent()) {
-    console.log(`  note       user-level omos install detected; installing the omos way: omos config + prompt overrides copied, native agents/ skipped to avoid agent conflicts (the plugin loads from user level)`);
-    copyEntries(SETS.omos, SETS.omos.entries, scope.root, scope.dest, opts, counts);
-    return;
-  }
-  console.log(`  agents     ${scope.display}agents/  (native OpenCode agents, omos prompts attributed)`);
+  console.log(`  agents     ${scope.display}agents/  (native OpenCode agents)`);
   assembleBackend("opencode", join(scope.root, scope.dest, "agents"), opts, counts);
-}
-
-/** omos target: copy the omos project assets; the plugin itself loads from the
- *  user-level omos install enforced by the prerequisite gate — nothing is
- *  pinned and nothing is downloaded. */
-function applyOmos(scope, opts, counts) {
-  console.log(`\n${SETS.omos.label}`);
-  copyEntries(SETS.omos, SETS.omos.entries, scope.root, scope.dest, opts, counts);
-  if (existsSync(join(scope.root, scope.dest, "agents"))) {
-    console.log(`  note       existing ${scope.display}agents/ files may conflict with omos-provided agents; review them`);
-  }
 }
 
 /**
@@ -1376,7 +1678,7 @@ function composeZcodeAgentsMd(usedSlots = new Set()) {
 /**
  * ZCode target: installs ONLY at user level (~/.zcode) — the global AGENTS.md
  * plus subagents in ~/.zcode/agents/. Opt-in via --zcode; never touches the
- * project directory, no omos, no downloads. Destinations are displayed
+ * project directory, no downloads. Destinations are displayed
  * relative to the home directory ("~/").
  */
 function applyZcode(opts, counts) {
@@ -1504,83 +1806,22 @@ function applyDsh(opts, counts) {
 }
 
 
-// ── Response Convention sync assertion ──────────────────────────────────────
-
 /**
- * The orchestrator's user-facing reply convention is authored twice: in the
- * shared prompt body and again in the omos prompt override. Nothing else
- * keeps the copies in step, so the omos append render asserts they still
- * agree — heading depth, line wrapping and blank-line-only differences are
- * ignored, any other divergence fails the assemble.
+ * Sync the distributable OpenCode assets from agents/backends/opencode/
+ * into this repository's live .opencode/ directory. In check mode, only
+ * reports drift.
  */
-
-/**
- * Whitespace-normalized body of the one `Response Convention` section in one
- * file: everything after the heading until the next ATX heading (or EOF),
- * minus standalone `{{...}}` template placeholder lines, all whitespace
- * collapsed so depth, re-wrapping and blank lines compare equal — except that
- * lines OPENING a list item carry a sentinel, so merging or splitting list
- * items is structural, not formatting, and fails.
- */
-function responseConventionBody(rel) {
-  const lines = readFileSync(join(PKG_ROOT, rel), "utf8").split("\n");
-  const at = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (/^#{1,6}\s+Response Convention\s*$/.test(lines[i])) at.push(i);
-  }
-  if (at.length === 0) throw new Error(`${rel} has no 'Response Convention' heading`);
-  if (at.length > 1) throw new Error(`${rel} has ${at.length} 'Response Convention' headings; expected exactly one`);
-  const body = [];
-  for (let i = at[0] + 1; i < lines.length && !/^#{1,6}(\s|$)/.test(lines[i]); i++) body.push(lines[i]);
-  const text = body
-    .filter((line) => !/^\s*\{\{[\w:-]+\}\}\s*$/.test(line))
-    .map((line) => (/^\s*(?:[-*+]|\d+[.)])[ \t]/.test(line) ? `\x00${line}` : line))
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (text === "") throw new Error(`${rel} has an empty 'Response Convention' section`);
-  return text;
-}
-
-/** Fail the assemble unless both authored copies of the convention agree. */
-function assertResponseConventionSync() {
-  const prompt = "agents/prompts/orchestrator.md";
-  const append = "agents/backends/omos/oh-my-opencode-slim/orchestrator_append.md";
-  if (responseConventionBody(prompt) !== responseConventionBody(append)) {
-    throw new Error(`'Response Convention' diverges between ${prompt} and ${append} (heading depth, line wrapping and blank lines are ignored); align the two copies`);
-  }
-}
-
-/**
- * Sync the distributable OpenCode assets from agents/backends/{opencode,omos}/
- * into this repository's live .opencode/ directory (this repo self-hosts omos).
- * In check mode, only reports drift.
- */
-function renderOpencodeAsset(backendName, rel, source) {
-  const normalized = rel.replaceAll("\\", "/");
-  if (backendName !== "omos" || normalized !== "oh-my-opencode-slim/orchestrator_append.md") return source;
-
-  assertResponseConventionSync();
-
-  const marker = "{{disciplines}}";
-  if (!source.includes(marker)) {
-    throw new Error("agents/backends/omos/oh-my-opencode-slim/orchestrator_append.md must contain {{disciplines}}");
-  }
-  const disciplines = readFileSync(join(PKG_ROOT, "agents", "disciplines.md"), "utf8").replace(/\s+$/, "");
-  return source.replace(marker, disciplines);
-}
-
 function syncOpencodeAssets({ check }) {
   const destRoot = join(PKG_ROOT, ".opencode");
   let drifted = 0;
 
-  for (const backendName of ["opencode", "omos"]) {
+  for (const backendName of ["opencode"]) {
     const srcRoot = join(PKG_ROOT, "agents", "backends", backendName);
     walk(srcRoot, srcRoot, (fileAbs) => {
       const rel = relative(srcRoot, fileAbs);
       if (rel.startsWith("slots/")) return; // {{slot:...}} texts, not runtime assets
       const dest = join(destRoot, rel);
-      const content = renderOpencodeAsset(backendName, rel, readFileSync(fileAbs, "utf8"));
+      const content = readFileSync(fileAbs, "utf8");
       const current = existsSync(dest) ? readFileSync(dest, "utf8") : null;
       if (current === content) return;
       drifted++;
@@ -1643,7 +1884,7 @@ async function lanePromptsProblem(rendered) {
 /**
  * `my-workbench assemble`: regenerate this repository's generated config from
  * the single-source agents/ tree: `.claude/agents/` (claude backend) and
- * `.opencode/` (opencode + omos backend assets), and render the user-level dsh
+ * `.opencode/` (opencode backend assets), and render the user-level dsh
  * composition and lane plugin so a broken placeholder fails here. `--check` only
  * verifies.
  */
@@ -1798,7 +2039,7 @@ async function upgradeCommand(opts) {
   // One stamp per deployment realm, at most two: the project root for
   // project-level targets, the home directory for --user and the
   // user-level-only targets (zcode/dsh). A mixed selection checks both.
-  const projectTargets = ["opencode", "omos", "claude"].filter((name) => opts.targets.has(name));
+  const projectTargets = ["opencode", "claude"].filter((name) => opts.targets.has(name));
   const userLevelOnly = ["zcode", "dsh"].filter((name) => opts.targets.has(name));
   const roots = [];
   if (projectTargets.length > 0 && !opts.user) {
@@ -1934,17 +2175,12 @@ async function main() {
     return;
   }
 
-  // Prerequisite gate: fail fast with no writes. --omos demands an existing
-  // user-level omos install because the plugin loads from there — my-workbench
-  // never pins a plugin entry and never downloads anything. --dsh demands an
-  // existing DSH home, because that is where the preset registry reads presets.
+  // Prerequisite gate: fail fast with no writes. --opencode demands an
+  // `opencode` binary on PATH; --dsh demands an existing DSH home, because
+  // that is where the preset registry reads presets.
   const prereqFailures = [];
   if (opts.targets.has("opencode") && !opencodeInstalled()) {
     prereqFailures.push("OpenCode is not installed (no 'opencode' on PATH); install OpenCode first");
-  }
-  if (opts.targets.has("omos")) {
-    if (!opencodeInstalled()) prereqFailures.push("OpenCode is not installed (no 'opencode' on PATH); install OpenCode first");
-    if (!omosUserLevelPresent()) prereqFailures.push("omos is not installed at user level (~/.config/opencode); install omos first, then rerun with --omos");
   }
   if (opts.targets.has("dsh") && !existsSync(dshHome())) {
     prereqFailures.push(`DSH is not installed (no ${dshHome()}); install DeepSeek Harness first, then rerun with --dsh`);
@@ -1959,7 +2195,7 @@ async function main() {
   // The source-repo guard blocks project-level targets only; --user and
   // --zcode (user level) are safe to run from anywhere, including the source
   // repository itself.
-  const touchesProjectTargets = opts.targets.has("opencode") || opts.targets.has("omos") || opts.targets.has("claude");
+  const touchesProjectTargets = opts.targets.has("opencode") || opts.targets.has("claude");
   if (!opts.user && touchesProjectTargets && resolve(targetRoot) === PKG_ROOT) {
     console.log("current directory is the my-workbench source repository; nothing to copy. Use \"my-workbench assemble\" to regenerate .claude/agents/ from agents/ source.");
     return;
@@ -1969,25 +2205,27 @@ async function main() {
   // directory; --user installs into each tool's user-level config root instead
   // (OpenCode reads ~/.config/opencode, Claude Code reads ~/.claude). ZCode is
   // always user-level and ignores --user.
+  // Model-setting preservation rides this install path only: the writers below
+  // get `preserve` here, and the assemble command (which renders this repo's
+  // own artifacts) never sets it, so it stays a pure render.
+  const installOpts = { ...opts, preserve: true };
   const projectScope = (dest) => ({ root: targetRoot, dest, display: `${dest}/` });
   const scopes = {
     opencode: projectScope(".opencode"),
-    omos: projectScope(".opencode"),
     claude: projectScope(".claude"),
   };
-  if (opts.user) {
+  if (installOpts.user) {
     const userScope = (root, display) => ({ root, dest: "", display });
     scopes.opencode = userScope(join(homedir(), ".config", "opencode"), "~/.config/opencode/");
-    scopes.omos = scopes.opencode;
     scopes.claude = userScope(join(homedir(), ".claude"), "~/.claude/");
   }
   // User-level destinations live outside the CWD; display them relative to home.
-  const displayOpts = opts.user ? { ...opts, displayRoot: homedir(), displayPrefix: "~/" } : opts;
+  const displayOpts = installOpts.user ? { ...installOpts, displayRoot: homedir(), displayPrefix: "~/" } : installOpts;
 
   const counts = { created: 0, overwritten: 0, skipped: 0 };
   // ZCode and DSH are user-level-only targets with no project footprint; a run
   // that selects only those reports itself as a user-level install.
-  const projectTargets = ["opencode", "omos", "claude"].filter((name) => opts.targets.has(name));
+  const projectTargets = ["opencode", "claude"].filter((name) => opts.targets.has(name));
   const userLevelLabels = { zcode: "ZCode", dsh: "DSH" };
   const userLevelOnly = Object.keys(userLevelLabels).filter((name) => opts.targets.has(name));
   const dry = opts.dryRun ? "  (dry-run)" : "";
@@ -1999,15 +2237,14 @@ async function main() {
         : `my-workbench: installing agent setup into ${targetRoot}${dry}`,
   );
 
-  if (opts.targets.has("opencode")) applyOpencode(scopes.opencode, displayOpts, counts);
-  if (opts.targets.has("omos")) applyOmos(scopes.omos, displayOpts, counts); // after opencode so core config exists first
-  if (opts.targets.has("claude")) {
+  if (installOpts.targets.has("opencode")) applyOpencode(scopes.opencode, displayOpts, counts);
+  if (installOpts.targets.has("claude")) {
     console.log(`\n${scopes.claude.display}  (agents/*.md, settings.json)`);
     copyEntries(SETS.claude, SETS.claude.entries, scopes.claude.root, scopes.claude.dest, displayOpts, counts);
     assembleBackend("claude", join(scopes.claude.root, scopes.claude.dest, "agents"), displayOpts, counts);
   }
-  if (opts.targets.has("zcode")) applyZcode(opts, counts);
-  if (opts.targets.has("dsh")) applyDsh(opts, counts);
+  if (installOpts.targets.has("zcode")) applyZcode(installOpts, counts);
+  if (installOpts.targets.has("dsh")) applyDsh(installOpts, counts);
 
   // One stamp per deployment realm records what deployed there: the project
   // root for project-level targets, the home directory for --user and the
