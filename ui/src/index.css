@@ -411,7 +411,6 @@ input, textarea, .edt-ta { user-select: text; }
 .livebar { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--bg-inset); z-index: 5; opacity: 0; transition: opacity var(--t-med); }
 .livebar.is-on { opacity: 1; }
 .livebar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), #a7d0f9); transition: width .25s var(--ease); }
-.livebar.done i { background: var(--ok); }
 .seg { display: flex; gap: 2px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: var(--r-md); padding: 3px; }
 .seg-b { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 12px; border-radius: var(--r-sm); font-size: 12.5px; font-weight: 500;
   color: var(--text-2); transition: background var(--t-fast), color var(--t-fast); }

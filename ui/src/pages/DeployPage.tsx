@@ -31,6 +31,7 @@ import {
   type InstallReport,
   type IpcFailure,
   type Plan,
+  type Selection,
   type Target,
 } from "../lib/ipc";
 import { AgentCard } from "./deploy/AgentCard";
@@ -146,6 +147,9 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
   scopeRef.current = scope;
   const targetRef = useRef(target);
   targetRef.current = target;
+  /* quick-update reopen reads the run state without a handler-dep chain */
+  const runRef = useRef(run);
+  runRef.current = run;
 
   const selection = useMemo(
     () =>
@@ -451,9 +455,11 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
     [refreshOverview],
   );
 
-  const startInstall = useCallback(async () => {
-    const currentPlan = planRef.current;
-    if (!currentPlan || stale || run === "running") return;
+  /* The run body takes the plan + selection explicitly: the full-dialog entry
+     passes the held plan/selection, the quick-update entry (§4.6 快速更新)
+     passes the plan it just generated at 安装-click time — a held state read
+     would risk a stale plan. */
+  const runInstall = useCallback(async (currentPlan: Plan, currentSelection: Selection) => {
     const runTarget = targetRef.current;
     setDlgView("log");
     setLines([]);
@@ -463,7 +469,7 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
     setRun("running");
     const startedAt = Date.now();
     try {
-      const rep: InstallReport = await executeInstall(currentPlan, selectionRef.current);
+      const rep: InstallReport = await executeInstall(currentPlan, currentSelection);
       const durationMs = Date.now() - startedAt;
       const written = rep.created + rep.overwritten + rep.managedBlocks;
       if (rep.cancelled) {
@@ -494,7 +500,38 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
     } finally {
       setStopDisabled(false);
     }
-  }, [stale, run, toast, refreshAfterRun]);
+  }, [toast, refreshAfterRun]);
+
+  const startInstall = useCallback(async () => {
+    const currentPlan = planRef.current;
+    if (!currentPlan || stale || run === "running") return;
+    await runInstall(currentPlan, selectionRef.current);
+  }, [stale, run, runInstall]);
+
+  /* Quick-update 安装 [变更 2026-10 快速更新, SPEC §4.6]: plan-then-execute in
+     one step — bundled source only, current force switch, no preview gate.
+     The fresh plan is handed to runInstall directly so the run can never pick
+     up a stale held plan; the full-dialog path (startInstall) is untouched. */
+  const quickInstall = useCallback(async () => {
+    if (planning || run === "running") return;
+    setPlanning(true);
+    setPlanError(null);
+    try {
+      const sel: Selection = { ...selectionRef.current, source: { mode: "bundled" } };
+      const p = await planInstall(sel);
+      setPlan(p);
+      setPlanStamp(hhmmss(new Date()));
+      setStale(false);
+      setPlanning(false);
+      await runInstall(p, sel);
+    } catch (e) {
+      const failure = describeIpcError(e);
+      setPlanError(failure);
+      toast({ kind: "err", title: "安装准备失败", sub: failure.message });
+    } finally {
+      setPlanning(false);
+    }
+  }, [planning, run, runInstall, toast]);
 
   const stopInstall = useCallback(async () => {
     setStopDisabled(true);
@@ -539,7 +576,10 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
       if (nextForce !== force && planRef.current !== null) setStale(true);
       setForce(nextForce);
       setDlgFrom(from);
-      setDlgView("config");
+      // 快速更新 (§4.6): the entry always owns the log once a run exists —
+      // reopening mid-run (or after a terminal state) lands on the live
+      // log/report, not back on the 覆盖 switch. Fresh entry → quick body.
+      setDlgView(from === "update" && runRef.current !== "idle" ? "log" : "config");
       setDlgOpen(true);
     },
     [force],
@@ -752,7 +792,10 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
                 <span className="dep-loclabel">已部署</span>
                 <span className="mono">{deployedVersion !== null ? `v${deployedVersion}` : "v—"}</span>
                 {updateAvailable && (
-                  <button type="button" className="btn btn-primary" onClick={() => openDeploy("update")}>
+                  /* 26px accent-outline [变更 2026-10 快速更新] — matches the info
+                     row's 12px meta scale; the entry opens the quick-update
+                     dialog (SPEC §4.6), not the full deploy dialog. */
+                  <button type="button" className="btn btn-sm btn-acc-o" onClick={() => openDeploy("update")}>
                     <Icon name="up" />
                     更新至v{bundledRawVersion}
                   </button>
@@ -873,7 +916,10 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
         planDisabled={planDisabled}
         planDisabledReason={planDisabledReason}
         onGenPreview={() => void genPreview()}
-        onStartInstall={() => void startInstall()}
+        /* 快速更新 (§4.6): the quick 安装 button and the log view's 重试安装
+           both re-run the quick plan→execute path; the full dialog keeps
+           startInstall (held plan + gating). */
+        onStartInstall={dlgFrom === "update" ? () => void quickInstall() : () => void startInstall()}
         run={run}
         lines={lines}
         progress={progress}
@@ -881,7 +927,7 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
         stopDisabled={stopDisabled}
         onStop={() => void stopInstall()}
         onCopyLog={() => void copyLog()}
-        onRetry={() => void startInstall()}
+        onRetry={dlgFrom === "update" ? () => void quickInstall() : () => void startInstall()}
       />
 
       {/* unsaved-changes guard (SPEC §3.22) — Esc/backdrop = 取消 */}

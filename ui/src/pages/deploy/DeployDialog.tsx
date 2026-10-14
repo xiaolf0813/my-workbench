@@ -4,6 +4,12 @@
 // cooperative cancel — moved verbatim in behavior into
 // a 720px dialog scoped to ONE target. State lives above (DeployPage): closing
 // mid-run never cancels the run, reopening shows the live log/progress state.
+//
+// [变更 2026-10 快速更新] `from === "update"` renders the quick-update body:
+// no tab row / 内容源 / 安装位置 / preview — just the 覆盖 switch (preset ON,
+// owned by DeployPage) and a 取消/安装 footer; 安装 plans and executes in one
+// step (handled page-side) into the shared log view, which keeps its 关闭
+// footer, 停止 and terminal reports verbatim.
 import type { ReactNode } from "react";
 import { Dialog } from "../../components/Dialog";
 import { Icon } from "../../icons";
@@ -77,6 +83,33 @@ const VIEWS: { id: DeployView; label: string }[] = [
   { id: "log", label: "安装日志" },
 ];
 
+/* The 覆盖已存在文件 switch section, shared by the full dialog's config pane
+   and the quick-update body (hint tracks the switch state). */
+function ForceSwitch({ force, onToggle }: { force: boolean; onToggle: (v: boolean) => void }) {
+  return (
+    <div className="opts scope-opts">
+      <div className="opt">
+        <div className="opt-c">
+          <div className="opt-t">覆盖已存在文件</div>
+          {force ? (
+            <div className="opt-s warn">已开启 — 已存在的文件将被直接覆盖，请确认</div>
+          ) : (
+            <div className="opt-s">默认跳过已存在的文件</div>
+          )}
+        </div>
+        <button
+          type="button"
+          className="sw"
+          role="switch"
+          aria-checked={force}
+          aria-label="覆盖已存在文件"
+          onClick={() => onToggle(!force)}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function DeployDialog(props: DeployDialogProps) {
   const {
     open, from, view, target, onView, onClose,
@@ -91,16 +124,17 @@ export function DeployDialog(props: DeployDialogProps) {
 
   const oc = target === "opencode" || target === "claude";
   const prevalApplies = srcMode === "local" && target === "dsh";
+  /* 快速更新 body [变更 2026-10 快速更新]: the update entry runs no tabs and no
+     config — only the 覆盖 switch until the run starts (view flips to log). */
+  const quick = from === "update";
+  const quickBody = quick && view !== "log";
 
-  /* 2px live bar across the dialog top (§3.9) */
+  /* 2px live bar across the dialog top (§3.9): a RUNNING indicator only —
+     terminal states hide it entirely, the in-log report card carries the
+     outcome [变更 2026-10 完成态隐藏顶条]. */
   const pct =
-    progress && progress.total > 0
-      ? Math.min(100, Math.round((progress.done / progress.total) * 100))
-      : run === "success"
-        ? 100
-        : 0;
-  const livebarClass =
-    run === "idle" ? "livebar" : `livebar is-on${run === "success" || run === "failed" ? " done" : ""}`;
+    progress && progress.total > 0 ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : 0;
+  const livebarClass = run === "running" ? "livebar is-on" : "livebar";
 
   const fixedLocation: ReactNode =
     target === "zcode" ? (
@@ -131,11 +165,23 @@ export function DeployDialog(props: DeployDialogProps) {
       title={`${from === "update" ? "更新" : "部署"} · ${target}`}
       before={
         <div className={livebarClass}>
-          <i style={{ width: run === "idle" ? 0 : `${pct}%` }} />
+          <i style={{ width: run === "running" ? `${pct}%` : 0 }} />
         </div>
       }
       footer={
-        view === "config" || view === "preview" ? (
+        quickBody ? (
+          /* 快速更新: 取消 + 安装 — no plan gating (bundled source only); the
+             run guards live page-side, so the button stays enabled. */
+          <>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
+              取消
+            </button>
+            <button type="button" className="btn btn-primary" onClick={onStartInstall}>
+              <Icon name="play" />
+              安装
+            </button>
+          </>
+        ) : view === "config" || view === "preview" ? (
           <>
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               取消
@@ -168,33 +214,47 @@ export function DeployDialog(props: DeployDialogProps) {
         )
       }
     >
-      <div className="dlg-tabrow">
-        <div className="seg" role="tablist" aria-label="部署步骤">
-          {VIEWS.map((v) => {
-            const on = view === v.id;
-            return (
-              <button
-                key={v.id}
-                type="button"
-                className={`seg-b${on ? " is-on" : ""}`}
-                role="tab"
-                aria-selected={on}
-                onClick={() => onView(v.id)}
-              >
-                {v.label}
-                {v.id === "log" && run === "running" && <span className="pulse" />}
-              </button>
-            );
-          })}
+      {!quick && (
+        <div className="dlg-tabrow">
+          <div className="seg" role="tablist" aria-label="部署步骤">
+            {VIEWS.map((v) => {
+              const on = view === v.id;
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  className={`seg-b${on ? " is-on" : ""}`}
+                  role="tab"
+                  aria-selected={on}
+                  onClick={() => onView(v.id)}
+                >
+                  {v.label}
+                  {v.id === "log" && run === "running" && <span className="pulse" />}
+                </button>
+              );
+            })}
+          </div>
+          {force && <span className="bd bd-over">覆盖已开启</span>}
+          <span className="mut num" style={{ fontSize: 11.5 }}>
+            {realmLabel(target, userLevel)} · 0 写入
+          </span>
         </div>
-        {force && <span className="bd bd-over">覆盖已开启</span>}
-        <span className="mut num" style={{ fontSize: 11.5 }}>
-          {realmLabel(target, userLevel)} · 0 写入
-        </span>
-      </div>
+      )}
+
+      {/* ===== quick-update body [变更 2026-10 快速更新] ===== */}
+      {quickBody &&
+        (planning ? (
+          <div className="fhint" role="status">
+            <span className="spin" />
+            正在准备安装…
+          </div>
+        ) : (
+          <ForceSwitch force={force} onToggle={onForceToggle} />
+        ))}
 
       {/* ===== config pane ===== */}
-      <div className={`dpane${view === "config" ? " is-on" : ""}`} role="tabpanel" aria-label="配置" hidden={view !== "config"}>
+      {!quick && (
+        <div className={`dpane${view === "config" ? " is-on" : ""}`} role="tabpanel" aria-label="配置" hidden={view !== "config"}>
         <div className="dsec-t">内容源</div>
         <div className="srcgrid" role="radiogroup" aria-label="内容源">
           <div
@@ -339,26 +399,7 @@ export function DeployDialog(props: DeployDialogProps) {
           <div className="dep-loc">{fixedLocation}</div>
         )}
 
-        <div className="opts scope-opts">
-          <div className="opt">
-            <div className="opt-c">
-              <div className="opt-t">覆盖已存在文件</div>
-              {force ? (
-                <div className="opt-s warn">已开启 — 已存在的文件将被直接覆盖，请确认</div>
-              ) : (
-                <div className="opt-s">默认跳过已存在的文件</div>
-              )}
-            </div>
-            <button
-              type="button"
-              className="sw"
-              role="switch"
-              aria-checked={force}
-              aria-label="覆盖已存在文件"
-              onClick={() => onForceToggle(!force)}
-            />
-          </div>
-        </div>
+        <ForceSwitch force={force} onToggle={onForceToggle} />
 
         {/* custom-source pre-validation banner (local source + DSH target) */}
         {prevalApplies && localCheck.status !== "idle" && (
@@ -420,7 +461,8 @@ export function DeployDialog(props: DeployDialogProps) {
             )}
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* ===== preview / log panes (ported component) ===== */}
       <PreviewPanel

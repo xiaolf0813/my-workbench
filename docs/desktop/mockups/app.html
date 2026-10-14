@@ -376,7 +376,6 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 .livebar{position:absolute;top:0;left:0;right:0;height:2px;background:var(--bg-inset);z-index:5;opacity:0;transition:opacity var(--t-med)}
 .livebar.is-on{opacity:1}
 .livebar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#a7d0f9);transition:width .25s var(--ease)}
-.livebar.done i{background:var(--ok)}
 .seg{display:flex;gap:2px;background:var(--bg-inset);border:1px solid var(--border);border-radius:var(--r-md);padding:3px}
 .seg-b{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 12px;border-radius:var(--r-sm);font-size:12.5px;font-weight:500;
   color:var(--text-2);transition:background var(--t-fast),color var(--t-fast)}
@@ -1113,7 +1112,7 @@ html[data-theme="dark"] .oback{background:rgba(5,9,15,.55)}
       <button class="icon-btn dlg-x" data-close aria-label="关闭"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div class="dlg-b">
-      <div class="dlg-tabrow">
+      <div class="dlg-tabrow" id="dlgTabrow">
         <div class="seg" role="tablist" aria-label="部署步骤">
           <button class="seg-b is-on" data-dlgv="config" role="tab" aria-selected="true">配置</button>
           <button class="seg-b" data-dlgv="preview" role="tab" aria-selected="false">预览</button>
@@ -1181,6 +1180,22 @@ html[data-theme="dark"] .oback{background:rgba(5,9,15,.55)}
 
         <!-- custom-source pre-validation banner (local source + DSH target) -->
         <div id="preval" hidden></div>
+      </div>
+
+      <!-- ===== quick-update pane [变更 2026-10 快速更新, SPEC §4.6] — the 更新
+           entry: no tabs / 内容源 / 安装位置 / preview, just the 覆盖 switch
+           (preset ON); 安装 plans+executes straight into #dp-log ===== -->
+      <div class="dpane" id="dp-quick" role="tabpanel" aria-label="快速更新" hidden>
+        <div class="opts scope-opts">
+          <div class="opt">
+            <div class="opt-c">
+              <div class="opt-t">覆盖已存在文件</div>
+              <div class="opt-s" id="forceHintQ">默认跳过已存在的文件</div>
+              <div class="opt-s warn" id="forceHintOnQ" hidden>已开启 — 已存在的文件将被直接覆盖，请确认</div>
+            </div>
+            <button class="sw" role="switch" aria-checked="true" id="swForceQ" aria-label="覆盖已存在文件"></button>
+          </div>
+        </div>
       </div>
 
       <!-- ===== preview pane ===== -->
@@ -1283,11 +1298,12 @@ html[data-theme="dark"] .oback{background:rgba(5,9,15,.55)}
     </div>
   </div>
   <div class="dp-row"><span class="dp-l">部署对话框</span>
-    <div class="seg" data-dk="dlg">
+    <div class="seg wrap" data-dk="dlg">
       <button class="seg-b is-on" data-dv="closed">关闭</button>
       <button class="seg-b" data-dv="config">配置</button>
       <button class="seg-b" data-dv="preview">预览</button>
       <button class="seg-b" data-dv="log">日志</button>
+      <button class="seg-b" data-dv="quick">快速更新</button>
     </div>
   </div>
   <div class="dp-row"><span class="dp-l">安装运行</span>
@@ -1360,8 +1376,9 @@ const state = {
   /* scope is app-wide, shared by the page scope bar and the deploy dialog */
   srcMode:'bundled', lsrc:'valid',
   user:false, scopePath:'D:\\dev\\acme-web',
-  /* target-scoped deploy dialog (SPEC §4.6) */
-  dlg:{open:false, view:'config', from:'deploy', force:false, planned:false, stale:false},
+  /* target-scoped deploy dialog (SPEC §4.6); quick=快速更新 (更新 entry —
+     body is the 覆盖 switch only, 安装 runs straight into the log view) */
+  dlg:{open:false, view:'config', from:'deploy', force:false, planned:false, stale:false, quick:false},
   run:'idle', runTimer:null, autoScroll:true, runCancelled:false, runFiles:0,
   preval:'na', dsh:'profile',
   net:'fresh', srcFilter:null, sf:'all', q:'', theme:'light',
@@ -1583,8 +1600,8 @@ function renderDepInforow(){
   el.innerHTML = `<span class="dot ${sl.dot}"></span><span>${sl.text}</span><span class="sep"></span>`+
     `<span class="dep-loclabel">位置</span><span class="dep-infopath">${esc(scopeRootLabel(t))}</span><span class="sep"></span>`+
     `<span class="dep-loclabel">已部署</span><span class="mono">${ver!==null?'v'+ver:'v—'}</span>`+
-    (upd?` <button class="btn btn-primary" id="irUpdate"><svg class="ic"><use href="#i-up"/></svg>更新至v${BUNDLED_VER}</button>`:'');
-  const b=$('#irUpdate'); if(b) b.onclick = ()=>openDeploy('update'); // 更新：覆盖 presets ON (SPEC §4.6)
+    (upd?` <button class="btn btn-sm btn-acc-o" id="irUpdate"><svg class="ic"><use href="#i-up"/></svg>更新至v${BUNDLED_VER}</button>`:'');
+  const b=$('#irUpdate'); if(b) b.onclick = ()=>openQuickUpdate(); /* 更新：快速更新对话框，覆盖 presets ON (SPEC §4.6 快速更新) */
 }
 
 /* ---------------- deploy page: realm scope bar (SPEC §4.3) ---------------- */
@@ -1779,6 +1796,7 @@ $('#btnDiscard').onclick = ()=>{
 function openDeploy(from, view){
   view = view || 'config';
   state.dlg.open = true; state.dlg.from = from; state.dlg.view = view;
+  state.dlg.quick = false; $('#dlgTabrow').hidden = false;
   state.dlg.force = (from==='update'); /* 更新 → 覆盖 presets ON */
   if(view==='preview'){ state.dlg.planned = true; state.dlg.stale = false; }
   $('#dlg-deploy .dlg-t').textContent = (from==='update'?'更新':'部署')+' · '+cur(); $('#dlg-deploy').setAttribute('aria-label', $('#dlg-deploy .dlg-t').textContent);
@@ -1787,10 +1805,23 @@ function openDeploy(from, view){
   openDialog('dlg-deploy');
   syncDepDemo();
 }
+/* 快速更新 [变更 2026-10 快速更新, SPEC §4.6]: the info row's 更新至v… entry —
+   tab row hidden, body = 覆盖 switch only (preset ON); a run already in
+   flight lands on the live log instead. Footer 取消/安装 → startRun. */
+function openQuickUpdate(){
+  state.dlg.open = true; state.dlg.quick = true; state.dlg.from = 'update';
+  state.dlg.force = true; /* 更新 → 覆盖 presets ON */
+  $('#dlg-deploy .dlg-t').textContent = '更新 · '+cur(); $('#dlg-deploy').setAttribute('aria-label', $('#dlg-deploy .dlg-t').textContent);
+  $('#dlgTabrow').hidden = true;
+  renderDlgScope(); syncForceUI();
+  setDlgView(state.run!=='idle' ? 'log' : 'quick');
+  openDialog('dlg-deploy');
+  syncDepDemo();
+}
 function setDlgView(v){
   state.dlg.view = v;
   $$('[data-dlgv]').forEach(b=>{ const on=b.dataset.dlgv===v; b.classList.toggle('is-on',on); b.setAttribute('aria-selected',on); });
-  ['config','preview','log'].forEach(k=>{ const p=$('#dp-'+k), on=k===v; p.classList.toggle('is-on',on); p.hidden=!on; });
+  ['config','preview','log','quick'].forEach(k=>{ const p=$('#dp-'+k), on=k===v; p.classList.toggle('is-on',on); p.hidden=!on; });
   $('#dlgLogPulse').hidden = state.run!=='running';
   renderDlgFooter();
   if(v==='preview') renderDlgPreview();
@@ -1798,7 +1829,13 @@ function setDlgView(v){
 }
 function renderDlgFooter(){
   const v = state.dlg.view, f = $('#dlgDepF');
-  if(v==='config' || v==='preview'){
+  if(state.dlg.quick && v!=='log'){
+    /* 快速更新 footer: 取消 + 安装 (no plan gating — bundled source only);
+       安装 plans and executes in one step, straight into the log view */
+    f.innerHTML = '<button class="btn btn-ghost" data-close>取消</button>'+
+      '<button class="btn btn-primary" id="dlgBtnQuickRun"><svg class="ic"><use href="#i-play"/></svg>安装</button>';
+    $('#dlgBtnQuickRun').onclick = ()=>startRun(false);
+  } else if(v==='config' || v==='preview'){
     f.innerHTML = '<button class="btn btn-ghost" data-close>取消</button>'+
       `<button class="btn" id="dlgBtnPlan"><svg class="ic"><use href="#i-layers"/></svg>${v==='preview'?'重新生成':'生成预览'}</button>`+
       '<button class="btn btn-primary" id="dlgBtnRun"><svg class="ic"><use href="#i-play"/></svg>开始安装</button>';
@@ -1830,6 +1867,10 @@ function syncForceUI(){
   $('#swForce').setAttribute('aria-checked', state.dlg.force);
   $('#forceHint').hidden = state.dlg.force;
   $('#forceHintOn').hidden = !state.dlg.force;
+  /* quick-update pane carries its own switch instance (same state) */
+  $('#swForceQ').setAttribute('aria-checked', state.dlg.force);
+  $('#forceHintQ').hidden = state.dlg.force;
+  $('#forceHintOnQ').hidden = !state.dlg.force;
   $('#dlgForceBadge').hidden = !state.dlg.force;
   $('#planMeta').textContent = scopeLabel(cur())+' · 0 写入';
 }
@@ -1993,12 +2034,12 @@ function setRunUI(){
     bar.className='lpfill is-run';
   } else if(state.run==='cancelled'){
     chip.className='lchip warn'; chip.textContent='已取消';
-    $('#lprog').hidden = false; lb.classList.add('is-on'); lb.classList.remove('done');
+    $('#lprog').hidden = false; lb.classList.remove('is-on','done'); /* livebar = running only, no residue [变更 2026-10 完成态隐藏顶条] */
     bar.className='lpfill';
   } else {
     const ok = state.run==='success';
     chip.className='lchip '+(ok?'ok':'err'); chip.textContent = ok?'已完成':'已失败';
-    $('#lprog').hidden = false; lb.classList.add('is-on','done');
+    $('#lprog').hidden = false; lb.classList.remove('is-on','done'); /* report card carries the outcome */
     bar.className='lpfill '+(ok?'done':'failed');
     bar.style.width = ok?'100%':'62%';
   }
@@ -2218,12 +2259,14 @@ function syncDemoSeg(key, val){
 function syncDepDemo(){
   syncDemoSeg('dep', cur());
   syncDemoSeg('tstate', curSt());
-  syncDemoSeg('dlg', state.dlg.open ? state.dlg.view : 'closed');
+  syncDemoSeg('dlg', state.dlg.open ? (state.dlg.quick ? 'quick' : state.dlg.view) : 'closed');
   syncDemoSeg('run', state.run);
 }
 function demoDlg(v){
   if(v==='closed'){ if(state.dlg.open) closeDialogs(); return; }
-  if(!state.dlg.open) openDeploy(state.dlg.from||'deploy', v);
+  if(v==='quick'){ openQuickUpdate(); return; }
+  if(!state.dlg.open) openDeploy('deploy', v); /* full dialog is the 部署 entry only */
+  else if(state.dlg.quick) openDeploy('deploy', v); /* quick → full view: reset the shell */
   else setDlgView(v);
   if(v==='preview' && !state.dlg.planned){ state.dlg.planned = true; state.dlg.stale = false; renderDlgPreview(); }
 }

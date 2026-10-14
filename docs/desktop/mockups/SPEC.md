@@ -116,10 +116,10 @@ Specific animations: dialog in = fade + `translateY(10px) scale(.98)`; toast in 
 ### 3.1 Buttons — tiers **[变更 2026-10 M3 刷新·二稿：全部按钮为 full pill（M3 签名，仅形状）；secondary 层改为 tonal secondary-container 填充（`--tonal-container`，无边框，tone 承载层级）— 尺寸/内边距不变]**
 | Tier | Look | Use |
 | --- | --- | --- |
-| Primary (`.btn-primary`) | accent fill, dark text, 600, pill | 开始安装， 保存， 覆盖重装， 更新至v… |
+| Primary (`.btn-primary`) | accent fill, dark text, 600, pill | 开始安装， 保存， 覆盖重装 **[变更 2026-10 快速更新：信息行 更新至v… 改挂 accent-outline 小尺寸档，见下与 §4.5]** |
 | Secondary (`.btn`) | tonal container fill, borderless, pill; hover `--bg-hover` | 生成预览， 全部更新， 浏览… |
 | Ghost (`.btn-ghost`) | transparent | 取消， low-emphasis actions |
-| Accent outline (`.btn-acc-o`) | accent tint bg + accent border | 安装 (skill), empty-state CTA |
+| Accent outline (`.btn-acc-o`) | accent tint bg + accent border | 安装 (skill), empty-state CTA, 更新至v… (deploy info row, small size — **[变更 2026-10 快速更新：与信息行 12px meta 同档]** §4.5) |
 | Warn outline / Warn solid | amber | 更新 with local modifications / 备份后强制更新 |
 | Danger outline / Danger solid | red | 清除 PAT, 删除 |
 
@@ -149,7 +149,7 @@ Header 状态(88px) / 目标文件(flex) / 说明(230px). Path renders as muted 
 ### 3.9 Log viewer
 - **Header:** status chip (未开始 gray / 运行中 cyan+pulse / 已完成 green / 已失败 red / **已取消 amber**) + **停止** button (secondary, enabled only while running; tooltip `协作取消：将在当前文件写完后停止（已写入的文件保留）`) + right: 自动滚动 mini-switch (default on), 复制 icon, 导出 icon (disabled, tooltip “计划于 M3 提供”).
 - **Progress row:** 4px bar (cyan gradient + shimmer while running; turns green on success, red on failure) + phase text `正在安装 claude · 12/15 · 80%`.
-- **2px live bar** across the very top of the whole panel while running — visible from any tab.
+- **2px live bar** across the very top of the whole panel while running — visible from any tab **[变更 2026-10 完成态隐藏顶条：RUNNING 指示器 only — 终态（成功/失败/取消）整体隐藏该条；成败由日志内 report card 承载；日志内 4px `.lpfill` 进度条的绿/红/取消冻结状态不变]**.
 - **Body:** inset well, mono 12, lines = timestamp (`--text-3`) + target tag chip (neutral mono) + message. Level coloring: `✓` prefix green for create lines, muted for skip, amber for overwrite, violet for managed-block, red bg-tint row for errors. Same target/level vocabulary as the plan badges — one mental model.
 - **Autoscroll:** sticks to bottom; scrolling up pauses it (switch flips off) and a floating “回到底部” pill appears. Resume restores stick.
 - **Terminal report card** (in-flow at log end): success = green card, title 安装完成 + count chips + 用时 **[变更 2026-10 十次修订：原二级操作 运行健康检查 随健康检查 UI 移除]**； failure = red card, title 安装失败 + mono error line + actions 重试安装 / 导出日志(disabled); **cancelled = amber card, title 安装已取消， chips `第 {n} 个文件后停止` + `已写入的文件保留`, action 重试安装**. Progress bar freezes at its last width on cancel (shimmer stops), stays green/red on success/failure.
@@ -243,15 +243,17 @@ Any config change (source mode/path validity, scope, 覆盖) after a plan exists
 | Selected target state | Surface |
 | --- | --- |
 | not deployed | **no toolbar status/actions and no info row** — the deploy entry is the §4.4 empty-state **部署** CTA |
-| deployed | **deployed info row** (`.dep-inforow` — first line of the content area, above the scope bar): status (dot + text), 位置 = resolved scope root (mono, hidden when unresolvable), 已部署 = `v{stamp}` (`v—` when the realm stamp is missing/blank), and **更新至v{bundled}** (primary → dialog with **覆盖 preset ON**) only when the deployed stamp differs from the bundled source version (missing stamp counts as behind); current → no button. The toolbar 更新 button is retired **[变更 2026-10 十次修订：原二级操作 健康检查 移除，已部署态仅余 更新 — §10 尾注]** |
+| deployed | **deployed info row** (`.dep-inforow` — first line of the content area, above the scope bar): status (dot + text), 位置 = resolved scope root (mono, hidden when unresolvable), 已部署 = `v{stamp}` (`v—` when the realm stamp is missing/blank), and **更新至v{bundled}** (**small accent-outline** — `.btn-sm.btn-acc-o`, 26px **[变更 2026-10 快速更新：原 32px primary 改为与信息行 12px meta 同档的 accent-outline 小按钮，动作层级保留]** → **快速更新对话框**，§4.6，**覆盖 preset ON**) only when the deployed stamp differs from the bundled source version (missing stamp counts as behind); current → no button. The toolbar 更新 button is retired **[变更 2026-10 十次修订：原二级操作 健康检查 移除，已部署态仅余 更新 — §10 尾注]** |
 
 The deployed version comes from `deployed_overview`'s `deployedVersion` — read per realm exactly where the engine writes stamps (`stamp_plans`): opencode/claude at 项目级 read `<project_dir>/my-workbench.version`, everything else (用户级, zcode, dsh) reads `~/.my-workbench.version`.
 
 Neither action renders while an agent detail page is open — the whole content area gives way (§3.22/§4.1); exits run through 返回 / the guarded paths of §3.22. The page header carries no actions anymore (title + subtitle only). The not-deployed empty state keeps its own prominent **部署** CTA (§4.4).
 
 ### 4.6 Deploy dialog (§3.24)
-Opened by 部署 / 更新 **[变更 2026-10 十次修订：原 健康检查 入口移除]**; scoped to the selected target (the former multi-target 安装目标 grid is gone — one run touches one target). Internal tablist **配置 / 预览 / 安装日志**.
-1. **配置** — former config column, verbatim: 内容源 radios (内置源 version chip / 本地源 + path + validity hints); 安装位置: scope seg + project dir (**opencode/claude only**; zcode/dsh render the fixed-location line instead); 覆盖已存在文件 switch with amber consequence hint; pre-validation banner for 本地源 + dsh (§10.2, unchanged states). **Invoked from 更新, 覆盖 presets to ON** (badge + amber hint + preview re-plans 跳过→覆盖). Footer: 取消 + 生成预览 + 开始安装.
+Opened by 部署 / 更新 **[变更 2026-10 十次修订：原 健康检查 入口移除]** **[变更 2026-10 快速更新：更新 入口改开快速更新对话框（见下）— 以下完整对话框（页签 配置 / 预览 / 安装日志）仅 部署 空态入口使用]**; scoped to the selected target (the former multi-target 安装目标 grid is gone — one run touches one target). Internal tablist **配置 / 预览 / 安装日志**.
+
+**快速更新对话框 [新增 2026-10 快速更新]** — the info row's 更新至v{bundled} entry opens a stripped dialog on the same shell (title 更新 · {target} + close, live bar unchanged): **no tab row**（覆盖已开启 badge 与 realm · 写入 meta 随行隐藏 — 开关副行已表达状态）， no 内容源， no 安装位置， no 预览 pane. Body = the **覆盖已存在文件 switch only** (preset ON, amber consequence hint when on / default hint when off). Footer = 取消 (ghost) + **安装** (primary, play icon)， always enabled — bundled source only, no plan gating UI. **安装 = plan-then-execute**: the plan is regenerated at click time from the current scope + switch (bundled source forced) and the run starts **directly into the 安装日志 view** — stale-preview rule (§4.2) N/A here since no plan is ever held for review; while planning the body shows a preparing indicator（spinner + 正在准备安装…）. The log view, its 停止 cooperative cancel and terminal reports (§3.9) are reused verbatim; footer becomes 关闭 as in the full dialog. A failed run's report card keeps 重试安装 — in quick mode it re-runs the quick plan→execute path. Reopening mid-run lands on the live log (Esc/backdrop close never cancels — §3.24 persistence).
+1. **配置** — former config column, verbatim: 内容源 radios (内置源 version chip / 本地源 + path + validity hints); 安装位置: scope seg + project dir (**opencode/claude only**; zcode/dsh render the fixed-location line instead); 覆盖已存在文件 switch with amber consequence hint; pre-validation banner for 本地源 + dsh (§10.2, unchanged states). ~~Invoked from 更新, 覆盖 presets to ON~~ **[变更 2026-10 快速更新：更新 入口已改开快速更新对话框 — 覆盖 preset ON 的语义随快速入口迁入其开关（preset ON），完整对话框仅 部署 入口，默认关闭]** (badge + amber hint + preview re-plans 跳过→覆盖 when 覆盖 is on). Footer: 取消 + 生成预览 + 开始安装.
 2. **预览** — target-scoped plan table (状态 / 目标文件 / 说明) + stale strip + footer summary; no filter chips (scoped plans are small). Former §4.3 preview states hold: empty (`尚未生成预览`) → ready → stale → regenerate; 覆盖 and 用户级 transitions render live. Footer: 取消 + 重新生成 + 开始安装.
 3. **安装日志** — former §4.4 install flow verbatim (§3.9): live bar + progress + streaming lines + 停止 cooperative cancel (§10.1) + terminal reports ok/err/cancelled. Footer reduces to 关闭 — closing mid-run keeps the run going; reopening shows the live state.
 4. ~~**健康检查**~~ — **[移除 2026-10 十次修订：健康检查/漂移 UI 待需要时再加回]** The former health step (context line 检查对象：… + 重新检查 + tier cards §3.10 + drift list §3.11 + 漂移详情 dialog with 覆盖重装, §10.3) is removed from the UI; the backend `check_drift` command is retained (§7). Re-add with the original contract when a need re-emerges.
