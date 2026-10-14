@@ -1,6 +1,6 @@
 {
   "name": "my-workbench",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "description": "Portable OpenCode + Claude Code agent setup: copies the .opencode/ and .claude/ agent configuration into your project (or user level with --user).",
   "license": "MIT",
   "type": "module",

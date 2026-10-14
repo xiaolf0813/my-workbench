@@ -1,6 +1,6 @@
 [package]
 name = "my-workbench-desktop"
-version = "0.13.0"
+version = "0.14.0"
 description = "my-workbench desktop GUI — Tauri 2 shell over the workbench-core engine."
 edition = "2021"
 license = "MIT"

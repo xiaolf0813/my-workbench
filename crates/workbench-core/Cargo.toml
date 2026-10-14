@@ -1,6 +1,6 @@
 [package]
 name = "workbench-core"
-version = "0.13.0"
+version = "0.14.0"
 edition = "2021"
 description = "Pure Rust port of the my-workbench deployment engine and skill manager (no Tauri dependency)."
 license = "MIT"
