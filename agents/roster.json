@@ -132,6 +132,31 @@
         ]
       }
     },
+    "spotter": {
+      "description": "Screen capture and visual analysis specialist. Captures screenshots and recordings itself - browser pages, Android devices, desktop apps, whatever surface the brief names - keeps the image/video bytes in its own context, and returns only structured text plus kept file paths. Dispatch for GUI testing and any live screen that must be captured; observer stays the read-only analyst for files that already exist.",
+      "frontmatter": {
+        "claude": [
+          "name: spotter",
+          "@description",
+          "tools: Read, Glob, Grep, Bash, Skill",
+          "model: sonnet"
+        ],
+        "opencode": [
+          "@description",
+          "mode: subagent",
+          "tools:",
+          "  write: false",
+          "  edit: false",
+          "  patch: false"
+        ],
+        "zcode": [
+          "name: spotter",
+          "@description",
+          "model: inherit",
+          "injectAgentsMd: false"
+        ]
+      }
+    },
     "oracle": {
       "description": "Strategic technical advisor and senior code reviewer. Use for escalations where being wrong is costly - major architectural decisions with long-term impact, problems persisting after 2+ fix attempts, complex debugging with unclear root cause, high-risk multi-system refactors, and code needing simplification or YAGNI scrutiny. Not for routine verification or first-attempt fixes.",
       "frontmatter": {
@@ -159,7 +184,7 @@
       }
     },
     "orchestrator": {
-      "description": "Multi-agent workflow manager - plans, schedules, delegates, monitors, reconciles, and verifies specialist-agent work instead of implementing serially. Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); handles non-trivial coding work by routing bounded lanes to explorer/librarian/oracle/designer/fixer/observer.",
+      "description": "Multi-agent workflow manager - plans, schedules, delegates, monitors, reconciles, and verifies specialist-agent work instead of implementing serially. Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); handles non-trivial coding work by routing bounded lanes to explorer/librarian/oracle/designer/fixer/observer/spotter.",
       "frontmatter": {
         "claude": [
           "name: orchestrator",

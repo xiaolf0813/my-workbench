@@ -25,7 +25,7 @@ Every target downloads nothing and writes nothing inside a project except the ve
 | Path | Role |
 | --- | --- |
 | `bin/my-workbench.js`, `bin/dsh-deps.js` | The CLI and its DSH dependency resolver (zero dependencies, ESM). |
-| `agents/roster.json` | Agent descriptions and backend frontmatter; the only authored agent list (eight agents — `ui-designer` was renamed to `designer`). |
+| `agents/roster.json` | Agent descriptions and backend frontmatter; the only authored agent list (nine agents — `ui-designer` was renamed to `designer`). |
 | `agents/prompts/` | Agent prompt bodies — the single source, each opening with the omos attribution notice. |
 | `agents/prompts_cn/` | Chinese reference translations of the prompt bodies — never packaged. |
 | `agents/backends/<name>/` | Backend-specific assets and `slots/` for `{{slot:...}}` text. `dsh/` also has `preset.yml` (preset-picker metadata), `lanes.json` (the single authored DSH lane record), `agent.cordis.yml` (pulls the orchestrator body with `{{prompt:<agent>}}`), `lane-plugin/` (the packaged host half), and `lane-plugin-ui/` (the settings page). |

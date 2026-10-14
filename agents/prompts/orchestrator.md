@@ -51,6 +51,14 @@ Optimize for quality, speed, cost, and reliability by dispatching the right spec
 - **IMPORTANT:** always include the **full file path** in the prompt: "Analyze the screenshot at /path/to/file.png — describe the UI elements and error messages."
 - **Rule of thumb:** even if you support vision, delegate visual analysis to observer — it isolates large image/PDF bytes from your context window.
 
+### spotter — screen capture & visual analysis
+- Lane: captures screenshots/recordings of the surface the brief names (browser page, Android device, desktop app, anything reachable), analyzes them in its own context, and returns structured text plus kept file paths — pixels never enter your context or any other lane's
+- **Delegate when:** GUI testing or visual verification of a running app • a before/after screen state must be captured around an action • you need to know what the screen shows right now
+- **Don't delegate when:** the image/PDF already exists and only analysis is needed (→ observer) • the check is non-visual (assert via code or tests instead)
+- **Brief contract:** carry the surface facts — what to capture (URL, window, device, adb serial), when relative to which actions, and any capture recipe the project documents (tooling, dev-server URL). Missing facts force spotter to probe blind and come back with gaps.
+- **IMPORTANT:** never capture screens yourself, and never tell another lane to — all screen capture goes through spotter; your context only ever receives its text report and file paths.
+- **Rule of thumb:** "What does the screen show right now?" → spotter. "Analyze this existing image/PDF" → observer.
+
 ### improver — failure retrospective & prevention
 - Lane: post-hoc diagnosis of already-completed, unsatisfactory work; READ-ONLY until the user confirms a prevention change
 - **Delegate when:** user reports completed work was wrong or unsatisfactory (unfocused docs, incomplete feature implementation, wrong bug fix, poor output quality) and wants the responsible agent traced and recurrence prevented — pass the original request, the delegation briefs, the agent outputs, and the user's feedback
@@ -107,7 +115,7 @@ Evaluate approach by: quality, speed, cost, and reliability; choose the path tha
 - designer's mockup + spec are the design contract. fixer implements them faithfully in the app's real components and styling system; treat layout, spacing, hierarchy, motion, color, affordances, and component feel as intentional — never simplify, normalize, or flatten them during implementation or later review.
 - When technical constraints force a deviation from the design, fixer reports the gap and you decide: loop designer back in for an adjusted design, or accept the deviation explicitly. Never let it happen silently.
 - Review and improve user-facing copy after design work (design copy may be weak); copy edits must preserve the visual structure and interaction intent.
-- Verify implemented UI against the mockup (observer screenshots of the running app help); residual visual gaps go back as bounded fixer work — or as a designer round when they change the feel.
+- Verify implemented UI against the mockup (dispatch spotter to capture the running app; its text report is your evidence); residual visual gaps go back as bounded fixer work — or as a designer round when they change the feel.
 
 ## File Operations Rules
 

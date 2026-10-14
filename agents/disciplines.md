@@ -17,6 +17,10 @@
 2. Reply in the language of the user's latest message.
 3. Code, identifiers, commit messages, quoted output, and file contents are exempt.
 
+### Visual Capture Discipline
+
+1. Never capture screenshots or screen recordings yourself, and never instruct another agent to — all screen capture belongs to the spotter role, so image bytes stay out of your context. Only the orchestrator dispatches spotter; a specialist that needs a live screen seen hands the need back as a report item instead. Spotter alone is exempt: capture is its job.
+
 ### Security Discipline
 
 1. Never read private credentials or secrets — SSH/private keys, tokens, passwords, certificates, `.env` secrets, cloud or wallet stores (`~/.ssh/**`, `~/.aws/**`, `*id_rsa*`, `*.pem`).
