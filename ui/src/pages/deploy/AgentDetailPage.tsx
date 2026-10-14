@@ -3,13 +3,16 @@
 // scope bar and card list all give way. Page-level title row (返回 ghost back
 // button, focus lands here on open, + mono agent name — nothing else) sits
 // OUTSIDE and above; the chromeless column holds the 模型 / per-backend
-// reasoning selects and the mono prompt text block. The prompt body is NOT
+// reasoning selects and the read-only prompt body. The prompt body is NOT
 // editable in-app — my-workbench deploys prompts from its bundled source, it
-// does not manage them; the body renders as plain text. Model settings are the
+// does not manage them; the body renders as read-only Markdown (react-markdown
+// + remark-gfm). Model settings are the
 // only editables and SAVE IMMEDIATELY on select change — there is no 保存
 // button and no footer: a failed write toasts and the selects revert to the
 // deployed values. 返回 is the only exit affordance on the page.
 import { useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { useToast } from "../../components/Toast";
 import { Icon } from "../../icons";
 import { describeIpcError, type DeployedAgent, type Target } from "../../lib/ipc";
@@ -131,7 +134,9 @@ export function AgentDetailPage({ target, agent, onSave, onBack }: AgentDetailPa
           )}
         </div>
         <div className="edt-b">
-          <pre className="edt-ta" aria-label="提示词内容（随部署更新）">{agent.body}</pre>
+          <div className="edt-ta md-body" aria-label="提示词内容（随部署更新）">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{agent.body}</ReactMarkdown>
+          </div>
         </div>
       </div>
     </div>
