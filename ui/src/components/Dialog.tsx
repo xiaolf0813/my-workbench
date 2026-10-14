@@ -14,11 +14,15 @@ interface DialogProps {
   iconKind?: DialogIconKind;
   /** px width override (e.g. 640 for the drift diff dialog). */
   width?: number;
+  /** Extra class on the panel (`.dlg-dep` scopes the deploy dialog's CSS). */
+  className?: string;
+  /** Content mounted inside the panel before the header (deploy dialog livebar). */
+  before?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
 }
 
-export function Dialog({ open, onClose, title, icon, iconKind = "info", width, children, footer }: DialogProps) {
+export function Dialog({ open, onClose, title, icon, iconKind = "info", width, className, before, children, footer }: DialogProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -51,7 +55,8 @@ export function Dialog({ open, onClose, title, icon, iconKind = "info", width, c
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="dlg" style={width ? { width } : undefined} ref={panelRef}>
+      <div className={`dlg${className ? ` ${className}` : ""}`} style={width ? { width } : undefined} ref={panelRef}>
+        {before}
         <div className="dlg-h">
           <div className={`dlg-ic ${iconKind}`}>
             <Icon name={icon} />

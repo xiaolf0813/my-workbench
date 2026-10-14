@@ -1,0 +1,6 @@
+# The repo lives on a WSL filesystem reached as a share mount from Windows (Z:\),
+# where cargo cannot create incremental session lock files (os error, "函数不正确"),
+# so tauri dev/build fail deep into the build. Incremental is disabled repo-wide;
+# native-filesystem checkouts merely lose warm-rebuild speed.
+[build]
+incremental = false

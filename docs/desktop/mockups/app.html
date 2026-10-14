@@ -136,7 +136,7 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 .page-head{display:flex;align-items:flex-end;gap:16px;margin-bottom:16px;flex:none}
 .ph-title{font-size:20px;font-weight:600;letter-spacing:-.01em}
 .ph-sub{font-size:12.5px;color:var(--text-3);margin-top:3px}
-.ph-actions{margin-left:auto;display:flex;gap:8px;align-items:center;padding-right:150px}
+.dep-acts{display:flex;gap:8px}
 .page-body{flex:1;min-height:0;display:flex;flex-direction:column}
 
 /* ---------- buttons ---------- */
@@ -178,10 +178,91 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 .card-hr{margin-left:auto;display:flex;gap:4px;align-items:center}
 .card-b{padding:14px}
 
-/* ---------- deploy grid ---------- */
-.dgrid{flex:1;min-height:0;display:grid;grid-template-columns:384px minmax(0,1fr);gap:16px}
-.dcol{display:flex;flex-direction:column;gap:14px;min-height:0;overflow-y:auto;padding-right:2px;padding-bottom:4px}
-.dcol-b{display:flex;flex-direction:column;gap:14px;padding-bottom:4px}
+/* ---------- deploy page v2 (SPEC §4, 2026-10 redesign): backend tab pills +
+   agent cards + detail editor on the page; the deploy machinery moved into the
+   target-scoped deploy dialog (§4.6). Same tokens, same radius scale. ---------- */
+.dep-wrap{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto;padding-bottom:8px} /* full-fluid: fills the content area with the window (no width cap) */
+#depMain{flex:1;min-height:0;display:flex;flex-direction:column}
+.dep-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex:none}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.tb{display:inline-flex;align-items:center;height:32px;padding:0 15px;border-radius:999px;border:1px solid var(--border-strong);
+  font-family:var(--font-mono);font-size:12.5px;font-weight:500;color:var(--text-2);
+  transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast)}
+.tb:hover{color:var(--text-1);background:var(--bg-raised)}
+.tb.is-on{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+.tb.is-on:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.dep-status{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-2);white-space:nowrap}
+.dep-scopebar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex:none;flex-wrap:wrap;min-height:32px}
+.dep-scopebar .path{width:300px}
+.dep-loclabel{font-size:12px;font-weight:600;color:var(--text-2)}
+.dep-loc{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);flex-wrap:wrap}
+.dep-loc .mono{color:var(--text-1)}
+.fixchip{font-family:var(--font-mono);font-size:10px;color:var(--text-3);border:1px solid var(--border-strong);border-radius:4px;padding:0 5px;line-height:16px}
+
+/* agent cards (SPEC §3.20): one card per deployed agent file; clicking a card
+   navigates to the full-page detail view (§3.22) — no open/closed card state */
+.agclist{display:flex;flex-direction:column;gap:10px}
+.agc{width:100%;text-align:left;display:flex;flex-direction:column;gap:7px;padding:12px 16px;background:var(--bg-surface);
+  border:1px solid var(--border);border-radius:10px;transition:border-color var(--t-fast),background var(--t-fast)}
+.agc:hover{border-color:var(--border-strong);background:var(--bg-raised)}
+.agc-top{display:flex;align-items:center;gap:10px;width:100%}
+.agc-name{font-family:var(--font-mono);font-size:13px;font-weight:600;letter-spacing:-.01em}
+.agc-chips{margin-left:auto;display:flex;gap:6px;flex:none}
+.achip{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--text-2);background:var(--bg-raised);
+  border:1px solid var(--border-strong);border-radius:999px;padding:2px 10px;line-height:16px;white-space:nowrap}
+.agc-file{font-family:var(--font-mono);font-size:11px;color:var(--text-3)}
+.agc-prev{font-family:var(--font-mono);font-size:12px;line-height:1.65;color:var(--text-2);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+/* editor status dots: warn/err variants of the §3.3 dot */
+.dot.warn{background:var(--warn);box-shadow:0 0 0 3px var(--warn-tint)}
+.dot.err{background:var(--err);box-shadow:0 0 0 3px var(--err-tint)}
+
+/* agent detail page (SPEC §3.22, 2026-10): full-page view that replaces the
+   deploy content area below the page header — tab bar, scope bar and card list
+   give way; page-level title row (返回 + mono name), then a chromeless editor
+   column directly on the page background — only the prompt textarea is framed */
+.adp-title{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.adp-back{flex:none;margin-left:-14px} /* cancel .btn's padding:0 14px — icon flush with the textarea frame's left edge */
+.adp-back .ic{margin-left:-3px} /* optical flush: arrow artwork insets ~2.8px inside its 16px box — nudge so the painted glyph matches the frame pixel */
+.adp-name{font-family:var(--font-mono);font-size:13px;font-weight:600;letter-spacing:-.01em}
+.adp{display:flex;flex-direction:column;flex:1;min-height:0} /* chromeless editor column — no outer frame; fills the remaining height */
+/* detail state: 20px top clearance for the floating win-ctl strip — the roster
+   header row that normally offsets the content is not rendered (§3.18).
+   flush-glyph compensation: .adp-back pulls 14px left (its .btn padding), and the
+   focus ring overhangs 4px more (--ring's outer 4px shadow) — shift the scroll
+   container's clip boundary (its padding box) 18px left so pill + ring paint fully
+   while every row stays at x=0 (column is full-fluid, no width cap) */
+.dep-wrap.detail{display:flex;flex-direction:column;padding-top:20px;margin-left:-18px;padding-left:18px} /* fill-height editor: title/fields on top, textarea flexes, footer bottom-pinned; overflow-y is the short-window fallback */
+.dep-wrap.detail #depMain{flex:1;min-height:0;display:flex;flex-direction:column}
+.dep-wrap.detail #depMain>div{flex:1;min-height:0;display:flex;flex-direction:column} /* the labelled region wraps title + editor */
+.edt-meta{display:flex;align-items:center;gap:12px;padding:0 0 12px;flex-wrap:wrap}
+.edt-fld{display:flex;flex-direction:row;align-items:center;gap:8px} /* inline group: label left of its select */
+.edt-fld .fsel{width:170px}
+.edt-b{flex:1;min-height:0;display:flex} /* textarea consumes the space between field row and footer */
+.edt-ta{flex:1;width:100%;min-height:230px;resize:none;background:var(--bg-inset);border:1px solid var(--border-strong);border-radius:7px;
+  padding:10px 12px;font-family:var(--font-mono);font-size:12px;line-height:1.7;color:var(--text-1)white-space:pre-wrap;overflow-wrap:break-word;overflow-y:auto} /* fills .edt-b (internal scrolling; 230px floor + page-scroll fallback) */
+
+.edt-state{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-2)}
+
+/* dsh preset summary (SPEC §3.23): deployed state has no agent cards */
+.preset{margin-top:14px;width:340px;max-width:100%;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;
+  padding:2px 0;text-align:left}
+.pr-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:8px 16px;font-size:12px;color:var(--text-2);
+  border-bottom:1px solid var(--border)}
+.pr-row:last-child{border-bottom:0}
+.pr-row .mono{color:var(--text-1);font-size:11.5px}
+
+/* deploy dialog (SPEC §4.6): the former deploy workspace scoped to one target */
+.dlg-dep{width:720px;position:relative}
+.dlg-dep .livebar{border-radius:12px 12px 0 0}
+.dlg-tabrow{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.dlg-tabrow .mut{margin-left:auto}
+.dpane{display:none;flex-direction:column;gap:12px}
+.dpane.is-on{display:flex}
+.dsec-t{font-size:11px;font-weight:600;letter-spacing:.05em;color:var(--text-3)}
+.dlg-dep .empty{flex:none;padding:36px 20px}
+.dlg-dep .logwrap{height:360px}
 
 /* source radio cards */
 .srcgrid{display:flex;flex-direction:column;gap:8px}
@@ -216,27 +297,9 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 .fhint.err{color:var(--err)}
 .fhint.warn{color:var(--warn)}
 
-/* target checkbox cards */
-.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.tck{position:relative;display:flex;flex-direction:column;gap:4px;padding:9px 11px;border:1px solid var(--border);border-radius:8px;
-  cursor:pointer;transition:border-color var(--t-fast),background var(--t-fast),opacity var(--t-fast)}
-.tck:hover{border-color:var(--border-strong);background:var(--bg-raised)}
-.tck.is-on{border-color:var(--accent-border);background:var(--accent-tint)}
-.tck.is-dis{opacity:.45;cursor:not-allowed}
-.tck.is-dis:hover{background:none;border-color:var(--border)}
-.tck input{position:absolute;opacity:0;pointer-events:none}
-.trow{display:flex;align-items:center;gap:8px}
-.tbox{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--border-strong);flex:none;display:grid;place-items:center;
-  transition:background var(--t-fast),border-color var(--t-fast)}
-.tbox svg{width:10px;height:10px;stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0}
-.tck.is-on .tbox{background:var(--accent);border-color:var(--accent)}
-.tck.is-on .tbox svg{opacity:1}
-.tname{font-size:13px;font-weight:600;font-family:var(--font-mono);letter-spacing:-.01em}
-.tstat{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3);padding-left:23px}
-.tstat .mutex{color:var(--warn)}
-.mutex-line{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-3);margin-top:9px}
-.mutex-line .ic{width:13px;height:13px;color:var(--warn)}
-.textra{margin:4px 0 0 23px;display:flex}
+/* dsh env-override chip (SPEC §10.5) — now rendered in the deploy dialog's
+   安装位置 line and the page scope bar; the former target checkbox grid
+   (.tgrid/.tck, SPEC §3.4 target cards) was removed by the deploy redesign. */
 .envchip{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:10px;color:var(--accent);
   background:var(--accent-tint);border:1px solid var(--accent-border);border-radius:4px;padding:0 5px;line-height:16px}
 
@@ -256,14 +319,11 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 .sw[aria-checked="true"]::after{transform:translateX(14px)}
 .sw:disabled{opacity:.45;cursor:not-allowed}
 
-/* ---------- preview panel ---------- */
-.panel{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;background:var(--bg-surface);
-  border:1px solid var(--border);border-radius:10px;overflow:hidden}
+/* 2px install live bar (SPEC §3.9) — now mounted on the deploy dialog (.dlg-dep) */
 .livebar{position:absolute;top:0;left:0;right:0;height:2px;background:var(--bg-inset);z-index:5;opacity:0;transition:opacity var(--t-med)}
 .livebar.is-on{opacity:1}
 .livebar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#8ce8f2);transition:width .25s var(--ease)}
 .livebar.done i{background:var(--ok)}
-.panel-h{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border);flex:none}
 .seg{display:flex;gap:2px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:3px}
 .seg-b{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 12px;border-radius:6px;font-size:12.5px;font-weight:500;
   color:var(--text-2);transition:background var(--t-fast),color var(--t-fast)}
@@ -271,17 +331,8 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 .seg-b.is-on{background:var(--bg-raised);color:var(--text-1);box-shadow:var(--shadow-1)}
 .seg-b .pulse{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
-/* Deploy 安装方式 merged block (SPEC §4.1): two-line scope segments — token-exact variant of .seg */
-.seg-scope{margin-bottom:10px}
-.seg-scope .seg-b{flex:1;justify-content:center;height:auto;padding:5px 12px}
-.seg-scope .seg-b[aria-pressed="true"]{background:var(--bg-raised);color:var(--text-1);box-shadow:var(--shadow-1)}
-.seg-scope .seg-sc{display:flex;flex-direction:column;gap:1px;line-height:1.3;text-align:left}
-.seg-scope .seg-st{font-size:11px;font-weight:400;color:var(--text-3)}
+/* overwrite switch wrapper inside the deploy dialog config pane (SPEC §4.6) */
 .scope-opts{margin-top:10px;border-top:1px solid var(--border)}
-.panel-hr{margin-left:auto;display:flex;gap:6px;align-items:center}
-.panel-b{flex:1;min-height:0;display:flex;flex-direction:column}
-.pane{display:none;flex:1;min-height:0;flex-direction:column}
-.pane.is-on{display:flex}
 
 /* filter chips */
 .chips{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--border);flex:none;flex-wrap:wrap;align-items:center}
@@ -388,45 +439,6 @@ table.tbl{width:100%;border-collapse:collapse}
   border-radius:6px;padding:8px 10px;word-break:break-all}
 .report-a{display:flex;gap:8px}
 .log-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--text-3);font-size:12.5px;font-family:var(--font-ui)}
-
-/* health tab */
-.hscroll{flex:1;min-height:0;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px}
-.hctx{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--text-2);flex-wrap:wrap}
-.hctx .mono{color:var(--text-1);background:var(--bg-inset);border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:11.5px}
-.hctx .btn{margin-left:auto}
-.tiers{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.tier{border:1px solid var(--border);border-radius:10px;background:var(--bg-surface);display:flex;flex-direction:column;min-width:0}
-.tier-h{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border)}
-.tier-nt{font-family:var(--font-mono);font-size:10.5px;font-weight:700;color:var(--text-3);background:var(--bg-raised);
-  border:1px solid var(--border-strong);border-radius:4px;padding:1px 6px}
-.tier-t{font-size:13px;font-weight:600}
-.tier-s{font-size:11px;color:var(--text-3)}
-.tier-badge{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px}
-.tier-badge.ok{color:var(--ok);background:var(--ok-tint);border:1px solid var(--ok-border)}
-.tier-badge.warn{color:var(--warn);background:var(--warn-tint);border:1px solid var(--warn-border)}
-.tier-badge.err{color:var(--err);background:var(--err-tint);border:1px solid var(--err-border)}
-.tier-b{padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text-2)}
-.tier-row{display:flex;align-items:center;gap:8px}
-.tier-row .ic{width:14px;height:14px}
-.tier-row .ic.okc{color:var(--ok)}
-.tier-row .ic.errc{color:var(--err)}
-.tier-row .mono{font-size:11px;color:var(--text-3)}
-.tier-note{border:1px solid var(--warn-border);background:var(--warn-tint);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--warn);line-height:1.6}
-.tier-note b{display:flex;align-items:center;gap:6px;margin-bottom:3px}
-.tier-note .ic{width:14px;height:14px}
-.tier-note .mut2{color:var(--text-2)}
-.tier-f{padding:10px 14px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text-3);line-height:1.55}
-.sect-t{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
-.sect-t .cnt{font-size:11.5px;font-weight:500;color:var(--warn);background:var(--warn-tint);border:1px solid var(--warn-border);border-radius:5px;padding:1px 8px}
-.drift{border:1px solid var(--border);border-radius:10px;overflow:hidden}
-.drift-row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background var(--t-fast)}
-.drift-row:last-child{border-bottom:0}
-.drift-row:hover{background:var(--bg-raised)}
-.drift-row .ic.w{width:15px;height:15px;color:var(--warn)}
-.drift-p{font-family:var(--font-mono);font-size:12px}
-.drift-p .dir{color:var(--text-3)}
-.drift-n{font-size:11.5px;color:var(--text-3)}
-.drift-row .btn{margin-left:auto}
 
 /* banners */
 .bn{display:flex;align-items:flex-start;gap:10px;border-radius:9px;border:1px solid;padding:10px 12px}
@@ -573,8 +585,8 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
   border-radius:999px;background:var(--bg-raised);border:1px dashed var(--border-strong);font-size:12px;color:var(--text-2);box-shadow:var(--shadow-1)}
 .dfab:hover{color:var(--text-1);border-color:var(--text-3)}
 .dfab .ic{width:13px;height:13px}
-.dpanel{position:fixed;left:246px;bottom:16px;z-index:61;width:330px;background:var(--bg-surface);border:1px dashed var(--border-strong);
-  border-radius:10px;box-shadow:var(--shadow-3);padding:12px;display:none}
+.dpanel{position:fixed;left:246px;bottom:16px;z-index:61;width:344px;max-height:calc(100vh - 48px);overflow-y:auto;
+  background:var(--bg-surface);border:1px dashed var(--border-strong);border-radius:10px;box-shadow:var(--shadow-3);padding:12px;display:none}
 .dpanel.is-open{display:block}
 .dp-h{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-3);margin-bottom:10px}
 .dp-h .icon-btn{margin-left:auto;width:22px;height:22px}
@@ -582,17 +594,17 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
 .dp-l{width:88px;flex:none;font-size:11.5px;color:var(--text-2)}
 .dp-row .seg{flex:1;padding:2px}
 .dp-row .seg-b{flex:1;justify-content:center;height:22px;padding:0 4px;font-size:11px}
+/* rows with many states wrap instead of squeezing */
+.dp-row .seg.wrap{flex-wrap:wrap}
+.dp-row .seg.wrap .seg-b{flex:1 0 auto;padding:0 8px}
 
 .spin{width:13px;height:13px;border-radius:50%;border:2px solid var(--border-strong);border-top-color:var(--accent);
   animation:rot .8s linear infinite;flex:none}
 @keyframes rot{to{transform:rotate(360deg)}}
 
-/* responsive: narrow window stacks columns */
+/* responsive: the deploy page is a single fluid column (min window 1024×680) —
+   only the skills table adapts */
 @media (max-width:1080px){
-  .dgrid{grid-template-columns:1fr;overflow-y:auto;display:flex;flex-direction:column}
-  .dcol{overflow:visible}
-  .panel{min-height:560px}
-  .tiers{grid-template-columns:1fr}
   .sk-src,.sk-ver{display:none}
   .sk-head .h2,.sk-head .h3{display:none}
 }
@@ -623,7 +635,6 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
   <symbol id="i-edit" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></symbol>
   <symbol id="i-ext" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
   <symbol id="i-term" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
-  <symbol id="i-act" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
@@ -636,7 +647,8 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
   <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></symbol>
   <symbol id="i-git" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
   <symbol id="i-offline" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></symbol>
-  <symbol id="i-wmin" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="i-arl" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+<symbol id="i-wmin" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></symbol>
   <symbol id="i-wmax" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></symbol>
   <symbol id="i-wrestore" viewBox="0 0 24 24"><polyline points="8 8.5 8 5.5 18.5 5.5 18.5 16 15.5 16"/><rect x="5.5" y="8.5" width="10" height="10" rx="1"/></symbol>
   <symbol id="i-wclose" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
@@ -668,11 +680,8 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
       </button>
     </nav>
     <div class="side-foot">
-      <div class="env-card" title="环境状态在启动与手动刷新时更新">
+      <div class="env-card" title="版本信息 · 内置源随应用打包">
         <div class="env-row"><span class="dot acc"></span>内置源<span class="mono">v1.4.2</span></div>
-        <div class="env-row"><span class="dot ok"></span>Node<span class="mono">v22.14.0</span></div>
-        <div class="env-row"><span class="dot ok"></span>opencode<span class="mono">v0.6.3</span></div>
-        <div class="env-row"><span class="dot ok" id="envDshDot"></span>dsh profile<span class="mono" id="envDsh">dev</span></div>
       </div>
     </div>
   </aside>
@@ -680,247 +689,43 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
   <!-- ======================= MAIN ======================= -->
   <main class="main">
 
-    <!-- ============ PAGE: DEPLOY ============ -->
+    <!-- ============ PAGE: DEPLOY (v2 — SPEC §4, 2026-10 redesign) ============
+         Backend tab bar → whole main view switches per target; realm scope bar
+         (opencode/claude only; zcode/dsh show their fixed install location);
+         body = not-deployed empty state | agent card list | full-page agent
+         detail page — which replaces the whole page including this header row
+         (返回 + agent name become the title, SPEC §3.22/§4.1) | dsh preset
+         summary. All deploy machinery lives in #dlg-deploy (§4.6). -->
     <section class="page is-active" id="page-deploy">
-      <header class="page-head" data-tauri-drag-region>
-        <!-- Window controls (SPEC §3.18): fixed to the window's top-right corner,
-             floating over this header. position:fixed — DOM placement is only for
-             documentation. Static demo state: windowed (最大化 icon); non-functional. -->
-        <div class="win-ctl">
-          <button class="win-btn" aria-label="最小化"><svg class="ic"><use href="#i-wmin"/></svg></button>
-          <button class="win-btn" aria-label="最大化"><svg class="ic"><use href="#i-wmax"/></svg></button>
-          <button class="win-btn win-close" aria-label="关闭"><svg class="ic"><use href="#i-wclose"/></svg></button>
-        </div>
+      <!-- Window controls (SPEC §3.18): fixed to the window's top-right corner,
+           floating over the page-header area. position:fixed — DOM placement is
+           only for documentation (it sits outside #depHead so the detail state
+           can hide the header row without hiding the controls, exactly like the
+           app's TitleBar outside DeployPage). Static demo state: windowed
+           (最大化 icon); non-functional. -->
+      <div class="win-ctl">
+        <button class="win-btn" aria-label="最小化"><svg class="ic"><use href="#i-wmin"/></svg></button>
+        <button class="win-btn" aria-label="最大化"><svg class="ic"><use href="#i-wmax"/></svg></button>
+        <button class="win-btn win-close" aria-label="关闭"><svg class="ic"><use href="#i-wclose"/></svg></button>
+      </div>
+      <header class="page-head" id="depHead" data-tauri-drag-region>
         <div>
           <h1 class="ph-title">部署</h1>
-          <p class="ph-sub">将多智能体编排系统安装到项目目录或用户配置目录 · 预览与安装均不访问网络</p>
-        </div>
-        <div class="ph-actions">
-          <button class="btn" id="btnPlan"><svg class="ic"><use href="#i-layers"/></svg>生成预览</button>
-          <button class="btn btn-primary" id="btnRun" disabled title="先生成预览"><svg class="ic"><use href="#i-play"/></svg>开始安装</button>
+          <p class="ph-sub">管理各后端已部署的智能体与提示词 · 预览与安装均不访问网络</p>
         </div>
       </header>
 
-      <div class="page-body dgrid">
-        <!-- ---- config column ---- -->
-        <div class="dcol">
-          <div class="card">
-            <div class="card-h"><span class="card-t">内容源</span><span class="card-s">渲染所用的 agents/ 树</span></div>
-            <div class="card-b">
-              <div class="srcgrid" role="radiogroup" aria-label="内容源">
-                <div class="src is-on" data-src="bundled" role="radio" aria-checked="true" tabindex="0">
-                  <span class="src-rad"></span>
-                  <div class="src-c">
-                    <div class="src-t">内置源 <span class="vchip">v1.4.2</span></div>
-                    <div class="src-s">随应用打包</div>
-                  </div>
-                </div>
-                <div class="src" data-src="local" role="radio" aria-checked="false" tabindex="0">
-                  <span class="src-rad"></span>
-                  <div class="src-c">
-                    <div class="src-t">本地源</div>
-                    <div class="src-s">选择包含 agents/ 的目录（维护者工作流）</div>
-                  </div>
-                </div>
-              </div>
-              <div class="local-panel" id="localPanel" hidden>
-                <div class="path">
-                  <div class="path-in"><input id="localPath" value="D:\repos\my-fork" spellcheck="false" aria-label="本地源目录"></div>
-                  <button class="btn btn-sm" style="height:32px"><svg class="ic"><use href="#i-folder"/></svg>浏览…</button>
-                </div>
-                <div class="fhint ok" id="localHintOk"><svg class="ic"><use href="#i-checkc"/></svg>agents/ 树有效 · 检测到 4 个后端 · dsh 插件结构完整</div>
-                <div class="fhint err" id="localHintErr" hidden><svg class="ic"><use href="#i-xc"/></svg>未找到 agents/ 目录 — 请选择包含 agents/ 的上层目录</div>
-              </div>
-            </div>
+      <div class="page-body">
+        <div class="dep-wrap" id="depWrap">
+          <div class="dep-toolbar" id="depToolbar">
+            <div class="tabs" role="tablist" aria-label="部署目标" id="depTabs"></div>
+            <div class="dep-status" id="depStatus"></div>
+            <!-- per-target actions (SPEC §4.5, 2026-10 move): 未部署 → [部署] · 已部署 → [更新] -->
+            <div class="dep-acts" id="depActions"></div>
           </div>
-
-          <div class="card">
-            <div class="card-h"><span class="card-t">安装方式</span></div>
-            <div class="card-b">
-              <div class="seg seg-scope" id="scopeSeg" role="group" aria-label="安装方式">
-                <button class="seg-b is-on" data-scope="proj" aria-pressed="true">
-                  <svg class="ic"><use href="#i-folder"/></svg>
-                  <span class="seg-sc"><span>目录级安装</span><span class="seg-st">安装到项目目录</span></span>
-                </button>
-                <button class="seg-b" data-scope="user" aria-pressed="false">
-                  <svg class="ic"><use href="#i-set"/></svg>
-                  <span class="seg-sc"><span>用户级安装</span><span class="seg-st">安装到用户配置目录</span></span>
-                </button>
-              </div>
-              <div class="fhint" id="projHintUser" hidden><svg class="ic"><use href="#i-info"/></svg>安装到用户配置目录而非项目目录</div>
-              <div class="field" id="projField">
-                <div class="path">
-                  <div class="path-in"><input id="projPath" value="D:\dev\acme-web" spellcheck="false" aria-label="项目目录"></div>
-                  <button class="btn btn-sm" style="height:32px" id="projBrowse"><svg class="ic"><use href="#i-folder"/></svg>浏览…</button>
-                </div>
-                <div class="fhint" id="projHint"><svg class="ic"><use href="#i-info"/></svg>项目目录 = opencode / claude 项目级安装根目录</div>
-              </div>
-              <div class="opts scope-opts">
-                <div class="opt">
-                  <div class="opt-c">
-                    <div class="opt-t">覆盖已存在文件</div>
-                    <div class="opt-s" id="forceHint">默认跳过已存在的文件</div>
-                    <div class="opt-s warn" id="forceHintOn" hidden>已开启 — 已存在的文件将被直接覆盖，请确认</div>
-                  </div>
-                  <button class="sw" role="switch" aria-checked="false" id="swForce" aria-label="覆盖已存在文件"></button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-h">
-              <span class="card-t">安装目标</span><span class="card-s" id="tgtCount">已选 3 个</span>
-              <span class="card-hr"><button class="icon-btn" title="重新检测环境"><svg class="ic"><use href="#i-ref"/></svg></button></span>
-            </div>
-            <div class="card-b">
-              <div class="tgrid" id="tgrid">
-                <label class="tck is-on" data-t="opencode">
-                  <input type="checkbox" checked>
-                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">opencode</span></span>
-                  <span class="tstat"><span class="dot ok"></span>已检测到 v0.6.3</span>
-                </label>
-                <label class="tck is-on" data-t="claude">
-                  <input type="checkbox" checked>
-                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">claude</span></span>
-                  <span class="tstat"><span class="dot ok"></span>已找到 ~\.claude</span>
-                </label>
-                <label class="tck is-on" data-t="zcode">
-                  <input type="checkbox" checked>
-                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">zcode</span></span>
-                  <span class="tstat"><span class="dot ok"></span>已找到 ~\.zcode</span>
-                </label>
-                <label class="tck" data-t="dsh">
-                  <input type="checkbox">
-                  <span class="trow"><span class="tbox"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></span><span class="tname">dsh</span></span>
-                  <span class="tstat"><span class="dot ok" id="dshDot"></span><span id="dshStat">profile：dev</span></span>
-                  <span class="textra" id="dshExtra"><span class="envchip">DSH_HOME 已覆盖</span></span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <!-- custom-source pre-validation banner (local source + DSH target) -->
-          <div id="preval" hidden></div>
-        </div>
-
-        <!-- ---- preview column ---- -->
-        <div class="panel">
-          <div class="livebar" id="livebar"><i id="livefill"></i></div>
-          <div class="panel-h">
-            <div class="seg" role="tablist" aria-label="预览面板">
-              <button class="seg-b is-on" data-tab="preview" role="tab" aria-selected="true">预览</button>
-              <button class="seg-b" data-tab="log" role="tab" aria-selected="false">安装日志<span id="segLogDot" hidden><span class="pulse"></span></span></button>
-              <button class="seg-b" data-tab="health" role="tab" aria-selected="false">健康检查</button>
-            </div>
-            <div class="panel-hr">
-              <span class="bd bd-over" id="forceBadge" hidden>覆盖已开启</span>
-              <span class="mut" style="font-size:11.5px" id="planMeta">项目级 · 0 写入</span>
-            </div>
-          </div>
-
-          <div class="panel-b">
-            <!-- ===== preview pane ===== -->
-            <div class="pane is-on" id="tab-preview" role="tabpanel">
-              <div class="empty" id="plan-empty">
-                <div class="empty-ic"><svg class="ic"><use href="#i-layers"/></svg></div>
-                <div class="empty-t">先选择目标生成预览</div>
-                <div class="empty-s">在左侧勾选安装目标，然后点击「生成预览」。预览不会写入任何文件。</div>
-                <button class="btn btn-acc-o" onclick="genPreview()"><svg class="ic"><use href="#i-layers"/></svg>生成预览</button>
-              </div>
-              <div id="plan-filled" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
-                <div class="stalebar" id="stalebar" hidden>
-                  <svg class="ic"><use href="#i-warn"/></svg>选择已更改 — 预览可能过期，请重新生成
-                  <button class="btn btn-sm" style="margin-left:auto" onclick="genPreview()">重新生成</button>
-                </div>
-                <div class="chips" id="planChips">
-                  <button class="chip is-on" data-f="all">全部 <b>12</b></button>
-                  <button class="chip" data-f="create">新建 <b>7</b></button>
-                  <button class="chip" data-f="skip">跳过 <b>4</b></button>
-                  <button class="chip" data-f="over">覆盖 <b>0</b></button>
-                  <button class="chip" data-f="mgd">受管块 <b>1</b></button>
-                  <span class="chips-right"><svg class="ic" style="width:12px;height:12px"><use href="#i-shield"/></svg>预览不会写入任何文件</span>
-                </div>
-                <div class="tblw">
-                  <table class="tbl">
-                    <thead><tr><th style="width:88px">状态</th><th>目标文件</th><th style="width:230px">说明</th></tr></thead>
-                    <tbody id="planTbody"></tbody>
-                  </table>
-                </div>
-                <div class="pfoot">
-                  <div class="psum" id="planSummary"></div>
-                  <div class="pright">
-                    <span id="planStamp">生成于 14:31:58</span>
-                    <button class="icon-btn" style="width:22px;height:22px" title="重新生成预览" onclick="genPreview()"><svg class="ic" style="width:13px;height:13px"><use href="#i-ref"/></svg></button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ===== log pane ===== -->
-            <div class="pane" id="tab-log" role="tabpanel" hidden>
-              <div class="logwrap">
-                <div class="logbar">
-                  <span class="lchip idle" id="logChip">未开始</span>
-                  <button class="btn btn-sm" id="btnStop" hidden title="协作取消：将在当前文件写完后停止（已写入的文件保留）"><svg class="ic"><use href="#i-x"/></svg>停止</button>
-                  <span class="logbar-actions">
-                    <span class="mini-sw"><button class="sw" role="switch" aria-checked="true" id="swAuto" aria-label="自动滚动"></button>自动滚动</span>
-                    <button class="icon-btn" title="复制日志"><svg class="ic" style="width:14px;height:14px"><use href="#i-copy"/></svg></button>
-                    <button class="icon-btn" title="导出日志 — 计划于 M3 提供" disabled><svg class="ic" style="width:14px;height:14px"><use href="#i-dl"/></svg></button>
-                  </span>
-                </div>
-                <div class="lprog" id="lprog" hidden>
-                  <div class="lpbar"><span class="lpfill" id="lpfill"></span></div>
-                  <span class="lphase" id="lphase">准备中…</span>
-                </div>
-                <div class="log" id="log" role="log" aria-live="polite">
-                  <div class="log-empty" id="logEmpty">
-                    <svg class="ic" style="width:20px;height:20px"><use href="#i-term"/></svg>
-                    尚未开始安装 — 点击「开始安装」后此处将流式输出日志
-                  </div>
-                </div>
-                <button class="resume" id="resumeBtn"><svg class="ic" style="width:12px;height:12px"><use href="#i-chevd"/></svg>回到底部</button>
-              </div>
-            </div>
-
-            <!-- ===== health pane ===== -->
-            <div class="pane" id="tab-health" role="tabpanel" hidden>
-              <div class="hscroll">
-                <div class="hctx">
-                  <svg class="ic" style="width:14px;height:14px;color:var(--text-3)"><use href="#i-act"/></svg>
-                  检查对象：<span class="mono" id="hctxSrc">内置源 v1.4.2</span> → <span class="mono" id="hctxDir">D:\dev\acme-web</span>
-                  <span class="mut">· 上次检查 2 分钟前</span>
-                  <button class="btn btn-sm" onclick="toast('已发起重新检查','ok','正在后台运行')"><svg class="ic"><use href="#i-ref"/></svg>重新检查</button>
-                </div>
-
-                <div class="tiers">
-                  <div class="tier">
-                    <div class="tier-h">
-                      <div><div class="tier-t">结构检查（始终可用）</div></div>
-                      <span class="tier-badge" id="t1badge"><svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>通过</span>
-                    </div>
-                    <div class="tier-b">
-                      <div class="tier-row"><svg class="ic okc" id="t1i1"><use href="#i-checkc"/></svg><span id="t1r1">渲染字节对比 <b class="num">11 / 11</b>&nbsp;一致</span></div>
-                      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>结构检查全部通过 · 槽位与源结构完整</span></div>
-                      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>槽位计数 <b class="num">12 / 12</b>&nbsp;· 受管块形状正常</span></div>
-                    </div>
-                    <div class="tier-f">渲染 agents/ 树并与目标文件逐字节对比，附全部结构性检查。</div>
-                  </div>
-
-                  <div class="tier">
-                    <div class="tier-h">
-                      <div><div class="tier-t">执行状态检查（需要本地 Node）</div></div>
-                      <span class="tier-badge ok" id="t2badge"><svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>通过</span>
-                    </div>
-                    <div class="tier-b" id="t2body"></div>
-                    <div class="tier-f" id="t2foot">本地 Node v22.14.0 · 全部执行检查通过。</div>
-                  </div>
-                </div>
-
-                <div id="driftZone"></div>
-              </div>
-            </div>
-          </div>
+          <div class="dep-scopebar" id="depScope"></div>
+          <!-- per-state body: rendered from data (agents/roster) by renderDepMain() -->
+          <div id="depMain"></div>
         </div>
       </div>
     </section>
@@ -1186,47 +991,6 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
   </div>
 </div>
 
-<div class="oback" id="dlg-drift" role="dialog" aria-modal="true" aria-labelledby="dlgDrT">
-  <div class="dlg" style="width:640px">
-    <div class="dlg-h">
-      <div class="dlg-ic warn"><svg class="ic"><use href="#i-act"/></svg></div>
-      <div class="dlg-t" id="dlgDrT">漂移详情</div>
-      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
-    </div>
-    <div class="dlg-b">
-      <span class="mono" style="color:var(--text-1)">~\.claude\CLAUDE.md</span>
-      <span>本地文件与渲染期望不一致（字节对比）。</span>
-      <div class="diff2">
-        <div class="dpan">
-          <div class="dp-h"><svg class="ic"><use href="#i-file"/></svg>期望（渲染结果）</div>
-          <pre>---
-name: my-workbench
-lanes: 4
-<span class="add">+ prompts: rendered v1.4.2</span>
-roster: generated
- managed: cordis.patch.yml
-…</pre>
-        </div>
-        <div class="dpan">
-          <div class="dp-h"><svg class="ic"><use href="#i-edit"/></svg>本地文件</div>
-          <pre>---
-name: my-workbench
-lanes: 4
-<span class="del">- prompts: rendered v1.4.1</span>
-roster: generated
- managed: cordis.patch.yml
-…</pre>
-        </div>
-      </div>
-      <div class="fhint warn"><svg class="ic"><use href="#i-warn"/></svg>将以覆盖模式重新安装；所有已存在的文件都会被覆盖且不可恢复。</div>
-    </div>
-    <div class="dlg-f">
-      <button class="btn btn-ghost" data-close>关闭</button>
-      <button class="btn btn-primary" onclick="driftRepair()">覆盖重装</button>
-    </div>
-  </div>
-</div>
-
 <div class="oback" id="dlg-srcdel" role="dialog" aria-modal="true" aria-labelledby="dlgSdT">
   <div class="dlg" style="width:440px">
     <div class="dlg-h">
@@ -1244,38 +1008,204 @@ roster: generated
   </div>
 </div>
 
+<!-- ======================= DEPLOY DIALOG (SPEC §4.6) =======================
+     Opened by 部署 / 更新 in the page header or the empty state; scoped to the
+     one selected target. Carries the full former deploy machinery: 内容源,
+     安装位置 (scope, opencode/claude only), 覆盖 switch, plan preview,
+     streaming install log with cooperative cancel. (The former 健康检查 step
+     was UI-removed 2026-10 — SPEC §10 tail note.) From 更新 the 覆盖 switch
+     presets to ON. -->
+<div class="oback" id="dlg-deploy" role="dialog" aria-modal="true" aria-labelledby="dlgDepT">
+  <div class="dlg dlg-dep">
+    <div class="livebar" id="livebar"><i id="livefill"></i></div>
+    <div class="dlg-h">
+      <div class="dlg-ic info"><svg class="ic"><use href="#i-deploy"/></svg></div>
+      <div class="dlg-t" id="dlgDepT">部署 · zcode</div>
+      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="dlg-b">
+      <div class="dlg-tabrow">
+        <div class="seg" role="tablist" aria-label="部署步骤">
+          <button class="seg-b is-on" data-dlgv="config" role="tab" aria-selected="true">配置</button>
+          <button class="seg-b" data-dlgv="preview" role="tab" aria-selected="false">预览</button>
+          <button class="seg-b" data-dlgv="log" role="tab" aria-selected="false">安装日志<span id="dlgLogDot" hidden>&nbsp;<span class="pulse"></span></span></button>
+        </div>
+        <span class="bd bd-over" id="dlgForceBadge" hidden>覆盖已开启</span>
+        <span class="mut num" style="font-size:11.5px" id="planMeta">项目级 · 0 写入</span>
+      </div>
+
+      <!-- ===== config pane ===== -->
+      <div class="dpane is-on" id="dp-config" role="tabpanel">
+        <div class="dsec-t">内容源</div>
+        <div class="srcgrid" role="radiogroup" aria-label="内容源">
+          <div class="src is-on" data-src="bundled" role="radio" aria-checked="true" tabindex="0">
+            <span class="src-rad"></span>
+            <div class="src-c">
+              <div class="src-t">内置源 <span class="vchip">v1.4.2</span></div>
+              <div class="src-s">随应用打包</div>
+            </div>
+          </div>
+          <div class="src" data-src="local" role="radio" aria-checked="false" tabindex="0">
+            <span class="src-rad"></span>
+            <div class="src-c">
+              <div class="src-t">本地源</div>
+              <div class="src-s">选择包含 agents/ 的目录（维护者工作流）</div>
+            </div>
+          </div>
+        </div>
+        <div class="local-panel" id="localPanel" hidden>
+          <div class="path">
+            <div class="path-in"><input id="localPath" value="D:\repos\my-fork" spellcheck="false" aria-label="本地源目录"></div>
+            <button class="btn btn-sm" style="height:32px"><svg class="ic"><use href="#i-folder"/></svg>浏览…</button>
+          </div>
+          <div class="fhint ok" id="localHintOk"><svg class="ic"><use href="#i-checkc"/></svg>agents/ 树有效 · 检测到 4 个后端 · dsh 插件结构完整</div>
+          <div class="fhint err" id="localHintErr" hidden><svg class="ic"><use href="#i-xc"/></svg>未找到 agents/ 目录 — 请选择包含 agents/ 的上层目录</div>
+        </div>
+
+        <div class="dsec-t">安装位置</div>
+        <!-- opencode / claude: scope toggle + project directory (shared with the page scope bar) -->
+        <div id="dlgScopeOC" style="display:flex;flex-direction:column;gap:8px">
+          <div class="seg" id="dlgScopeSeg" role="group" aria-label="安装方式">
+            <button class="seg-b is-on" data-scope="proj" aria-pressed="true">项目级</button>
+            <button class="seg-b" data-scope="user" aria-pressed="false">用户级</button>
+          </div>
+          <div class="path" id="dlgProjField">
+            <div class="path-in"><input id="projPath" value="D:\dev\acme-web" spellcheck="false" aria-label="项目目录"></div>
+            <button class="btn btn-sm" style="height:32px" id="projBrowse"><svg class="ic"><use href="#i-folder"/></svg>浏览…</button>
+          </div>
+          <div class="fhint" id="dlgScopeUserHint" hidden><svg class="ic"><use href="#i-info"/></svg>安装到用户配置目录而非项目目录</div>
+          <div class="fhint" id="dlgProjHint"><svg class="ic"><use href="#i-info"/></svg>项目目录 = opencode / claude 项目级安装根目录</div>
+        </div>
+        <!-- zcode / dsh: fixed install location, no scope toggle (SPEC §4.3) -->
+        <div class="dep-loc" id="dlgScopeFixed" hidden></div>
+
+        <div class="opts scope-opts">
+          <div class="opt">
+            <div class="opt-c">
+              <div class="opt-t">覆盖已存在文件</div>
+              <div class="opt-s" id="forceHint">默认跳过已存在的文件</div>
+              <div class="opt-s warn" id="forceHintOn" hidden>已开启 — 已存在的文件将被直接覆盖，请确认</div>
+            </div>
+            <button class="sw" role="switch" aria-checked="false" id="swForce" aria-label="覆盖已存在文件"></button>
+          </div>
+        </div>
+
+        <!-- custom-source pre-validation banner (local source + DSH target) -->
+        <div id="preval" hidden></div>
+      </div>
+
+      <!-- ===== preview pane ===== -->
+      <div class="dpane" id="dp-preview" role="tabpanel" hidden>
+        <div class="empty" id="plan-empty">
+          <div class="empty-ic"><svg class="ic"><use href="#i-layers"/></svg></div>
+          <div class="empty-t">尚未生成预览</div>
+          <div class="empty-s">点击「生成预览」查看将要写入的文件。预览不会写入任何文件。</div>
+        </div>
+        <div id="plan-filled" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
+          <div class="stalebar" id="stalebar" hidden>
+            <svg class="ic"><use href="#i-warn"/></svg>选择已更改 — 预览可能过期，请重新生成
+            <button class="btn btn-sm" style="margin-left:auto" onclick="genDlgPreview()">重新生成</button>
+          </div>
+          <div class="tblw" style="max-height:300px">
+            <table class="tbl">
+              <thead><tr><th style="width:88px">状态</th><th>目标文件</th><th style="width:180px">说明</th></tr></thead>
+              <tbody id="planTbody"></tbody>
+            </table>
+          </div>
+          <div class="pfoot">
+            <div class="psum" id="planSummary"></div>
+            <div class="pright">
+              <span id="planStamp">生成于 14:31:58</span>
+              <button class="icon-btn" style="width:22px;height:22px" title="重新生成预览" onclick="genDlgPreview()"><svg class="ic" style="width:13px;height:13px"><use href="#i-ref"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== log pane (SPEC §3.9 machinery, unchanged) ===== -->
+      <div class="dpane" id="dp-log" role="tabpanel" hidden>
+        <div class="logwrap">
+          <div class="logbar">
+            <span class="lchip idle" id="logChip">未开始</span>
+            <button class="btn btn-sm" id="btnStop" hidden title="协作取消：将在当前文件写完后停止（已写入的文件保留）"><svg class="ic"><use href="#i-x"/></svg>停止</button>
+            <span class="logbar-actions">
+              <span class="mini-sw"><button class="sw" role="switch" aria-checked="true" id="swAuto" aria-label="自动滚动"></button>自动滚动</span>
+              <button class="icon-btn" title="复制日志"><svg class="ic" style="width:14px;height:14px"><use href="#i-copy"/></svg></button>
+              <button class="icon-btn" title="导出日志 — 计划于 M3 提供" disabled><svg class="ic" style="width:14px;height:14px"><use href="#i-dl"/></svg></button>
+            </span>
+          </div>
+          <div class="lprog" id="lprog" hidden>
+            <div class="lpbar"><span class="lpfill" id="lpfill"></span></div>
+            <span class="lphase" id="lphase">准备中…</span>
+          </div>
+          <div class="log" id="log" role="log" aria-live="polite">
+            <div class="log-empty" id="logEmpty">
+              <svg class="ic" style="width:20px;height:20px"><use href="#i-term"/></svg>
+              尚未开始安装 — 点击「开始安装」后此处将流式输出日志
+            </div>
+          </div>
+          <button class="resume" id="resumeBtn"><svg class="ic" style="width:12px;height:12px"><use href="#i-chevd"/></svg>回到底部</button>
+        </div>
+      </div>
+    </div>
+    <div class="dlg-f" id="dlgDepF"></div>
+  </div>
+</div>
+
+<!-- unsaved-changes guard for the detail editor (SPEC §3.22) -->
+<div class="oback" id="dlg-unsaved" role="dialog" aria-modal="true" aria-labelledby="dlgUnT">
+  <div class="dlg" style="width:440px">
+    <div class="dlg-h">
+      <div class="dlg-ic warn"><svg class="ic"><use href="#i-warn"/></svg></div>
+      <div class="dlg-t" id="dlgUnT">放弃未保存的更改？</div>
+      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+    <div class="dlg-b">
+      <span>关闭后将丢失对 <b class="mono" id="dlgUnName">oracle</b> 提示词的修改。</span>
+    </div>
+    <div class="dlg-f">
+      <button class="btn btn-ghost" data-close>取消</button>
+      <button class="btn btn-warn" id="btnDiscard">放弃更改</button>
+    </div>
+  </div>
+</div>
+
 <!-- ======================= DEMO CONTROLS (mockup only) ======================= -->
 <button class="dfab" id="dfab"><svg class="ic"><use href="#i-set"/></svg>演示状态</button>
 <div class="dpanel" id="dpanel">
   <div class="dp-h">演示控制 · 仅用于设计评审，非产品 UI
     <button class="icon-btn" id="dpclose"><svg class="ic" style="width:12px;height:12px"><use href="#i-x"/></svg></button>
   </div>
-  <div class="dp-row"><span class="dp-l">预览</span>
-    <div class="seg" data-dk="preview">
-      <button class="seg-b is-on" data-dv="empty">空</button>
-      <button class="seg-b" data-dv="ready">已生成</button>
+  <div class="dp-row"><span class="dp-l">部署页</span>
+    <div class="seg" data-dk="dep">
+      <button class="seg-b" data-dv="opencode">opencode</button>
+      <button class="seg-b" data-dv="claude">claude</button>
+      <button class="seg-b is-on" data-dv="zcode">zcode</button>
+      <button class="seg-b" data-dv="dsh">dsh</button>
     </div>
   </div>
-  <div class="dp-row"><span class="dp-l">安装</span>
-    <div class="seg" data-dk="run">
+  <div class="dp-row"><span class="dp-l">目标状态</span>
+    <div class="seg" data-dk="tstate">
+      <button class="seg-b" data-dv="notdep">未部署</button>
+      <button class="seg-b" data-dv="deployed">已部署</button>
+      <button class="seg-b is-on" data-dv="detail">详情</button>
+    </div>
+  </div>
+  <div class="dp-row"><span class="dp-l">部署对话框</span>
+    <div class="seg" data-dk="dlg">
+      <button class="seg-b is-on" data-dv="closed">关闭</button>
+      <button class="seg-b" data-dv="config">配置</button>
+      <button class="seg-b" data-dv="preview">预览</button>
+      <button class="seg-b" data-dv="log">日志</button>
+    </div>
+  </div>
+  <div class="dp-row"><span class="dp-l">安装运行</span>
+    <div class="seg wrap" data-dk="run">
       <button class="seg-b is-on" data-dv="idle">空闲</button>
       <button class="seg-b" data-dv="running">运行中</button>
       <button class="seg-b" data-dv="success">成功</button>
       <button class="seg-b" data-dv="failed">失败</button>
       <button class="seg-b" data-dv="cancelled">已取消</button>
-    </div>
-  </div>
-  <div class="dp-row"><span class="dp-l">执行状态检查</span>
-    <div class="seg" data-dk="tier2">
-      <button class="seg-b is-on" data-dv="pass">通过</button>
-      <button class="seg-b" data-dv="skip">跳过</button>
-      <button class="seg-b" data-dv="fail">失败</button>
-    </div>
-  </div>
-  <div class="dp-row"><span class="dp-l">漂移</span>
-    <div class="seg" data-dk="drift">
-      <button class="seg-b is-on" data-dv="none">无</button>
-      <button class="seg-b" data-dv="some">2 处</button>
     </div>
   </div>
   <div class="dp-row"><span class="dp-l">本地源校验</span>
@@ -1324,60 +1254,88 @@ const $$ = s => [...document.querySelectorAll(s)];
 
 /* ---------------- state ---------------- */
 const state = {
-  page:'deploy', tab:'preview',
+  page:'deploy',
+  /* deploy page v2 (SPEC §4): per-target deployment demo state +
+     which agent's detail page is open + dirty flags (unsaved guard) */
+  dep:{
+    tab:'zcode',
+    st:{opencode:'deployed', claude:'notdep', zcode:'detail', dsh:'deployed'},
+    open:{opencode:'oracle', claude:null, zcode:'oracle', dsh:null},
+    dirty:{}, pending:null, dirtyKey:null,
+  },
+  /* scope is app-wide, shared by the page scope bar and the deploy dialog */
   srcMode:'bundled', lsrc:'valid',
-  targets:new Set(['opencode','claude','zcode']),
-  user:false, force:false,
-  preview:'empty', stale:false,
+  user:false, scopePath:'D:\\dev\\acme-web',
+  /* target-scoped deploy dialog (SPEC §4.6) */
+  dlg:{open:false, view:'config', from:'deploy', force:false, planned:false, stale:false},
   run:'idle', runTimer:null, autoScroll:true, runCancelled:false, runFiles:0,
-  tier2:'pass', drift:'none', preval:'na', dsh:'profile',
+  preval:'na', dsh:'profile',
   net:'fresh', srcFilter:null, sf:'all', q:'',
 };
 
-/* ---------------- data ---------------- */
-const PREFIX = {
-  proj:{opencode:'D:\\dev\\acme-web\\.opencode\\', claude:'D:\\dev\\acme-web\\.claude\\', zcode:'D:\\dev\\acme-web\\.zcode\\'},
-  user:{opencode:'~\\.config\\opencode\\', claude:'~\\.claude\\', zcode:'~\\.zcode\\'},
+/* ---------------- data (deploy v2, SPEC §4/§8) ---------------- */
+/* reasoning-level chip label per backend: claude=effort 推理强度 ·
+   zcode=thoughtLevel 思考等级 · opencode=variant 变体 (SPEC §3.21) */
+const LV_LABEL={opencode:'变体', claude:'推理强度', zcode:'思考等级'};
+const MODELS=['glm','glm-lite','glm-air'];
+const LEVELS=['high','medium','low'];
+const BODY={
+  oracle:'你是 oracle — 负责架构评审的智能体。\n\n职责：\n- 审阅跨模块的结构性变更，指出耦合与回归风险\n- 对实现给出可执行的修改建议，按影响面排序\n\n原则：\n- 结论先行：先给判定，再列证据\n- 引用文件与行号作为依据\n- 不确定时明确说明假设，不臆测',
+  relay:'你是 relay — 负责任务分派与进度汇合的智能体。\n\n职责：\n- 接收上游任务，拆解为可执行单元并分派\n- 跟踪各单元状态，汇合结果后回写\n\n原则：\n- 如实传递，不重排优先级\n- 失败立即上报，不做静默重试',
+  forge:'你是 forge — 负责脚手架与批量生成的智能体。\n\n职责：\n- 按模板生成代码与配置骨架\n- 保持生成物与仓库约定一致\n\n原则：\n- 只生成不评审，评审交给 oracle\n- 模板缺失时停止并报告',
+  atlas:'你是 atlas — 负责仓库地图与依赖梳理的智能体。\n\n职责：\n- 维护模块边界与依赖方向的最新快照\n- 为其他智能体提供定位上下文\n\n原则：\n- 只描述现状，不做建议\n- 过期信息必须标注时间',
+  scribe:'你是 scribe — 负责文档与变更记录的智能体。\n\n职责：\n- 从提交与评审结论提炼变更说明\n- 保持文档与代码同步\n\n原则：\n- 用读者的语言写，不堆术语\n- 每条结论都能追溯到来源',
+  weaver:'你是 weaver — 负责多智能体编排的智能体。\n\n职责：\n- 依据任务形态选择执行编排\n- 监控执行质量，必要时重排\n\n原则：\n- 最少干预：能自动恢复的不打断\n- 每次重排都要留下原因',
 };
-const PLAN = [
-  {t:'opencode', rel:'agent\\my-workbench\\roster.generated.js', s:'create'},
-  {t:'opencode', rel:'agent\\my-workbench\\prompts.generated.js', s:'create'},
-  {t:'opencode', rel:'command\\workbench.md', s:'create'},
-  {t:'opencode', rel:'README.md', s:'skip', note:'已存在'},
-  {t:'claude', rel:'agents\\workbench.md', s:'create'},
-  {t:'claude', rel:'CLAUDE.md', s:'mgd', note:'追加受管块 § my-workbench · 保留既有内容'},
-  {t:'claude', rel:'workbench\\lanes.json', s:'create'},
-  {t:'claude', rel:'workbench\\README.md', s:'skip', note:'已存在 · 内容一致'},
-  {t:'zcode', rel:'agent\\my-workbench\\prompts.generated.js', s:'skip', note:'已存在'},
-  {t:'zcode', rel:'agent\\my-workbench\\config.toml', s:'create'},
-  {t:'zcode', rel:'agent\\my-workbench\\version.txt', s:'skip', note:'已存在 · 内容一致'},
-  {t:'zcode', rel:'agent\\my-workbench\\README.md', s:'create'},
-];
-const BD = {
-  create:['新建','bd-create'], skip:['跳过','bd-skip'], over:['覆盖','bd-over'], mgd:['受管块','bd-mgd'],
+const AGENTS={
+  opencode:[
+    {n:'oracle', model:'glm', lvl:'high', file:'agent\\my-workbench\\oracle.md', body:BODY.oracle},
+    {n:'relay', model:'glm', lvl:'medium', file:'agent\\my-workbench\\relay.md', body:BODY.relay},
+    {n:'forge', model:'glm-lite', lvl:'low', file:'agent\\my-workbench\\forge.md', body:BODY.forge},
+  ],
+  claude:[
+    {n:'oracle', model:'glm', lvl:'high', file:'agents\\oracle.md', body:BODY.oracle},
+    {n:'atlas', model:'glm', lvl:'medium', file:'agents\\atlas.md', body:BODY.atlas},
+    {n:'scribe', model:'glm-lite', lvl:'low', file:'agents\\scribe.md', body:BODY.scribe},
+  ],
+  zcode:[
+    {n:'oracle', model:'glm', lvl:'high', file:'agent\\oracle\\prompt.md', body:BODY.oracle},
+    {n:'weaver', model:'glm', lvl:'medium', file:'agent\\weaver\\prompt.md', body:BODY.weaver},
+  ],
 };
-const LOG_OK = [
-  {ts:'14:32:05',tg:'系统',lv:'',m:'计划校验通过 · 12 个文件操作 · 0 写入'},
-  {ts:'14:32:05',tg:'系统',lv:'',m:'目标顺序：opencode → claude → zcode'},
-  {ts:'14:32:05',tg:'opencode',lv:'ok',m:'创建 agent/my-workbench/roster.generated.js · 12.4 KB'},
-  {ts:'14:32:05',tg:'opencode',lv:'ok',m:'创建 agent/my-workbench/prompts.generated.js · 9.1 KB'},
-  {ts:'14:32:06',tg:'opencode',lv:'skip',m:'跳过 README.md — 已存在'},
-  {ts:'14:32:06',tg:'opencode',lv:'ok',m:'创建 command/workbench.md · 2.3 KB'},
-  {ts:'14:32:06',tg:'claude',lv:'ok',m:'创建 agents/workbench.md · 3.8 KB'},
-  {ts:'14:32:06',tg:'claude',lv:'mgd',m:'受管块 CLAUDE.md — 追加 § my-workbench（保留既有内容）'},
-  {ts:'14:32:07',tg:'claude',lv:'ok',m:'创建 workbench/lanes.json · 1.9 KB'},
-  {ts:'14:32:07',tg:'claude',lv:'skip',m:'跳过 workbench/README.md — 已存在 · 内容一致'},
-  {ts:'14:32:08',tg:'zcode',lv:'warn',m:'覆盖 agent/my-workbench/prompts.generated.js（覆盖已开启）'},
-  {ts:'14:32:08',tg:'zcode',lv:'ok',m:'创建 agent/my-workbench/config.toml · 0.8 KB'},
-  {ts:'14:32:08',tg:'zcode',lv:'skip',m:'跳过 agent/my-workbench/version.txt — 已存在 · 内容一致'},
-  {ts:'14:32:09',tg:'系统',lv:'ok',m:'结构检查全部通过 · 槽位 12/12'},
-  {ts:'14:32:09',tg:'系统',lv:'ok',m:'安装完成 · 7 新建 · 4 跳过 · 1 受管块 · 用时 3.2s'},
-];
-const LOG_FAIL = [
-  {ts:'14:32:07',tg:'系统',lv:'err',m:'错误：预校验未通过（本地源 + DSH 目标）'},
-  {ts:'14:32:07',tg:'系统',lv:'err dim',m:'语法检查失败 — lane-plugin/index.js:42 Unexpected token'},
-  {ts:'14:32:07',tg:'系统',lv:'err dim',m:'提示模块检查失败 — prompts.generated.js 动态导入失败'},
-  {ts:'14:32:08',tg:'系统',lv:'err',m:'安装已中止 · 未写入任何文件'},
+const DSH_PRESET={name:'my-workbench', home:'D:\\dsh', profile:'dev', files:12, at:'2026-10-11 14:32'};
+/* per-target plan rows (deploy dialog 预览 pane, scoped to the selected target) */
+const PLAN_ROWS={
+  opencode:[
+    {rel:'agent\\my-workbench\\roster.generated.js', s:'create'},
+    {rel:'agent\\my-workbench\\prompts.generated.js', s:'create'},
+    {rel:'command\\workbench.md', s:'create'},
+    {rel:'README.md', s:'skip', same:true},
+  ],
+  claude:[
+    {rel:'agents\\workbench.md', s:'create'},
+    {rel:'CLAUDE.md', s:'mgd'},
+    {rel:'workbench\\lanes.json', s:'create'},
+    {rel:'workbench\\README.md', s:'skip', same:true},
+  ],
+  zcode:[
+    {rel:'agent\\my-workbench\\prompts.generated.js', s:'skip'},
+    {rel:'agent\\my-workbench\\config.toml', s:'create'},
+    {rel:'agent\\my-workbench\\version.txt', s:'skip', same:true},
+    {rel:'agent\\my-workbench\\README.md', s:'create'},
+  ],
+  dsh:[
+    {rel:'profiles\\dev\\plugin.json', s:'create'},
+    {rel:'profiles\\dev\\lanes\\my-workbench.lane.json', s:'create'},
+    {rel:'profiles\\dev\\README.md', s:'skip', same:true},
+  ],
+};
+const BD={create:['新建','bd-create'], skip:['跳过','bd-skip'], over:['覆盖','bd-over'], mgd:['受管块','bd-mgd']};
+const FAIL_TAIL=[
+  {lv:'err', m:'错误：预校验未通过（本地源 + DSH 目标）'},
+  {lv:'err dim', m:'语法检查失败 — lane-plugin/index.js:42 Unexpected token'},
+  {lv:'err dim', m:'提示模块检查失败 — prompts.generated.js 动态导入失败'},
+  {lv:'err', m:'安装已中止 · 未写入任何文件'},
 ];
 const SKILLS = [
   {n:'code-review', d:'对当前变更运行双轴评审：规范 + 规格', src:'acme-labs/skills', v:'v1.3.0 · a1b2c3d', st:'mod'},
@@ -1410,11 +1368,14 @@ let lastFocus = null;
 function openDialog(id){
   lastFocus = document.activeElement;
   const d = $('#'+id); d.classList.add('is-open');
-  const f = d.querySelector('input,button.btn,button.icon-btn');
+  const f = [...d.querySelectorAll('input,button.btn,button.icon-btn')].find(el=>el.offsetParent!==null);
   if(f) setTimeout(()=>f.focus(), 30);
 }
 function closeDialogs(){
+  const depWasOpen = $('#dlg-deploy').classList.contains('is-open');
   $$('.oback.is-open').forEach(d=>d.classList.remove('is-open'));
+  if(depWasOpen) state.dlg.open = false;
+  if(typeof syncDepDemo === 'function') syncDepDemo();
   if(lastFocus) lastFocus.focus();
 }
 document.addEventListener('click', e=>{
@@ -1451,140 +1412,402 @@ function setPage(name){
   $$('.page').forEach(p=>p.classList.toggle('is-active', p.id==='page-'+name));
 }
 
-/* ---------------- deploy: tabs ---------------- */
-$$('.seg-b[data-tab]').forEach(b => b.onclick = ()=>setTab(b.dataset.tab));
-function setTab(t){
-  state.tab = t;
-  $$('.seg-b[data-tab]').forEach(x=>{ const on = x.dataset.tab===t; x.classList.toggle('is-on',on); x.setAttribute('aria-selected',on); });
-  $$('.pane').forEach(p=>{ const on = p.id==='tab-'+t; p.classList.toggle('is-on',on); p.hidden=!on; });
+/* ============================================================
+   Deploy v2 (SPEC §4, 2026-10 redesign). Page = tabs + scope bar +
+   agent cards + detail editor; the deploy machinery (内容源 / 安装位置 /
+   覆盖, plan preview, streaming log) lives in the
+   target-scoped deploy dialog #dlg-deploy.
+   ============================================================ */
+const TARGETS=['opencode','claude','zcode','dsh'];
+const cur = () => state.dep.tab;
+const curSt = () => state.dep.st[cur()];
+const now = () => { const d=new Date(), p=n=>String(n).padStart(2,'0'); return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fmtBytes = rel => ((rel.length*37)%88/10+0.7).toFixed(1)+' KB';
+
+/* install roots (sample data); opencode/claude follow the app-wide scope */
+function prefixFor(t){
+  if(t==='zcode') return '~\\.zcode\\';
+  if(t==='dsh') return (DSH_STATES[state.dsh]||DSH_STATES.profile).home+'\\';
+  const base = state.scopePath.trim() || 'D:\\dev\\acme-web';
+  return state.user
+    ? (t==='opencode' ? '~\\.config\\opencode\\' : '~\\.claude\\')
+    : base+'\\'+(t==='opencode' ? '.opencode\\' : '.claude\\');
+}
+function scopeLabel(t){
+  return (t==='opencode'||t==='claude') ? (state.user?'用户级':'项目级') : '用户级';
+}
+function locShort(t){
+  if(t==='zcode') return '~\\.zcode';
+  if(t==='dsh') return 'DSH_HOME';
+  return state.user ? '用户配置目录' : '项目目录';
 }
 
-/* ---------------- deploy: source mode ---------------- */
-$$('.src').forEach(el => {
+/* ---------------- deploy page: tabs / status / header actions ---------------- */
+function statusLine(t){
+  if(state.dep.st[t]==='notdep') return '<span class="dot off"></span>未部署';
+  return t==='dsh'
+    ? `<span class="dot ok"></span>已部署 · 预设 ${DSH_PRESET.name}`
+    : `<span class="dot ok"></span>已部署 · ${AGENTS[t].length} 个智能体`;
+}
+function tabMeta(t){
+  return t + (state.dep.st[t]==='notdep' ? '（未部署）' : '（已部署）');
+}
+function renderDepTabs(){
+  $('#depTabs').innerHTML = TARGETS.map(t=>
+    `<button class="tb${t===cur()?' is-on':''}" role="tab" aria-selected="${t===cur()}" aria-controls="depMain" aria-label="${tabMeta(t)}" title="${tabMeta(t)}" data-t="${t}">${t}</button>`
+  ).join('');
+  $$('#depTabs .tb').forEach(b => b.onclick = ()=>guardDep(()=>setDepTab(b.dataset.t)));
+}
+$('#depTabs').addEventListener('keydown', e=>{
+  if(e.key!=='ArrowRight' && e.key!=='ArrowLeft') return;
+  const i = TARGETS.indexOf(cur());
+  const n = TARGETS[(i + (e.key==='ArrowRight'?1:TARGETS.length-1)) % TARGETS.length];
+  guardDep(()=>setDepTab(n));
+  requestAnimationFrame(()=>{ const b=$(`#depTabs .tb[data-t="${n}"]`); if(b) b.focus(); });
+});
+function renderDepStatus(){ $('#depStatus').innerHTML = statusLine(cur()); }
+function renderDepActions(){
+  const st = curSt();
+  $('#depActions').innerHTML = st==='notdep'
+    ? '<button class="btn btn-primary" id="hdDeploy"><svg class="ic"><use href="#i-deploy"/></svg>部署</button>'
+    : '<button class="btn btn-primary" id="hdUpdate"><svg class="ic"><use href="#i-up"/></svg>更新</button>';
+  const d=$('#hdDeploy'); if(d) d.onclick = ()=>openDeploy('deploy');
+  const u=$('#hdUpdate'); if(u) u.onclick = ()=>openDeploy('update'); // 更新：覆盖 presets ON (SPEC §4.6)
+}
+
+/* ---------------- deploy page: realm scope bar (SPEC §4.3) ---------------- */
+function renderDepScope(){
+  const t = cur(), el = $('#depScope');
+  if(t==='opencode' || t==='claude'){
+    el.innerHTML = `
+      <div class="seg" role="group" aria-label="部署范围">
+        <button class="seg-b${!state.user?' is-on':''}" data-scope="proj" aria-pressed="${!state.user}">项目级</button>
+        <button class="seg-b${state.user?' is-on':''}" data-scope="user" aria-pressed="${state.user}">用户级</button>
+      </div>
+      ${state.user ? '' : `<div class="path"><div class="path-in"><input id="scopePathIn" value="${esc(state.scopePath)}" spellcheck="false" aria-label="项目目录"></div>
+        <button class="btn btn-sm" style="height:32px" id="scopeBrowse"><svg class="ic"><use href="#i-folder"/></svg>浏览…</button></div>`}
+      ${state.user
+        ? '<div class="fhint"><svg class="ic"><use href="#i-info"/></svg>安装到用户配置目录而非项目目录</div>'
+        : '<div class="fhint"><svg class="ic"><use href="#i-info"/></svg>项目目录 = opencode / claude 项目级安装根目录</div>'}`;
+    $$('#depScope .seg-b').forEach(b => b.onclick = ()=>setScope(b.dataset.scope==='user'));
+    const inp=$('#scopePathIn'); if(inp) inp.oninput = e=>{ state.scopePath=e.target.value; renderDlgScope(); markStale(); };
+    const sb=$('#scopeBrowse'); if(sb) sb.onclick = ()=>toast('浏览器预览模式','info','系统目录选择器不可用 — 请直接在输入框中填写路径');
+  } else if(t==='zcode'){
+    el.innerHTML = '<span class="dep-loclabel">部署位置</span><span class="dep-loc"><span class="mono">~\\.zcode</span></span><span class="fixchip">固定</span>';
+  } else {
+    const s = DSH_STATES[state.dsh]||DSH_STATES.profile;
+    el.innerHTML = `<span class="dep-loclabel">部署位置</span><span class="dep-loc"><span class="mono">DSH_HOME → ${s.home}</span><span class="mono">· profile ${s.profile}</span></span>${s.chip?'<span class="envchip">DSH_HOME 已覆盖</span>':''}`;
+  }
+}
+function setScope(u){
+  if(u===state.user) return;
+  state.user = u;
+  renderDepScope(); renderDlgScope(); syncForceUI(); markStale();
+}
+
+/* ---------------- deploy page: body (empty / cards / detail page / dsh preset) ---------------- */
+function agentCard(t, a){
+  return `<button class="agc" data-ag="${a.n}" title="点击打开提示词详情，可编辑、保存">
+    <span class="agc-top"><span class="agc-name">${a.n}</span>
+      <span class="agc-chips"><span class="achip" title="模型">${a.model}</span><span class="achip" title="${LV_LABEL[t]}">${a.lvl}</span></span></span>
+    <span class="agc-file">${esc(prefixFor(t)+a.file)}</span>
+    <span class="agc-prev">${esc(a.body)}</span>
+  </button>`;
+}
+function detailHTML(t, a){
+  const uniq = arr => [...new Set(arr)];
+  const opts = (arr,v) => arr.map(x=>`<option${x===v?' selected':''}>${x}</option>`).join('');
+  return `<div role="region" aria-label="提示词详情 · ${a.n}">
+    <div class="adp-title">
+      <button class="btn btn-ghost adp-back" id="adpBack"><svg class="ic"><use href="#i-arl"/></svg>返回</button>
+      <span class="adp-name">${a.n}</span>
+    </div>
+    <div class="adp">
+    <div class="edt-meta">
+      <div class="edt-fld"><label class="flab" for="edtModel">模型</label><select class="fsel" id="edtModel">${opts(uniq([...MODELS,a.model]),a.model)}</select></div>
+      <div class="edt-fld"><label class="flab" for="edtLvl">${LV_LABEL[t]}</label><select class="fsel" id="edtLvl">${opts(uniq([...LEVELS,a.lvl]),a.lvl)}</select></div>
+    </div>
+    <div class="edt-b"><pre class="edt-ta" aria-label="提示词内容（随部署更新）">${esc(a.body)}</pre></div>
+
+    </div>
+  </div>`;
+}
+function edKey(){ return cur()+'/'+state.dep.open[cur()]; }
+function renderDepMain(){
+  const t = cur(), st = curSt(), m = $('#depMain');
+  if(st==='notdep'){
+    m.innerHTML = `<div class="empty">
+      <div class="empty-ic"><svg class="ic"><use href="#i-deploy"/></svg></div>
+      <div class="empty-t">${t} 尚未部署</div>
+      <div class="empty-s">从内置源渲染并写入 ${t} 的安装位置（${locShort(t)}），安装前可预览每个文件。</div>
+      <button class="btn btn-primary" id="empDeploy"><svg class="ic"><use href="#i-deploy"/></svg>部署</button>
+    </div>`;
+    $('#empDeploy').onclick = ()=>openDeploy('deploy');
+    return;
+  }
+  if(t==='dsh'){ /* dsh has no per-agent files: preset summary only (SPEC §4.5) */
+    const s = DSH_STATES[state.dsh]||DSH_STATES.profile;
+    m.innerHTML = `<div class="empty">
+      <div class="empty-ic"><svg class="ic"><use href="#i-layers"/></svg></div>
+      <div class="empty-t">dsh 已部署</div>
+      <div class="empty-s">dsh 以预设为单位部署 — 没有单独的智能体文件。点击右上角「更新」从内置源重新部署。</div>
+      <div class="preset">
+        <div class="pr-row"><span>预设</span><span class="mono">${DSH_PRESET.name}</span></div>
+        <div class="pr-row"><span>主目录</span><span class="mono">${s.home}</span></div>
+        <div class="pr-row"><span>profile</span><span class="mono">${s.profile}</span></div>
+        <div class="pr-row"><span>部署文件</span><span class="mono num">${DSH_PRESET.files}</span></div>
+        <div class="pr-row"><span>部署时间</span><span class="mono num">${DSH_PRESET.at}</span></div>
+      </div>
+    </div>`;
+    return;
+  }
+  /* detail state (SPEC §3.22): the full-page detail view replaces the roster
+     body — tab bar, scope bar and card list give way (renderDepAll hides them) */
+  if(st==='detail' && state.dep.open[t]){
+    m.innerHTML = detailHTML(t, AGENTS[t].find(x=>x.n===state.dep.open[t]));
+    wireEditor(t);
+    return;
+  }
+  m.innerHTML = `<div class="agclist">${AGENTS[t].map(a=>agentCard(t,a)).join('')}</div>`;
+  $$('#depMain .agc').forEach(b => { b.onclick = ()=>guardDep(()=>openEditor(t,b.dataset.ag)); });
+}
+function renderDepAll(){
+  renderDepTabs(); renderDepStatus(); renderDepActions(); renderDepScope(); renderDepMain();
+  const detail = curSt()==='detail' && cur()!=='dsh' && !!state.dep.open[cur()];
+  /* detail state: the whole page gives way to the detail view — the 部署 header
+     row (title/subtitle/actions) included; 返回 + name is the title (§3.22/§4.1) */
+  $('#depHead').style.display = detail?'none':'';
+  $('#depWrap').classList.toggle('detail', detail);
+  $('#depToolbar').style.display = detail?'none':'';
+  $('#depScope').style.display = detail?'none':'';
+}
+function setDepTab(t){
+  if(t===cur()) return;
+  if(state.dlg.open) closeDialogs();
+  state.dep.tab = t;
+  renderDepAll(); syncDepDemo();
+}
+function setDepState(t, s){
+  if(t==='dsh' && s==='detail') return; // dsh 没有智能体详情
+  state.dep.st[t] = s;
+  if(s==='notdep'){
+    state.dep.open[t] = null;
+    Object.keys(state.dep.dirty).filter(k=>k.startsWith(t+'/')).forEach(k=>delete state.dep.dirty[k]);
+  }
+  renderDepAll(); syncDepDemo();
+}
+
+/* ---------------- agent detail page (SPEC §3.22) ---------------- */
+function openEditor(t, n){
+  state.dep.open[t] = n; state.dep.st[t] = 'detail';
+  renderDepAll(); syncDepDemo();
+  /* the detail page replaces the scrolled roster — start at the top */
+  requestAnimationFrame(()=>{ const w=$('.dep-wrap'); if(w) w.scrollTop=0; });
+}
+function closeEditor(){
+  const t = cur();
+  state.dep.open[t] = null;
+  if(state.dep.st[t]==='detail') state.dep.st[t] = 'deployed';
+  renderDepAll(); syncDepDemo();
+}
+function wireEditor(t){
+  const a = AGENTS[t].find(x=>x.n===state.dep.open[t]); if(!a) return;
+  const mo=$('#edtModel'), lv=$('#edtLvl');
+  /* model settings auto-save on select change — no 保存 button, no footer */
+  const autosave = ()=>{
+    a.model = mo.value; a.lvl = lv.value; /* body unchanged — deployed content, not managed */
+    renderDepAll(); /* refresh card chips */
+    toast(`已保存 ${a.n} 的设置`, 'ok', '已写入已部署文件');
+  };
+  mo.onchange = autosave; lv.onchange = autosave;
+  $('#adpBack').onclick = ()=>closeEditor();
+}
+/* unsaved-changes guard: any detail-page exit (返回 / card / tab) routes here */
+function guardDep(fn){
+  const t = cur(), n = state.dep.open[t], k = t+'/'+n;
+  if(n && state.dep.st[t]==='detail' && state.dep.dirty[k]){
+    state.dep.pending = fn; state.dep.dirtyKey = k;
+    $('#dlgUnName').textContent = n;
+    openDialog('dlg-unsaved');
+    return;
+  }
+  fn();
+}
+$('#btnDiscard').onclick = ()=>{
+  const f = state.dep.pending;
+  if(state.dep.dirtyKey) state.dep.dirty[state.dep.dirtyKey] = false;
+  state.dep.pending = null; state.dep.dirtyKey = null;
+  closeDialogs();
+  if(f) f();
+};
+
+/* ---------------- deploy dialog (SPEC §4.6) ---------------- */
+function openDeploy(from, view){
+  view = view || 'config';
+  state.dlg.open = true; state.dlg.from = from; state.dlg.view = view;
+  state.dlg.force = (from==='update'); /* 更新 → 覆盖 presets ON */
+  if(view==='preview'){ state.dlg.planned = true; state.dlg.stale = false; }
+  $('#dlgDepT').textContent = (from==='update'?'更新':'部署')+' · '+cur();
+  renderDlgScope(); syncForceUI();
+  setDlgView(view);
+  openDialog('dlg-deploy');
+  syncDepDemo();
+}
+function setDlgView(v){
+  state.dlg.view = v;
+  $$('[data-dlgv]').forEach(b=>{ const on=b.dataset.dlgv===v; b.classList.toggle('is-on',on); b.setAttribute('aria-selected',on); });
+  ['config','preview','log'].forEach(k=>{ const p=$('#dp-'+k), on=k===v; p.classList.toggle('is-on',on); p.hidden=!on; });
+  $('#dlgLogDot').hidden = state.run!=='running';
+  renderDlgFooter();
+  if(v==='preview') renderDlgPreview();
+  updateDlgButtons();
+}
+function renderDlgFooter(){
+  const v = state.dlg.view, f = $('#dlgDepF');
+  if(v==='config' || v==='preview'){
+    f.innerHTML = '<button class="btn btn-ghost" data-close>取消</button>'+
+      `<button class="btn" id="dlgBtnPlan"><svg class="ic"><use href="#i-layers"/></svg>${v==='preview'?'重新生成':'生成预览'}</button>`+
+      '<button class="btn btn-primary" id="dlgBtnRun"><svg class="ic"><use href="#i-play"/></svg>开始安装</button>';
+    $('#dlgBtnPlan').onclick = genDlgPreview;
+    $('#dlgBtnRun').onclick = ()=>startRun(false);
+  } else {
+    f.innerHTML = '<button class="btn btn-ghost" data-close>关闭</button>';
+  }
+  updateDlgButtons();
+}
+function renderDlgScope(){
+  const t = cur(), oc = (t==='opencode'||t==='claude');
+  $('#dlgScopeOC').hidden = !oc;
+  $('#dlgScopeFixed').hidden = oc;
+  if(oc){
+    $$('#dlgScopeSeg .seg-b').forEach(b=>{ const on=(b.dataset.scope==='user')===state.user; b.classList.toggle('is-on',on); b.setAttribute('aria-pressed',on); });
+    $('#dlgProjField').hidden = state.user;
+    $('#dlgScopeUserHint').hidden = !state.user;
+    $('#dlgProjHint').hidden = state.user;
+  } else if(t==='zcode'){
+    $('#dlgScopeFixed').innerHTML = '<span class="dep-loclabel">安装位置</span><span class="dep-loc"><span class="mono">~\\.zcode</span></span><span class="fixchip">固定</span>';
+  } else {
+    const s = DSH_STATES[state.dsh]||DSH_STATES.profile;
+    $('#dlgScopeFixed').innerHTML = `<span class="dep-loclabel">安装位置</span><span class="dep-loc"><span class="mono">DSH_HOME → ${s.home}</span><span class="mono">· profile ${s.profile}</span></span>${s.chip?'<span class="envchip">DSH_HOME 已覆盖</span>':''}`;
+  }
+}
+function syncForceUI(){
+  $('#swForce').setAttribute('aria-checked', state.dlg.force);
+  $('#forceHint').hidden = state.dlg.force;
+  $('#forceHintOn').hidden = !state.dlg.force;
+  $('#dlgForceBadge').hidden = !state.dlg.force;
+  $('#planMeta').textContent = scopeLabel(cur())+' · 0 写入';
+}
+$$('#dlg-deploy [data-dlgv]').forEach(b => b.onclick = ()=>setDlgView(b.dataset.dlgv));
+$$('#dp-config .src').forEach(el => {
   const pick = ()=>{
     state.srcMode = el.dataset.src;
-    $$('.src').forEach(x=>{ const on = x===el; x.classList.toggle('is-on',on); x.setAttribute('aria-checked',on); });
+    $$('#dp-config .src').forEach(x=>{ const on=x===el; x.classList.toggle('is-on',on); x.setAttribute('aria-checked',on); });
     $('#localPanel').hidden = state.srcMode!=='local';
     if(state.srcMode==='local') applyLocalHint();
-    invalidate();
+    markStale();
   };
   el.onclick = pick;
   el.onkeydown = e=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); pick(); } };
 });
+$$('#dlgScopeSeg .seg-b').forEach(b => b.onclick = ()=>setScope(b.dataset.scope==='user'));
+$('#projPath').oninput = e=>{ state.scopePath = e.target.value; renderDepScope(); markStale(); };
+$('#projBrowse').onclick = ()=>toast('浏览器预览模式','info','系统目录选择器不可用 — 请直接在输入框中填写路径');
+$('#swForce').onclick = ()=>{
+  state.dlg.force = !state.dlg.force;
+  syncForceUI(); markStale();
+};
 function applyLocalHint(){
   const ok = state.lsrc==='valid';
   $('#localHintOk').hidden = !ok;
   $('#localHintErr').hidden = ok;
 }
 
-/* ---------------- deploy: targets ---------------- */
-$$('#tgrid .tck').forEach(l => {
-  const input = l.querySelector('input');
-  input.addEventListener('change', ()=>{
-    const t = l.dataset.t;
-    if(input.checked){
-      state.targets.add(t);
-    } else state.targets.delete(t);
-    refreshMutex();
-    invalidate();
-  });
-});
-function refreshMutex(){
-  $('#tgtCount').textContent = `已选 ${state.targets.size} 个`;
-  updatePrevalVisibility();
-}
-
-/* ---------------- deploy: install scope (安装方式 segmented control) ---------------- */
-$$('#scopeSeg .seg-b').forEach(b => b.onclick = function(){
-  const user = this.dataset.scope === 'user';
-  if(!!state.user === user) return;
-  state.user = user;
-  $$('#scopeSeg .seg-b').forEach(x=>{
-    const on = x.dataset.scope === (user ? 'user' : 'proj');
-    x.classList.toggle('is-on', on);
-    x.setAttribute('aria-pressed', on);
-  });
-  $('#projField').hidden = user;
-  $('#projHintUser').hidden = !user;
-  invalidate();
-});
-$('#swForce').onclick = function(){
-  state.force = !state.force;
-  this.setAttribute('aria-checked', state.force);
-  $('#forceHint').hidden = state.force;
-  $('#forceHintOn').hidden = !state.force;
-  syncForce();
-  invalidate();
-};
-function syncForce(){ $('#forceBadge').hidden = !state.force; }
-
-/* ---------------- preview ---------------- */
-function invalidate(){
-  if(state.preview==='ready'){ state.stale = true; renderPlan(); }
-  updateApplyButtons();
-}
-function genPreview(){
-  state.preview = 'ready'; state.stale = false;
-  renderPlan();
-  setTab('preview');
-  updateApplyButtons();
-}
-$('#btnPlan').onclick = genPreview;
+/* ---------------- scoped plan preview (stale rule §4.2, unchanged) ---------------- */
 function planRows(){
-  return PLAN.map(r=>{
+  const pre = prefixFor(cur());
+  return PLAN_ROWS[cur()].map(r=>{
     let s = r.s;
-    if(state.force && s==='skip' && r.note && !r.note.includes('内容一致')) s='over';
-    const base = (state.user?PREFIX.user:PREFIX.proj)[r.t] || '';
-    const full = base + r.rel;
-    const i = full.lastIndexOf('\\');
-    return {...r, s, dir:full.slice(0,i+1), nm:full.slice(i+1), note: r.s==='skip'&&s==='over' ? '已存在 · 将被覆盖' : r.note};
+    if(state.dlg.force && s==='skip' && !r.same) s='over';
+    const full = pre + r.rel, i = full.lastIndexOf('\\');
+    const note = s==='create' ? '' : s==='skip' ? (r.same?'已存在 · 内容一致':'已存在')
+      : s==='over' ? '已存在 · 将被覆盖' : '追加受管块 · 保留既有内容';
+    return {s, dir:full.slice(0,i+1), nm:full.slice(i+1), note};
   });
 }
-function renderPlan(){
-  const ready = state.preview==='ready';
+function markStale(){
+  if(state.dlg.planned){ state.dlg.stale = true; renderDlgPreview(); }
+  updateDlgButtons();
+}
+function genDlgPreview(){
+  state.dlg.planned = true; state.dlg.stale = false;
+  renderDlgPreview();
+  setDlgView('preview');
+}
+function renderDlgPreview(){
+  const ready = state.dlg.planned;
   $('#plan-empty').style.display = ready?'none':'';
   $('#plan-filled').hidden = !ready;
-  if(!ready) return;
-  $('#stalebar').hidden = !state.stale;
-  const f = state._f || 'all';
-  const rows = planRows().filter(r=> f==='all' || r.s===f);
+  if(!ready){ $('#stalebar').hidden = true; return; }
+  $('#stalebar').hidden = !state.dlg.stale;
+  const rows = planRows();
   $('#planTbody').innerHTML = rows.map(r=>`
     <tr>
       <td><span class="bd ${BD[r.s][1]}">${BD[r.s][0]}</span></td>
-      <td><span class="p"><span class="dir">${r.dir}</span><span class="nm">${r.nm}</span></span></td>
-      <td class="note">${r.note||''}</td>
+      <td><span class="p"><span class="dir">${esc(r.dir)}</span><span class="nm">${esc(r.nm)}</span></span></td>
+      <td class="note">${r.note}</td>
     </tr>`).join('');
-  const c = {create:0,skip:0,over:0,mgd:0}; planRows().forEach(r=>c[r.s]++);
-  $$('#planChips .chip').forEach(ch=>{
-    const k = ch.dataset.f;
-    ch.classList.toggle('is-on', k===f);
-    ch.querySelector('b').textContent = k==='all' ? planRows().length : c[k];
-  });
+  const c = {create:0,skip:0,over:0,mgd:0}; rows.forEach(r=>c[r.s]++);
   $('#planSummary').innerHTML =
-    `<b>${c.create}</b> 新建 · <b>${c.skip}</b> 跳过 · <b>${c.over}</b> 覆盖 · <b>${c.mgd}</b> 受管块 · 共 ${planRows().length} 个文件`;
-  $('#planStamp').textContent = '生成于 14:31:58';
-  $('#planMeta').textContent = `${state.user?'用户级':'项目级'} · 0 写入`;
+    `<b>${c.create}</b> 新建 · <b>${c.skip}</b> 跳过 · <b>${c.over}</b> 覆盖 · <b>${c.mgd}</b> 受管块 · 共 ${rows.length} 个文件`;
+  $('#planStamp').textContent = '生成于 '+now();
+  $('#planMeta').textContent = scopeLabel(cur())+' · 0 写入';
 }
-$$('#planChips .chip').forEach(ch => ch.onclick = ()=>{ state._f = ch.dataset.f; renderPlan(); });
-
-/* ---------------- apply buttons ---------------- */
-function updateApplyButtons(){
-  const ok = state.preview==='ready' && !state.stale && state.run!=='running'
-    && state.preval!=='checking' && state.preval!=='fail'
-    && !(state.srcMode==='local' && state.lsrc==='invalid');
-  const b = $('#btnRun');
+function canRun(){
+  return state.dlg.planned && !state.dlg.stale && state.run!=='running'
+    && !(state.srcMode==='local' && state.lsrc==='invalid')
+    && state.preval!=='checking' && state.preval!=='fail';
+}
+function runBlockReason(){
+  if(state.preval==='fail') return '预校验未通过，安装已被阻止';
+  if(state.preval==='checking') return '正在预校验本地源…';
+  if(state.dlg.stale) return '选择已更改，请重新生成预览';
+  if(!state.dlg.planned) return '先生成预览';
+  if(state.srcMode==='local' && state.lsrc==='invalid') return '本地源无效，请重新选择';
+  if(state.run==='running') return '正在安装';
+  return '';
+}
+function updateDlgButtons(){
+  const b = $('#dlgBtnRun'); if(!b) return;
+  const ok = canRun();
   b.disabled = !ok;
-  b.title = !ok ? (state.preval==='fail' ? '预校验未通过，安装已被阻止'
-    : state.preval==='checking' ? '正在预校验本地源…'
-    : state.stale ? '选择已更改，请重新生成预览'
-    : '先生成预览') : '';
+  b.title = ok ? '' : runBlockReason();
 }
 
-/* ---------------- install run ---------------- */
-$('#btnRun').onclick = ()=>startRun(false);
-function switchLog(){ setTab('log'); }
-function clearLog(){
-  $('#log').innerHTML = '';
+/* ---------------- install run (SPEC §3.9/§4.6, cooperative cancel locked §10.1) ---------------- */
+function buildScript(failMode){
+  const t = cur(), rows = planRows(), L = [];
+  L.push({ts:now(), tg:'系统', lv:'', m:`计划校验通过 · ${rows.length} 个文件操作 · 0 写入`});
+  L.push({ts:now(), tg:'系统', lv:'', m:`目标：${t} · ${scopeLabel(t)} · ${state.srcMode==='bundled'?'内置源 v1.4.2':'本地源'}`});
+  rows.forEach(r=>{
+    if(r.s==='create') L.push({ts:now(), tg:t, lv:'ok', m:`创建 ${r.nm} · ${fmtBytes(r.nm)}`});
+    else if(r.s==='skip') L.push({ts:now(), tg:t, lv:'skip', m:`跳过 ${r.dir}${r.nm} — 已存在${r.note.includes('内容一致')?' · 内容一致':''}`});
+    else if(r.s==='over') L.push({ts:now(), tg:t, lv:'warn', m:`覆盖 ${r.dir}${r.nm}（覆盖已开启）`});
+    else L.push({ts:now(), tg:t, lv:'mgd', m:`受管块 ${r.dir}${r.nm} — 追加 § my-workbench（保留既有内容）`});
+  });
+  if(failMode){
+    FAIL_TAIL.forEach(x=>L.push({ts:now(), tg:'系统', lv:x.lv, m:x.m}));
+  } else {
+    const c = {create:0,skip:0,over:0,mgd:0}; rows.forEach(r=>c[r.s]++);
+    L.push({ts:now(), tg:'系统', lv:'ok', m:`结构检查全部通过 · 槽位 ${rows.length}/${rows.length}`});
+    L.push({ts:now(), tg:'系统', lv:'ok', m:`安装完成 · ${c.create} 新建 · ${c.skip} 跳过 · ${c.over} 覆盖 · ${c.mgd} 受管块`});
+  }
+  return L;
+}
+function clearLog(){ $('#log').innerHTML = ''; }
+function resetLogEmpty(){
+  $('#log').innerHTML = '<div class="log-empty" id="logEmpty"><svg class="ic" style="width:20px;height:20px"><use href="#i-term"/></svg>尚未开始安装 — 点击「开始安装」后此处将流式输出日志</div>';
 }
 function logLine(l){
   const d = document.createElement('div');
@@ -1601,28 +1824,29 @@ function renderReport(kind){
   const old = $('#log .report'); if(old) old.remove();
   const r = document.createElement('div');
   if(kind==='ok'){
+    const rows = planRows(), c = {create:0,skip:0,over:0,mgd:0}; rows.forEach(x=>c[x.s]++);
     r.className = 'report ok';
     r.innerHTML = `<div class="report-t"><svg class="ic"><use href="#i-checkc"/></svg>安装完成</div>
-      <div class="report-chips"><span class="rc">7 新建</span><span class="rc">4 跳过</span><span class="rc">0 覆盖</span><span class="rc">1 受管块</span><span class="rc">用时 3.2s</span></div>
-      <div class="report-a"><button class="btn btn-sm" onclick="toast('已发起健康检查','ok','正在后台运行')"><svg class="ic"><use href="#i-act"/></svg>运行健康检查</button></div>`;
+      <div class="report-chips"><span class="rc">${c.create} 新建</span><span class="rc">${c.skip} 跳过</span><span class="rc">${c.over} 覆盖</span><span class="rc">${c.mgd} 受管块</span><span class="rc">用时 ${state.runDur}</span></div>`;
   } else if(kind==='cancel'){
     r.className = 'report warn';
     r.innerHTML = `<div class="report-t"><svg class="ic"><use href="#i-info"/></svg>安装已取消</div>
       <div class="report-chips"><span class="rc">第 ${state.runFiles} 个文件后停止</span><span class="rc">已写入的文件保留</span></div>
-      <div class="report-a"><button class="btn btn-sm" onclick="startRun(false)"><svg class="ic"><use href="#i-ref"/></svg>重试安装</button></div>`;
+      <div class="report-a"><button class="btn btn-sm" id="repRetry"><svg class="ic"><use href="#i-ref"/></svg>重试安装</button></div>`;
   } else {
     r.className = 'report err';
     r.innerHTML = `<div class="report-t"><svg class="ic"><use href="#i-xc"/></svg>安装失败</div>
       <div class="errmsg">安装失败：预校验未通过 — lane-plugin/index.js:42 Unexpected token</div>
-      <div class="report-a"><button class="btn btn-sm" onclick="startRun(false)"><svg class="ic"><use href="#i-ref"/></svg>重试安装</button>
+      <div class="report-a"><button class="btn btn-sm" id="repRetry"><svg class="ic"><use href="#i-ref"/></svg>重试安装</button>
       <button class="btn btn-sm btn-ghost" disabled title="计划于 M3 提供">导出日志</button></div>`;
   }
   $('#log').appendChild(r);
+  const x=$('#repRetry'); if(x) x.onclick = ()=>startRun(false);
   autoscroll(true);
 }
 function setRunUI(){
   const chip = $('#logChip'), bar = $('#lpfill'), lb = $('#livebar');
-  $('#segLogDot').hidden = state.run!=='running';
+  $('#dlgLogDot').hidden = state.run!=='running';
   $('#btnStop').hidden = state.run!=='running';
   if(state.run==='idle'){
     chip.className='lchip idle'; chip.textContent='未开始';
@@ -1643,37 +1867,44 @@ function setRunUI(){
     bar.className='lpfill '+(ok?'done':'failed');
     bar.style.width = ok?'100%':'62%';
   }
-  updateApplyButtons();
+  updateDlgButtons();
 }
 function stopTimer(){ if(state.runTimer){ clearInterval(state.runTimer); state.runTimer=null; } }
 function startRun(failMode){
   stopTimer();
   state.runCancelled = false; state.runFiles = 0;
   $('#btnStop').disabled = false;
-  state.run='running'; clearLog(); setRunUI(); switchLog();
-  const script = failMode ? [...LOG_OK.slice(0,10), ...LOG_FAIL] : LOG_OK;
+  state.run='running'; state.runDur='—';
+  clearLog(); setRunUI();
+  if(state.dlg.open) setDlgView('log');
+  const script = buildScript(failMode);
+  const started = Date.now();
   let i = 0;
   state.runTimer = setInterval(()=>{
-    if(state.runCancelled){ // cooperative: stops before starting the next file
+    if(state.runCancelled){ // cooperative: stops before starting the next file (§10.1)
       stopTimer();
+      state.runDur = ((Date.now()-started)/1000).toFixed(1)+'s';
       state.run='cancelled'; setRunUI(); renderReport('cancel');
       $('#lphase').textContent = '已取消';
       toast('安装已取消','warn',`第 ${state.runFiles} 个文件后停止 · 已写入的文件保留`);
+      syncDepDemo();
       return;
     }
     if(i < script.length){
       logLine(script[i]);
-      if(script[i].tg!=='core' && ['ok','warn','mgd'].includes(script[i].lv)) state.runFiles++;
+      if(['ok','warn','mgd'].includes(script[i].lv) && script[i].tg!=='系统') state.runFiles++;
       const pct = Math.round((i+1)/script.length*100);
       $('#lpfill').style.width = pct+'%';
-      $('#lphase').textContent = failMode && i>=10 ? '正在中止…' : `正在安装 ${script[i].tg} · ${i+1}/${script.length} · ${pct}%`;
+      $('#lphase').textContent = failMode && i>=script.length-FAIL_TAIL.length ? '正在中止…' : `正在安装 ${cur()} · ${i+1}/${script.length} · ${pct}%`;
       i++;
     } else {
       stopTimer();
+      state.runDur = ((Date.now()-started)/1000).toFixed(1)+'s';
       state.run = failMode?'failed':'success';
       setRunUI(); renderReport(failMode?'err':'ok');
       toast(failMode?'安装失败':'安装完成', failMode?'err':'ok',
-        failMode?'未写入任何文件':'7 新建 · 4 跳过 · 1 受管块 · 用时 3.2s');
+        failMode?'未写入任何文件':'已写入已部署文件 · 用时 '+state.runDur);
+      syncDepDemo();
     }
   }, 170);
 }
@@ -1682,15 +1913,19 @@ $('#btnStop').onclick = ()=>{
 };
 function renderStaticRun(kind){
   stopTimer();
-  state.run = kind; state.runCancelled = false; clearLog(); setRunUI(); switchLog();
-  let script;
-  if(kind==='failed') script = [...LOG_OK.slice(0,10), ...LOG_FAIL];
-  else if(kind==='cancelled') script = LOG_OK.slice(0,10);
-  else script = LOG_OK;
+  state.run = kind; state.runCancelled = false; state.runDur='2.8s';
+  clearLog();
+  const script = kind==='failed'
+    ? [...buildScript(false).slice(0,-2), ...FAIL_TAIL.map(x=>({ts:now(), tg:'系统', lv:x.lv, m:x.m}))]
+    : buildScript(false);
   script.forEach(logLine);
-  state.runFiles = script.filter(l=>l.tg!=='core' && ['ok','warn','mgd'].includes(l.lv)).length;
+  state.runFiles = planRows().filter(r=>r.s!=='skip').length;
+  setRunUI();
+  if(state.dlg.open && state.dlg.view!=='log') setDlgView('log');
   $('#lpfill').style.width = kind==='failed'?'62%':kind==='cancelled'?'53%':'100%';
-  $('#lphase').textContent = kind==='failed'?'已中止 · 62%':kind==='cancelled'?`已取消 · 第 ${state.runFiles} 个文件后停止`:'已完成 · 15/15 · 100%';
+  $('#lphase').textContent = kind==='failed'?'已中止 · 62%'
+    : kind==='cancelled'?`已取消 · 第 ${state.runFiles} 个文件后停止`
+    : `已完成 · ${script.length}/${script.length} · 100%`;
   renderReport(kind==='failed'?'err':kind==='cancelled'?'cancel':'ok');
 }
 $('#log').addEventListener('scroll', function(){
@@ -1708,78 +1943,13 @@ $('#swAuto').onclick = function(){
   if(state.autoScroll){ autoscroll(true); $('#resumeBtn').classList.remove('is-on'); }
 };
 
-/* ---------------- health ---------------- */
-function renderHealth(){
-  // Tier 1 badge depends on drift
-  const b1 = $('#t1badge');
-  if(state.drift==='some'){
-    b1.className='tier-badge warn'; b1.innerHTML='<svg class="ic" style="width:11px;height:11px"><use href="#i-warn"/></svg>2 处漂移';
-    $('#t1i1').className='ic errc'; $('#t1i1').innerHTML='<use href="#i-warn"/>';
-    $('#t1r1').innerHTML='渲染字节对比 <b class="num">9 / 11</b>&nbsp;一致 · <b style="color:var(--warn)">2 个文件漂移</b>';
-  } else {
-    b1.className='tier-badge ok'; b1.innerHTML='<svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>通过';
-    $('#t1i1').className='ic okc'; $('#t1i1').innerHTML='<use href="#i-checkc"/>';
-    $('#t1r1').innerHTML='渲染字节对比 <b class="num">11 / 11</b>&nbsp;一致';
-  }
-  // 执行状态检查
-  const b2 = $('#t2badge'), body = $('#t2body'), foot = $('#t2foot');
-  if(state.tier2==='pass'){
-    b2.className='tier-badge ok'; b2.innerHTML='<svg class="ic" style="width:11px;height:11px"><use href="#i-check"/></svg>通过';
-    body.innerHTML = `
-      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>语法检查 — 3 个脚本工件正常</span></div>
-      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>宿主模块检查 — 可正常导入</span></div>
-      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>提示模块检查 — 可正常导入</span></div>`;
-    foot.textContent = '本地 Node v22.14.0 · 全部执行检查通过。';
-  } else if(state.tier2==='skip'){
-    b2.className='tier-badge warn'; b2.innerHTML='<svg class="ic" style="width:11px;height:11px"><use href="#i-info"/></svg>已跳过';
-    body.innerHTML = `
-      <div class="tier-note">
-        <b><svg class="ic"><use href="#i-info"/></svg>执行状态检查已跳过：未检测到 Node</b>
-        <span class="mut2">安装本地 Node 后点击「重新检查」。</span>
-      </div>
-      <div class="tier-row" style="color:var(--text-3)"><svg class="ic"><use href="#i-x"/></svg><span>3 项执行检查未执行</span></div>`;
-    foot.textContent = '缺失 Node 不会阻塞安装。';
-  } else {
-    b2.className='tier-badge err'; b2.innerHTML='<svg class="ic" style="width:11px;height:11px"><use href="#i-x"/></svg>失败';
-    body.innerHTML = `
-      <div class="tier-row"><svg class="ic errc"><use href="#i-xc"/></svg><span>语法检查 — <span class="mono">lane-plugin/index.js:42 Unexpected token</span></span></div>
-      <div class="tier-row"><svg class="ic errc"><use href="#i-xc"/></svg><span>提示模块检查 — prompts.generated.js 动态导入失败</span></div>
-      <div class="tier-row"><svg class="ic okc"><use href="#i-checkc"/></svg><span>宿主模块检查 — 正常</span></div>`;
-    foot.textContent = '存在失败的执行检查 — 若为本地源 + DSH 目标，安装将被阻止。';
-  }
-  // drift zone
-  const dz = $('#driftZone');
-  if(state.drift==='some'){
-    dz.innerHTML = `
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div class="sect-t"><svg class="ic" style="width:14px;height:14px;color:var(--warn)"><use href="#i-warn"/></svg>漂移报告<span class="cnt">2 个文件与渲染期望不一致</span>
-        <span style="margin-left:auto;font-size:11.5px;color:var(--text-3)">在「查看详情」中选择处理方式</span></div>
-      <div class="drift">
-        <div class="drift-row">
-          <svg class="ic w"><use href="#i-file"/></svg>
-          <div><div class="drift-p"><span class="dir">~\\.claude\\</span>CLAUDE.md</div><div class="drift-n">本地与渲染期望不一致 · 大小 4.2 KB（期望 4.1 KB）</div></div>
-          <button class="btn btn-sm" data-open="dlg-drift">查看详情<svg class="ic"><use href="#i-chevr"/></svg></button>
-        </div>
-        <div class="drift-row">
-          <svg class="ic w"><use href="#i-file"/></svg>
-          <div><div class="drift-p"><span class="dir">D:\\dev\\acme-web\\.opencode\\command\\</span>workbench.md</div><div class="drift-n">本地文件被修改 · 字节不一致</div></div>
-          <button class="btn btn-sm" data-open="dlg-drift">查看详情<svg class="ic"><use href="#i-chevr"/></svg></button>
-        </div>
-      </div>
-    </div>`;
-  } else {
-    dz.innerHTML = `
-    <div class="sect-t" style="color:var(--text-3)"><svg class="ic" style="width:14px;height:14px"><use href="#i-checkc"/></svg>漂移报告<span style="font-weight:500;font-size:12px;color:var(--text-3)">无漂移 — 全部文件与渲染期望一致</span></div>`;
-  }
-}
-
-/* ---------------- pre-validation banner ---------------- */
+/* ---------------- pre-validation banner (local source + DSH target, locked §10.2) ---------------- */
 function updatePrevalVisibility(){
   const z = $('#preval');
-  const applies = state.srcMode==='local' && state.targets.has('dsh');
+  const applies = state.srcMode==='local' && cur()==='dsh';
   const show = applies && state.preval!=='na';
   z.hidden = !show;
-  if(!show){ updateApplyButtons(); return; }
+  if(!show){ updateDlgButtons(); return; }
   if(state.preval==='checking'){
     z.innerHTML = `<div class="bn info"><span class="spin"></span>
       <div class="bn-c"><div class="bn-t" style="color:var(--accent)">正在预校验本地源…</div>
@@ -1795,42 +1965,21 @@ function updatePrevalVisibility(){
       <ul><li>语法检查 — lane-plugin/index.js:42 Unexpected token</li><li>提示模块检查 — prompts.generated.js 动态导入失败</li></ul></div>
       <div class="bn-a"><button class="btn btn-sm" onclick="setPreval('checking')"><svg class="ic"><use href="#i-ref"/></svg>重新校验</button></div></div>`;
   }
-  updateApplyButtons();
+  updateDlgButtons();
 }
 function setPreval(v){ state.preval=v; syncDemoSeg('preval', v); updatePrevalVisibility(); }
 
-/* drift repair (locked): no ad-hoc write — routes into the normal plan/execute flow with 覆盖 forced on */
-function driftRepair(){
-  closeDialogs();
-  setPage('deploy');
-  if(!state.force){
-    state.force = true;
-    $('#swForce').setAttribute('aria-checked','true');
-    $('#forceHint').hidden = true; $('#forceHintOn').hidden = false;
-  }
-  syncForce();
-  genPreview();
-  toast('已开启覆盖模式并重新生成预览','warn','请确认预览后点击「开始安装」');
-}
-
-/* dsh detection (locked payload: {home, homeSource:'env'|'default', exists, profile:{name}|null, profilesCount}) */
+/* dsh detection (locked payload §10.5): sidebar env card + location displays */
 const DSH_STATES = {
-  missing:{dot:'off', text:'未找到 DSH 主目录 · 仍可安装', chip:false, env:'未找到'},
-  multi:{dot:'ok', text:'未找到唯一 profile（共 2 个候选）· 仍可安装', chip:true, env:'2 候选'},
-  profile:{dot:'ok', text:'profile：dev', chip:true, env:'dev'},
+  missing:{dot:'off', text:'未找到 DSH 主目录 · 仍可安装', chip:false, env:'未找到', home:'—', profile:'—'},
+  multi:{dot:'ok', text:'未找到唯一 profile（共 2 个候选）· 仍可安装', chip:true, env:'2 候选', home:'D:\\dsh', profile:'未找到唯一（共 2 个候选）'},
+  profile:{dot:'ok', text:'profile：dev', chip:true, env:'dev', home:'D:\\dsh', profile:'dev'},
 };
 function applyDsh(v){
   const s = DSH_STATES[v] || DSH_STATES.profile;
   state.dsh = v;
-  $('#dshDot').className = 'dot ' + s.dot;
-  $('#dshStat').textContent = s.text;
-  $('#dshExtra').hidden = !s.chip;
-  $('#envDshDot').className = 'dot ' + s.dot;
-  $('#envDsh').textContent = s.env;
-}
-function updatePrevalAuto(){
-  // auto-derive: applies when local+dsh selected
-  updatePrevalVisibility();
+  void s; // sidebar dsh row removed — the demo row still drives the deploy scope bar
+  renderDepScope(); renderDepMain(); renderDlgScope();
 }
 
 /* ---------------- skills ---------------- */
@@ -1930,37 +2079,50 @@ function syncDemoSeg(key, val){
   if(!seg) return;
   seg.querySelectorAll('.seg-b').forEach(b=>b.classList.toggle('is-on', b.dataset.dv===val));
 }
+/* keep the demo panel in step with real interactions on the deploy page/dialog */
+function syncDepDemo(){
+  syncDemoSeg('dep', cur());
+  syncDemoSeg('tstate', curSt());
+  syncDemoSeg('dlg', state.dlg.open ? state.dlg.view : 'closed');
+  syncDemoSeg('run', state.run);
+}
+function demoDlg(v){
+  if(v==='closed'){ if(state.dlg.open) closeDialogs(); return; }
+  if(!state.dlg.open) openDeploy(state.dlg.from||'deploy', v);
+  else setDlgView(v);
+  if(v==='preview' && !state.dlg.planned){ state.dlg.planned = true; state.dlg.stale = false; renderDlgPreview(); }
+}
+function demoRun(v){
+  if(!state.dlg.open) openDeploy('deploy','log');
+  else if(state.dlg.view!=='log') setDlgView('log');
+  if(v==='running') startRun(false);
+  else if(v==='idle'){ stopTimer(); state.run='idle'; clearLog(); resetLogEmpty(); setRunUI(); }
+  else renderStaticRun(v);
+}
 $$('.seg[data-dk]').forEach(seg=>{
   seg.querySelectorAll('.seg-b').forEach(b=>{
     b.onclick = ()=>{
+      if(b.disabled) return;
       const k = seg.dataset.dk, v = b.dataset.dv;
       syncDemoSeg(k, v);
-      if(k==='preview'){ state.preview=v; state.stale=false; renderPlan(); setTab('preview'); updateApplyButtons(); }
-      else if(k==='run'){
-        if(v==='running') startRun(false);
-        else if(v==='success') renderStaticRun('success');
-        else if(v==='failed') renderStaticRun('failed');
-        else if(v==='cancelled') renderStaticRun('cancelled');
-        else { stopTimer(); state.run='idle'; clearLog(); $('#log').innerHTML='<div class="log-empty" id="logEmpty"><svg class="ic" style="width:20px;height:20px"><use href="#i-term"/></svg>尚未开始安装 — 点击「开始安装」后此处将流式输出日志</div>'; setRunUI(); }
-      }
+      if(k==='dep'){ guardDep(()=>setDepTab(v)); }
+      else if(k==='tstate'){ setDepState(cur(), v); }
+      else if(k==='dlg'){ demoDlg(v); }
+      else if(k==='run'){ demoRun(v); }
       else if(k==='dsh'){ applyDsh(v); }
-      else if(k==='tier2'){ state.tier2=v; renderHealth(); }
-      else if(k==='drift'){ state.drift=v; renderHealth(); }
       else if(k==='preval'){ state.preval=v; updatePrevalVisibility(); }
       else if(k==='net'){ state.net=v; renderSkills(); }
-      else if(k==='lsrc'){ state.lsrc=v; if(state.srcMode!=='local'){ $('.src[data-src="local"]').click(); } else applyLocalHint(); }
+      else if(k==='lsrc'){ state.lsrc=v; if(state.srcMode!=='local'){ $('#dp-config .src[data-src="local"]').click(); } else applyLocalHint(); }
       else if(k==='theme'){ state.theme=v; document.documentElement.dataset.theme=v; }
     };
   });
 });
 
 /* ---------------- init ---------------- */
-renderPlan();
-renderHealth();
+renderDepAll();
 renderSkills();
 applyDsh(state.dsh);
-syncForce();
-updateApplyButtons();
+syncDepDemo();
 </script>
 </body>
 </html>

@@ -46,7 +46,7 @@
 //! Error surfacing: every command rejects with a single-line message string;
 //! the frontend's `describeIpcError` renders it directly.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -60,12 +60,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+use workbench_core::deployed::{self, DeployedAgent, DeployedParams, DeployedTargetState};
 use workbench_core::skills::{
     self, InstalledSkill, SkillChange, SkillListing, SkillSource, UreqGitHubClient,
 };
 use workbench_core::types::{
     DriftReport, EngineContext, EnvironmentInfo, EventSink, InstallEvent, InstallReport, LogLevel,
-    Plan, Selection, StructuralProblem, Tier1Report, Tier2Report, Tier2Status,
+    Plan, Selection, StructuralProblem, Target, Tier1Report, Tier2Report, Tier2Status,
 };
 use workbench_core::{checks, dsh, engine, render, WorkbenchError};
 
@@ -781,6 +782,90 @@ async fn validate_custom_source(app: AppHandle, source_root: String) -> Result<D
     })
 }
 
+// ------------------------------------------------------- deployed agents
+
+/// The project directory argument, trimmed; an empty/whitespace string is
+/// "not set" (the core then refuses project-level opencode/claude scopes).
+fn trimmed_project_dir(raw: Option<String>) -> Option<PathBuf> {
+    raw.map(|dir| dir.trim().to_string())
+        .filter(|dir| !dir.is_empty())
+        .map(PathBuf::from)
+}
+
+/// `deployed_*` shared inputs: the user home, the ambient DSH home (resolved
+/// exactly like the engine: `$DSH_HOME` wins over `<home>/.dsh`), the
+/// trimmed project directory argument and the `--user` toggle.
+fn deployed_params<'a>(
+    home: &'a Path,
+    dsh_home: &'a Path,
+    project_dir: Option<&'a Path>,
+    user_level: bool,
+) -> DeployedParams<'a> {
+    DeployedParams {
+        project_dir,
+        user_level,
+        home,
+        dsh_home,
+    }
+}
+
+/// Per-target deployed state for ALL four targets (APPLY_ORDER): whether an
+/// install left content behind (opencode/claude/zcode: at least one
+/// `<scope>/agents/*.md` other than `AGENTS.md`; dsh: the preset root
+/// exists) and the human-readable scope root for display (`""` when the
+/// scope cannot resolve — project level without a project directory).
+#[tauri::command]
+fn deployed_overview(
+    project_dir: Option<String>,
+    user_level: bool,
+) -> Result<Vec<DeployedTargetState>, String> {
+    let home = home_dir()?;
+    let dsh_home = dsh::dsh_home(&home);
+    let project = trimmed_project_dir(project_dir);
+    let params = deployed_params(&home, &dsh_home, project.as_deref(), user_level);
+    Ok(deployed::deployed_overview(&params))
+}
+
+/// Every deployed agent of one target, sorted by file name — name,
+/// description, verbatim body and the backend's current model-setting
+/// values. dsh lists nothing (deployed state only).
+#[tauri::command]
+fn deployed_list_agents(
+    target: Target,
+    project_dir: Option<String>,
+    user_level: bool,
+) -> Result<Vec<DeployedAgent>, String> {
+    let home = home_dir()?;
+    let dsh_home = dsh::dsh_home(&home);
+    let project = trimmed_project_dir(project_dir);
+    let params = deployed_params(&home, &dsh_home, project.as_deref(), user_level);
+    deployed::list_deployed_agents(&params, target).map_err(error_message)
+}
+
+/// Rewrite ONE deployed agent file: the body is replaced verbatim, the
+/// backend's model-setting keys are set/updated (`Some`) or cleared
+/// (`None`), every other frontmatter line survives. Path-safe: `fileName`
+/// must name an existing `.md` file inside the target's `agents/` directory
+/// (no separators, no `..`, no symlink escape). Returns the saved state.
+#[tauri::command]
+fn deployed_save_agent(
+    target: Target,
+    project_dir: Option<String>,
+    user_level: bool,
+    file_name: String,
+    body: String,
+    settings: HashMap<String, Option<String>>,
+) -> Result<DeployedAgent, String> {
+    let home = home_dir()?;
+    let dsh_home = dsh::dsh_home(&home);
+    let project = trimmed_project_dir(project_dir);
+    let params = deployed_params(&home, &dsh_home, project.as_deref(), user_level);
+    // BTreeMap: the core reads per backend key; order never matters.
+    let settings = settings.into_iter().collect::<BTreeMap<_, _>>();
+    deployed::save_deployed_agent(&params, target, &file_name, &body, &settings)
+        .map_err(error_message)
+}
+
 // -------------------------------------------------- skills management (M2)
 
 /// Default subdirectory inside a skill repo ("default skill
@@ -807,13 +892,23 @@ const KEYRING_SERVICE: &str = "my-workbench";
 const KEYRING_USER: &str = "github-pat";
 
 /// User settings: the skill root (default
-/// `<home>/.agents/skills`) and the UI language. Serialized camelCase
-/// (`skillsRoot`); missing fields fall back to the defaults.
+/// `<home>/.agents/skills`), the UI language, and the Deploy page's context
+/// (the picked project directory and the `--user` toggle, persisted so the
+/// page restores and the deployed-agent commands receive the same values).
+/// Serialized camelCase (`skillsRoot`, `projectDir`, `userLevel`); missing
+/// fields fall back to the defaults, so existing settings files load
+/// unchanged.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 struct AppSettings {
     skills_root: String,
     language: String,
+    /// The Deploy page's project directory (`None` = not picked yet).
+    #[serde(default)]
+    project_dir: Option<String>,
+    /// The Deploy page's user-level toggle.
+    #[serde(default)]
+    user_level: bool,
 }
 
 impl Default for AppSettings {
@@ -821,6 +916,8 @@ impl Default for AppSettings {
         Self {
             skills_root: default_skills_root(),
             language: "zh".to_string(),
+            project_dir: None,
+            user_level: false,
         }
     }
 }
@@ -1165,7 +1262,8 @@ fn settings_get(app: AppHandle) -> Result<AppSettings, String> {
 
 /// Persist the settings part; the source list is preserved. Returns the
 /// normalized settings actually stored (trimmed skills root with `~`
-/// expanded, non-empty language defaulting to "zh").
+/// expanded, non-empty language defaulting to "zh", trimmed project
+/// directory defaulting to absent, user-level toggle as given).
 #[tauri::command]
 fn settings_set(app: AppHandle, settings: AppSettings) -> Result<AppSettings, String> {
     let path = settings_path(&app)?;
@@ -1178,9 +1276,15 @@ fn settings_set(app: AppHandle, settings: AppSettings) -> Result<AppSettings, St
             trimmed.to_string()
         }
     };
+    let project_dir = settings
+        .project_dir
+        .map(|dir| dir.trim().to_string())
+        .filter(|dir| !dir.is_empty());
     file.settings = AppSettings {
         skills_root: normalize_skills_root(&settings.skills_root)?,
         language,
+        project_dir,
+        user_level: settings.user_level,
     };
     write_json_atomic(&path, &file)?;
     Ok(file.settings)
@@ -1497,6 +1601,9 @@ pub fn run() {
             cancel_install,
             check_drift,
             validate_custom_source,
+            deployed_overview,
+            deployed_list_agents,
+            deployed_save_agent,
             skills_list_sources,
             skills_add_source,
             skills_update_source,

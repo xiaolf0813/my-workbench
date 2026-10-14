@@ -1,11 +1,10 @@
 // Deploy-area helpers: plan-table derivation, DSH detection states (SPEC §10.5),
-// formatters. Pure functions only — no React, no IPC.
+// per-backend reasoning vocabulary + location labels for the v2 page
+// (deploy-redesign-notes §2), formatters. Pure functions only — no React, no IPC.
 import { TARGET_ORDER } from "../../lib/ipc";
 import type { DshInfo, EnvironmentInfo, InstallReport, Plan, PlanKind, Selection, Source, Target } from "../../lib/ipc";
 
-export type TabId = "preview" | "log" | "health";
 export type RunState = "idle" | "running" | "success" | "failed" | "cancelled";
-export type PlanFilter = "all" | PlanKind;
 
 export interface LogLine {
   id: number;
@@ -168,6 +167,76 @@ export function targetDetail(env: EnvironmentInfo, t: Target): string | null {
 }
 
 /* ------------------------------------------------------------------ */
+/* Deploy v2 — per-backend reasoning vocabulary + location labels       */
+/* (deploy-redesign-notes §2; SPEC §3.21/§4.3)                          */
+/* ------------------------------------------------------------------ */
+
+/** The per-backend reasoning-level frontmatter key (`deployed.rs`/`preserve.rs`). */
+export type ReasoningKey = "variant" | "effort" | "thoughtLevel";
+
+/** zh chip/field label per backend: opencode 变体 · claude 推理强度 · zcode 思考等级; dsh has none. */
+export function reasoningLabel(target: Target): string | null {
+  switch (target) {
+    case "opencode":
+      return "变体";
+    case "claude":
+      return "推理强度";
+    case "zcode":
+      return "思考等级";
+    case "dsh":
+      return null;
+  }
+}
+
+/** The settings-map key the editor reads/writes for the reasoning level. */
+export function reasoningKeyOf(target: Target): ReasoningKey | null {
+  switch (target) {
+    case "opencode":
+      return "variant";
+    case "claude":
+      return "effort";
+    case "zcode":
+      return "thoughtLevel";
+    case "dsh":
+      return null;
+  }
+}
+
+/** Select candidates for the editor's 模型 field (mockup MODELS; the current value is merged in by the caller). */
+export const MODEL_OPTIONS: readonly string[] = ["glm", "glm-lite", "glm-air"];
+
+/** Select candidates for the editor's reasoning field (mockup LEVELS; merged with the current value). */
+export const REASONING_LEVELS: readonly string[] = ["high", "medium", "low"];
+
+/** The deployed dsh preset (the app's own content source); used in the dsh status line + preset summary. */
+export const DSH_PRESET_NAME = "my-workbench";
+
+/** A machine-owned settings value; `null` (key absent) renders as the 未设置 placeholder.
+ *  Shared by the agent card chips and the detail page's read-only header chips. */
+export function chipValue(v: string | null | undefined): string {
+  const t = (v ?? "").trim();
+  return t === "" ? "未设置" : t;
+}
+
+/** Full displayed path of a deployed agent file (scope root from `deployed_overview`). */
+export function agentFilePath(scopeLabel: string, fileName: string): string {
+  if (scopeLabel.trim() === "") return fileName;
+  return `${scopeLabel.replace(/[\\/]+$/, "")}\\agents\\${fileName}`;
+}
+
+/** {项目级|用户级} for dialog meta + scope context; zcode/dsh are always user-level (engine parity). */
+export function realmLabel(target: Target, userLevel: boolean): string {
+  return target === "opencode" || target === "claude" ? (userLevel ? "用户级" : "项目级") : "用户级";
+}
+
+/** Short install-location word for the not-deployed empty state (mockup locShort). */
+export function locationShort(target: Target, userLevel: boolean): string {
+  if (target === "zcode") return "~\\.zcode";
+  if (target === "dsh") return "DSH_HOME";
+  return userLevel ? "用户配置目录" : "项目目录";
+}
+
+/* ------------------------------------------------------------------ */
 /* Formatters                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -178,13 +247,4 @@ export function hhmmss(d: Date): string {
 
 export function fmtDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
-}
-
-/** 「上次检查 …」 relative label. */
-export function relTime(from: Date, now: Date): string {
-  const diffMs = now.getTime() - from.getTime();
-  if (diffMs < 60_000) return "刚刚";
-  const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 60) return `${minutes} 分钟前`;
-  return hhmmss(from);
 }

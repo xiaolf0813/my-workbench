@@ -66,6 +66,9 @@ export interface StructuralProblem {
   detail: string;
 }
 
+/** Retained for `validate_custom_source` (local-source pre-validation, a
+ *  separate feature); the health-check/drift UI surface was UI-removed
+ *  2026-10 (SPEC §10 tail note) — the backend `check_drift` command stays. */
 export interface DriftFile {
   path: string;
   sourceRel: string;
@@ -138,7 +141,6 @@ const COMMAND_LABELS: Record<string, string> = {
   plan_install: "预览生成",
   execute_install: "安装",
   cancel_install: "停止安装",
-  check_drift: "健康检查",
   validate_custom_source: "预校验",
   settings_get: "设置读取",
   settings_set: "设置保存",
@@ -155,6 +157,9 @@ const COMMAND_LABELS: Record<string, string> = {
   skills_install: "技能安装",
   skills_update: "技能更新",
   skills_delete: "技能删除",
+  deployed_overview: "已部署状态读取",
+  deployed_list_agents: "已部署智能体读取",
+  deployed_save_agent: "已部署智能体保存",
 };
 
 function labelFor(command: string): string {
@@ -236,10 +241,6 @@ export function executeInstall(plan: Plan, selection: Selection): Promise<Instal
 
 export function cancelInstall(): Promise<void> {
   return call<void>("cancel_install");
-}
-
-export function checkDrift(selection: Selection): Promise<DriftReport> {
-  return call<DriftReport>("check_drift", { selection });
 }
 
 export function validateCustomSource(sourceRoot: string): Promise<DriftReport> {
@@ -329,6 +330,10 @@ export type SkillChange =
 export interface AppSettings {
   skillsRoot: string;
   language: string;
+  /** The Deploy page's project directory (`null` = not picked yet). */
+  projectDir: string | null;
+  /** The Deploy page's user-level toggle. */
+  userLevel: boolean;
 }
 
 /** `pat_status` result — ONLY the boolean; the token never round-trips. */
@@ -469,6 +474,75 @@ export function patSet(token: string): Promise<void> {
 
 export function patClear(): Promise<void> {
   return call<void>("pat_clear");
+}
+
+/* ------------------------------------------------------------------ */
+/* Deployed agents contract types & wrappers (shapes verified against  */
+/* src-tauri/src/lib.rs and crates/workbench-core/src/deployed.rs,     */
+/* camelCase)                                                          */
+/* ------------------------------------------------------------------ */
+
+/** One target's deployed state row (`deployed_overview`, APPLY_ORDER). */
+export interface DeployedTargetState {
+  target: Target;
+  deployed: boolean;
+  /** Human-readable scope root for display; "" when unresolvable. */
+  scopeLabel: string;
+  /** dsh only: recursive regular-file count under the preset root; null for the other targets and when the root is absent or empty. */
+  presetFileCount: number | null;
+  /** dsh only: newest preset file mtime in millis; null for the other targets and when the root is absent or empty. */
+  deployedAtMs: number | null;
+}
+
+/** One deployed agent markdown of a target (`deployed_list_agents`). */
+export interface DeployedAgent {
+  name: string;
+  description: string | null;
+  fileName: string;
+  /** Everything after the closing frontmatter fence, verbatim. */
+  body: string;
+  /** The backend's model keys → current value (null = absent); every backend key is present. */
+  settings: Record<string, string | null>;
+}
+
+export function deployedOverview(args: {
+  projectDir: string | null;
+  userLevel: boolean;
+}): Promise<DeployedTargetState[]> {
+  return call<DeployedTargetState[]>("deployed_overview", {
+    projectDir: args.projectDir,
+    userLevel: args.userLevel,
+  });
+}
+
+export function deployedListAgents(args: {
+  target: Target;
+  projectDir: string | null;
+  userLevel: boolean;
+}): Promise<DeployedAgent[]> {
+  return call<DeployedAgent[]>("deployed_list_agents", {
+    target: args.target,
+    projectDir: args.projectDir,
+    userLevel: args.userLevel,
+  });
+}
+
+export function deployedSaveAgent(args: {
+  target: Target;
+  projectDir: string | null;
+  userLevel: boolean;
+  fileName: string;
+  body: string;
+  settings: Record<string, string | null>;
+}): Promise<DeployedAgent> {
+  return call<DeployedAgent>("deployed_save_agent", {
+    target: args.target,
+    projectDir: args.projectDir,
+    userLevel: args.userLevel,
+    fileName: args.fileName,
+    body: args.body,
+    settings: args.settings,
+  });
 }
 
 /**

@@ -139,7 +139,6 @@ kbd.kbd { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); 
 .ph-sub { font-size: 12.5px; color: var(--text-3); margin-top: 3px; }
 /* right padding keeps the action cluster clear of the fixed .win-ctl overlay
    (3 × 46px = 138px wide at top:0 right:0 — SPEC §3.18) */
-.ph-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; padding-right: 150px; }
 .page-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 /* ---------- buttons ---------- */
@@ -181,10 +180,92 @@ kbd.kbd { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); 
 .card-hr { margin-left: auto; display: flex; gap: 4px; align-items: center; }
 .card-b { padding: 14px; }
 
-/* ---------- deploy grid ---------- */
-.dgrid { flex: 1; min-height: 0; display: grid; grid-template-columns: 384px minmax(0, 1fr); gap: 16px; }
-.dcol { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow-y: auto; padding-right: 2px; padding-bottom: 4px; }
-.dcol-b { display: flex; flex-direction: column; gap: 14px; padding-bottom: 4px; }
+/* ---------- deploy page v2 (SPEC §4, 2026-10 redesign): backend tab pills +
+   realm scope bar + agent cards + detail editor on the page; the deploy
+   machinery moved into the target-scoped deploy dialog (§4.6). Same tokens,
+   same radius scale; single fluid column serves the 1024×680 minimum. ---------- */
+.dep-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; padding-bottom: 8px; } /* full-fluid: fills .main with the window (no width cap) */
+.dep-main { flex: 1; min-height: 0; display: flex; flex-direction: column; } /* min-height:100% would add toolbar+scopebar on top of a full-height body and force a scrollbar on every roster state */
+.dep-main > .fhint.roster-loading { margin: 12px 0; }
+.dep-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex: none; }
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.tb { display: inline-flex; align-items: center; height: 32px; padding: 0 15px; border-radius: 999px; border: 1px solid var(--border-strong);
+  font-family: var(--font-mono); font-size: 12.5px; font-weight: 500; color: var(--text-2);
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
+.tb:hover { color: var(--text-1); background: var(--bg-raised); }
+.tb.is-on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
+.tb.is-on:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.dep-status { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.dep-acts { display: flex; gap: 8px; }
+.dep-scopebar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex: none; flex-wrap: wrap; min-height: 32px; }
+.dep-scopebar .path { width: 300px; }
+.dep-loclabel { font-size: 12px; font-weight: 600; color: var(--text-2); }
+.dep-loc { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); flex-wrap: wrap; }
+.dep-loc .mono { color: var(--text-1); }
+.fixchip { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); border: 1px solid var(--border-strong); border-radius: 4px; padding: 0 5px; line-height: 16px; }
+
+/* agent cards (SPEC §3.20): one card per deployed agent file; clicking a card
+   navigates to the full-page detail view (§3.22) — no open/closed card state */
+.agclist { display: flex; flex-direction: column; gap: 10px; }
+.agc { width: 100%; text-align: left; display: flex; flex-direction: column; gap: 7px; padding: 12px 16px; background: var(--bg-surface);
+  border: 1px solid var(--border); border-radius: 10px; transition: border-color var(--t-fast), background var(--t-fast); }
+.agc:hover { border-color: var(--border-strong); background: var(--bg-raised); }
+.agc-top { display: flex; align-items: center; gap: 10px; width: 100%; }
+.agc-name { font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: -.01em; }
+.agc-chips { margin-left: auto; display: flex; gap: 6px; flex: none; }
+.achip { font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--text-2); background: var(--bg-raised);
+  border: 1px solid var(--border-strong); border-radius: 999px; padding: 2px 10px; line-height: 16px; white-space: nowrap; }
+.agc-file { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.agc-prev { font-family: var(--font-mono); font-size: 12px; line-height: 1.65; color: var(--text-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* editor status dots: warn/err variants of the §3.3 dot */
+.dot.warn { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-tint); }
+.dot.err { background: var(--err); box-shadow: 0 0 0 3px var(--err-tint); }
+
+/* agent detail page (SPEC §3.22, 2026-10): full-page view that replaces the
+   deploy content area below the page header — tab bar, scope bar and card list
+   give way; page-level title row (返回 + mono name), then a chromeless editor
+   column directly on the page background — only the prompt textarea is framed */
+.adp-wrap { display: flex; flex-direction: column; min-height: 0; /* fill-height editor: title/fields on top, textarea flexes, footer bottom-pinned; overflow-y (from .dep-wrap) is the short-window fallback */
+  padding-top: 20px; /* clears the floating win-ctl strip — the roster header that normally offsets it is not rendered (§3.18) */
+  /* flush-glyph compensation: .adp-back pulls 14px left (its .btn padding), and the
+     focus ring overhangs 4px more (—ring's outer 4px shadow) — shift the scroll
+     container's clip boundary (its padding box) 18px left so pill + ring paint fully
+     while every row stays at x=0 (column is full-fluid, no width cap) */
+  margin-left: -18px; padding-left: 18px; }
+.adp-wrap > div { flex: 1; min-height: 0; display: flex; flex-direction: column; } /* the labelled region wraps title + editor */
+.adp-title { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; } /* page background, no card chrome */
+.adp-back { flex: none; margin-left: -14px; } /* cancel .btn's `padding: 0 14px` — icon lands flush on the textarea frame's left edge (x=0); hover/focus pill keeps its full hit area */
+.adp-back .ic { margin-left: -3px; } /* optical flush: the arrow artwork insets ~2.8px inside its 16px box (5/24 units at 16px scale, minus half the 1.7 stroke) — nudge so the painted glyph's left column matches the frame pixel; label spacing is rigid-followed, visually unchanged */
+.adp-name { font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: -.01em; }
+.adp { display: flex; flex-direction: column; flex: 1; min-height: 0; } /* chromeless editor column — no outer frame */
+.edt-meta { display: flex; align-items: center; gap: 12px; padding: 0 0 12px; flex-wrap: wrap; }
+.edt-fld { display: flex; flex-direction: row; align-items: center; gap: 8px; } /* inline group: label left of its select */
+.edt-fld .fsel { width: 170px; }
+.edt-b { flex: 1; min-height: 0; display: flex; } /* textarea consumes the space between field row and footer */
+.edt-ta { flex: 1; width: 100%; min-height: 230px; resize: none; background: var(--bg-inset); border: 1px solid var(--border-strong); border-radius: 7px;
+  padding: 10px 12px; font-family: var(--font-mono); font-size: 12px; line-height: 1.7; color: var(--text-1);   white-space: pre-wrap; overflow-wrap: break-word; overflow-y: auto; } /* fills .edt-b (internal scrolling; 230px floor + page-scroll fallback on very short windows) */
+
+/* dsh preset summary (SPEC §3.23): deployed state has no agent cards */
+.preset { margin-top: 14px; width: 340px; max-width: 100%; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 2px 0; text-align: left; }
+.pr-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 8px 16px; font-size: 12px; color: var(--text-2);
+  border-bottom: 1px solid var(--border); }
+.pr-row:last-child { border-bottom: 0; }
+.pr-row .mono { color: var(--text-1); font-size: 11.5px; }
+
+/* deploy dialog (SPEC §4.6): the former deploy workspace scoped to one target */
+.dlg-dep { width: 720px; position: relative; }
+.dlg-dep .livebar { border-radius: 12px 12px 0 0; }
+.dlg-tabrow { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex: none; }
+.dlg-tabrow .mut { margin-left: auto; }
+.dpane { display: none; flex-direction: column; gap: 12px; }
+.dpane.is-on { display: flex; }
+.dsec-t { font-size: 11px; font-weight: 600; letter-spacing: .05em; color: var(--text-3); }
+.dlg-dep .empty { flex: none; padding: 36px 20px; }
+.dlg-dep .logwrap { flex: none; height: 360px; }
+.dlg-dep .tblw { flex: none; max-height: 300px; }
 
 /* source radio cards */
 .srcgrid { display: flex; flex-direction: column; gap: 8px; }
@@ -219,29 +300,9 @@ kbd.kbd { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); 
 .fhint.err { color: var(--err); }
 .fhint.warn { color: var(--warn); }
 
-/* target checkbox cards */
-.tgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.tck { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
-  cursor: pointer; transition: border-color var(--t-fast), background var(--t-fast), opacity var(--t-fast); }
-.tck:hover { border-color: var(--border-strong); background: var(--bg-raised); }
-.tck.is-on { border-color: var(--accent-border); background: var(--accent-tint); }
-.tck.is-dis { opacity: .45; cursor: not-allowed; }
-.tck.is-dis:hover { background: none; border-color: var(--border); }
-.tck input { position: absolute; opacity: 0; pointer-events: none; }
-/* focus ring on the card when the visually-hidden checkbox is keyboard-focused (SPEC §9) */
-.tck:has(input:focus-visible) { box-shadow: var(--ring); }
-.trow { display: flex; align-items: center; gap: 8px; }
-.tbox { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--border-strong); flex: none; display: grid; place-items: center;
-  transition: background var(--t-fast), border-color var(--t-fast); }
-.tbox svg { width: 10px; height: 10px; stroke: #fff; stroke-width: 3; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
-.tck.is-on .tbox { background: var(--accent); border-color: var(--accent); }
-.tck.is-on .tbox svg { opacity: 1; }
-.tname { font-size: 13px; font-weight: 600; font-family: var(--font-mono); letter-spacing: -.01em; }
-.tstat { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-3); padding-left: 23px; }
-.tstat .mutex { color: var(--warn); }
-.mutex-line { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-3); margin-top: 9px; }
-.mutex-line .ic { width: 13px; height: 13px; color: var(--warn); }
-.textra { margin: 4px 0 0 23px; display: flex; }
+/* dsh env-override chip (SPEC §10.5) — rendered in the page scope bar and the
+   deploy dialog's fixed 安装位置 line; the former target checkbox grid
+   (.tgrid/.tck, SPEC §3.4 target cards) was removed by the deploy redesign. */
 .envchip { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 10px; color: var(--accent);
   background: var(--accent-tint); border: 1px solid var(--accent-border); border-radius: 4px; padding: 0 5px; line-height: 16px; }
 
@@ -261,14 +322,12 @@ kbd.kbd { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); 
 .sw[aria-checked="true"]::after { transform: translateX(14px); }
 .sw:disabled { opacity: .45; cursor: not-allowed; }
 
-/* ---------- preview panel ---------- */
-.panel { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-surface);
-  border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+/* ---------- deploy dialog panes (v2): the dialog chrome replaces the panel;
+   the 2px install live bar (SPEC §3.9) is mounted on the dialog (.dlg-dep) --- */
 .livebar { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--bg-inset); z-index: 5; opacity: 0; transition: opacity var(--t-med); }
 .livebar.is-on { opacity: 1; }
 .livebar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), #8ce8f2); transition: width .25s var(--ease); }
 .livebar.done i { background: var(--ok); }
-.panel-h { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--border); flex: none; }
 .seg { display: flex; gap: 2px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 8px; padding: 3px; }
 .seg-b { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 12px; border-radius: 6px; font-size: 12.5px; font-weight: 500;
   color: var(--text-2); transition: background var(--t-fast), color var(--t-fast); }
@@ -276,27 +335,16 @@ kbd.kbd { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); 
 .seg-b.is-on { background: var(--bg-raised); color: var(--text-1); box-shadow: var(--shadow-1); }
 .seg-b .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
-/* Deploy 安装方式 merged block (SPEC §4.1): two-line scope segments — token-exact variant of .seg */
-.seg-scope { margin-bottom: 10px; }
-.seg-scope .seg-b { flex: 1; justify-content: center; height: auto; padding: 5px 12px; }
-.seg-scope .seg-b[aria-pressed="true"] { background: var(--bg-raised); color: var(--text-1); box-shadow: var(--shadow-1); }
-.seg-scope .seg-sc { display: flex; flex-direction: column; gap: 1px; line-height: 1.3; text-align: left; }
-.seg-scope .seg-st { font-size: 11px; font-weight: 400; color: var(--text-3); }
 .scope-opts { margin-top: 10px; border-top: 1px solid var(--border); }
-.panel-hr { margin-left: auto; display: flex; gap: 6px; align-items: center; }
-.panel-b { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.pane { display: none; flex: 1; min-height: 0; flex-direction: column; }
-.pane.is-on { display: flex; }
 
-/* filter chips */
-.chips { display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border); flex: none; flex-wrap: wrap; align-items: center; }
+/* filter chips (.chip is shared with the skills toolbar; the deploy plan table
+   no longer renders the chip row — scoped plans are small) */
 .chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border-radius: 6px; font-size: 12px; color: var(--text-2);
   border: 1px solid var(--border); background: transparent; transition: all var(--t-fast); }
 .chip b { font-weight: 600; color: var(--text-3); font-variant-numeric: tabular-nums; }
 .chip:hover { border-color: var(--border-strong); color: var(--text-1); }
 .chip.is-on { background: var(--accent-tint); border-color: var(--accent-border); color: var(--accent); }
 .chip.is-on b { color: var(--accent); }
-.chips-right { margin-left: auto; font-size: 11.5px; color: var(--text-3); display: flex; align-items: center; gap: 6px; }
 .stalebar { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--warn-tint); border-bottom: 1px solid var(--warn-border);
   font-size: 12px; color: var(--warn); flex: none; }
 .stalebar[hidden] { display: none; }
@@ -393,45 +441,6 @@ table.tbl { width: 100%; border-collapse: collapse; }
   border-radius: 6px; padding: 8px 10px; word-break: break-all; }
 .report-a { display: flex; gap: 8px; }
 .log-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--text-3); font-size: 12.5px; font-family: var(--font-ui); }
-
-/* health tab */
-.hscroll { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; }
-.hctx { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text-2); flex-wrap: wrap; }
-.hctx .mono { color: var(--text-1); background: var(--bg-inset); border: 1px solid var(--border); border-radius: 5px; padding: 2px 8px; font-size: 11.5px; }
-.hctx .btn { margin-left: auto; }
-.tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.tier { border: 1px solid var(--border); border-radius: 10px; background: var(--bg-surface); display: flex; flex-direction: column; min-width: 0; }
-.tier-h { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
-.tier-nt { font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; color: var(--text-3); background: var(--bg-raised);
-  border: 1px solid var(--border-strong); border-radius: 4px; padding: 1px 6px; }
-.tier-t { font-size: 13px; font-weight: 600; }
-.tier-s { font-size: 11px; color: var(--text-3); }
-.tier-badge { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 5px; }
-.tier-badge.ok { color: var(--ok); background: var(--ok-tint); border: 1px solid var(--ok-border); }
-.tier-badge.warn { color: var(--warn); background: var(--warn-tint); border: 1px solid var(--warn-border); }
-.tier-badge.err { color: var(--err); background: var(--err-tint); border: 1px solid var(--err-border); }
-.tier-b { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--text-2); }
-.tier-row { display: flex; align-items: center; gap: 8px; }
-.tier-row .ic { width: 14px; height: 14px; }
-.tier-row .ic.okc { color: var(--ok); }
-.tier-row .ic.errc { color: var(--err); }
-.tier-row .mono { font-size: 11px; color: var(--text-3); }
-.tier-note { border: 1px solid var(--warn-border); background: var(--warn-tint); border-radius: 8px; padding: 10px 12px; font-size: 12px; color: var(--warn); line-height: 1.6; }
-.tier-note b { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-.tier-note .ic { width: 14px; height: 14px; }
-.tier-note .mut2 { color: var(--text-2); }
-.tier-f { padding: 10px 14px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-3); line-height: 1.55; }
-.sect-t { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; }
-.sect-t .cnt { font-size: 11.5px; font-weight: 500; color: var(--warn); background: var(--warn-tint); border: 1px solid var(--warn-border); border-radius: 5px; padding: 1px 8px; }
-.drift { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
-.drift-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); transition: background var(--t-fast); }
-.drift-row:last-child { border-bottom: 0; }
-.drift-row:hover { background: var(--bg-raised); }
-.drift-row .ic.w { width: 15px; height: 15px; color: var(--warn); }
-.drift-p { font-family: var(--font-mono); font-size: 12px; }
-.drift-p .dir { color: var(--text-3); }
-.drift-n { font-size: 11.5px; color: var(--text-3); }
-.drift-row .btn { margin-left: auto; }
 
 /* banners */
 .bn { display: flex; align-items: flex-start; gap: 10px; border-radius: 9px; border: 1px solid; padding: 10px 12px; }
@@ -583,14 +592,6 @@ html[data-theme="light"] .oback { background: rgba(24, 33, 48, .35); }
 .modlist .ml-r { display: flex; gap: 8px; align-items: center; padding: 7px 12px; font-family: var(--font-mono); font-size: 11.5px; border-bottom: 1px solid var(--border); }
 .modlist .ml-r:last-child { border-bottom: 0; }
 .modlist .ml-r .ic { width: 13px; height: 13px; color: var(--warn); }
-.diff2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.diff2 .dpan { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.diff2 .dp-h { padding: 6px 10px; font-size: 11px; font-weight: 600; color: var(--text-2); background: var(--bg-inset); border-bottom: 1px solid var(--border);
-  display: flex; gap: 6px; align-items: center; }
-.diff2 .dp-h .ic { width: 12px; height: 12px; }
-.diff2 pre { margin: 0; padding: 10px; font-family: var(--font-mono); font-size: 11px; line-height: 1.7; color: var(--text-2); overflow-x: auto; background: var(--bg-inset); white-space: pre-wrap; word-break: break-all; }
-.diff2 .add { display: block; background: var(--ok-tint); color: var(--ok); }
-.diff2 .del { display: block; background: var(--err-tint); color: var(--err); }
 
 /* ---------- toast ---------- */
 .toasts { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 80; }
@@ -608,12 +609,9 @@ html[data-theme="light"] .oback { background: rgba(24, 33, 48, .35); }
   animation: rot .8s linear infinite; flex: none; }
 @keyframes rot { to { transform: rotate(360deg); } }
 
-/* responsive: narrow window stacks columns */
+/* responsive: the old deploy <1080px stacking breakpoint is gone (v2 single
+   fluid column, SPEC §2); the skills column keeps its narrow-width trims */
 @media (max-width: 1080px) {
-  .dgrid { grid-template-columns: 1fr; overflow-y: auto; display: flex; flex-direction: column; }
-  .dcol { overflow: visible; }
-  .panel { min-height: 560px; }
-  .tiers { grid-template-columns: 1fr; }
   .sk-src, .sk-ver { display: none; }
   .sk-head .h2, .sk-head .h3 { display: none; }
 }

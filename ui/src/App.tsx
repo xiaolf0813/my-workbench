@@ -4,7 +4,7 @@
 // their empty background areas drag the window. 232px sidebar — brand, nav (部署/技能/
 // 设置, aria-current), footer environment card + side-note — and main. Pages stay
 // mounted (mockup behavior) so in-flight install/preview state survives nav.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DeployPage, type EnvStatus } from "./pages/DeployPage";
 import { SkillsPage } from "./pages/SkillsPage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -12,7 +12,7 @@ import { ToastProvider } from "./components/Toast";
 import TitleBar from "./components/TitleBar";
 import { Icon, type IconName } from "./icons";
 import { detectEnvironment, getAppVersion, describeIpcError, type EnvironmentInfo } from "./lib/ipc";
-import { bundledVersionLabel, dshEnvLabel, versionLabel } from "./pages/deploy/logic";
+import { bundledVersionLabel } from "./pages/deploy/logic";
 
 type PageId = "deploy" | "skills" | "settings";
 
@@ -24,6 +24,10 @@ const NAV: { id: PageId; label: string; icon: IconName }[] = [
 
 export default function App() {
   const [page, setPage] = useState<PageId>("deploy");
+  /** Deploy page installs its unsaved-changes guard here (notes §5.6): when an
+   *  editor is dirty, nav away from 部署 raises the guard dialog instead of
+   *  switching; 放弃更改 runs the deferred navigation. */
+  const deployNavGuardRef = useRef<((proceed: () => void) => boolean) | null>(null);
 
   const [env, setEnv] = useState<EnvironmentInfo | null>(null);
   const [envStatus, setEnvStatus] = useState<EnvStatus>("loading");
@@ -57,9 +61,6 @@ export default function App() {
     void getAppVersion().then(setAppVersion);
   }, []);
 
-  const nodeStatus = env?.node ?? null;
-  const opencodeStatus = env?.opencode ?? null;
-
   return (
     <ToastProvider>
       <TitleBar />
@@ -81,7 +82,13 @@ export default function App() {
                 type="button"
                 className={`nav-item${page === item.id ? " is-active" : ""}`}
                 aria-current={page === item.id ? "page" : undefined}
-                onClick={() => setPage(item.id)}
+                onClick={() => {
+                  if (page === item.id) return;
+                  const proceed = () => setPage(item.id);
+                  // Leaving 部署 with a dirty editor routes through the guard.
+                  if (page === "deploy" && deployNavGuardRef.current && !deployNavGuardRef.current(proceed)) return;
+                  proceed();
+                }}
               >
                 <Icon name={item.icon} />
                 {item.label}
@@ -90,30 +97,11 @@ export default function App() {
             ))}
           </nav>
           <div className="side-foot">
-            <div className="env-card" title="环境状态在启动与手动刷新时更新">
+            <div className="env-card" title="版本信息 · 内置源随应用打包">
               <div className="env-row">
                 <span className="dot acc" />
                 内置源
                 <span className="mono">{bundledVersionLabel(env, appVersion)}</span>
-              </div>
-              <div className="env-row">
-                <span className={nodeStatus?.present ? "dot ok" : "dot off"} />
-                Node
-                <span className="mono">
-                  {nodeStatus?.present ? versionLabel(nodeStatus.version) || "已检测到" : "未检测到"}
-                </span>
-              </div>
-              <div className="env-row">
-                <span className={opencodeStatus?.present ? "dot ok" : "dot off"} />
-                opencode
-                <span className="mono">
-                  {opencodeStatus?.present ? versionLabel(opencodeStatus.version) || "已检测到" : "未检测到"}
-                </span>
-              </div>
-              <div className="env-row">
-                <span className={env ? (env.dsh.exists ? "dot ok" : "dot off") : "dot off"} />
-                dsh profile
-                <span className="mono">{env ? dshEnvLabel(env.dsh) : "—"}</span>
               </div>
             </div>
           </div>
@@ -127,6 +115,7 @@ export default function App() {
               envError={envError}
               refreshEnv={() => void refreshEnv()}
               appVersion={appVersion}
+              navGuardRef={deployNavGuardRef}
             />
           </section>
           <section className={`page${page === "skills" ? " is-active" : ""}`}>

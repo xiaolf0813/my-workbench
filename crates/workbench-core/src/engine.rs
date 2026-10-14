@@ -101,9 +101,9 @@ impl Traversal {
 
 /// Per-target install scope (CLI :1726-1739). `dest` is "" at user level
 /// (files land directly in the scope root).
-struct Scope {
-    root: PathBuf,
-    dest: &'static str,
+pub(crate) struct Scope {
+    pub(crate) root: PathBuf,
+    pub(crate) dest: &'static str,
 }
 
 fn is_project_target(t: &Target) -> bool {
@@ -114,44 +114,68 @@ fn is_user_level_only_target(t: &Target) -> bool {
     matches!(t, Target::Zcode | Target::Dsh)
 }
 
-fn opencode_scope(sel: &Selection, ctx: &EngineContext) -> Scope {
-    if sel.user_level {
+/// The opencode scope from plain inputs — the shared derivation for the
+/// engine ([`Selection`] + [`EngineContext`]) and the deployed-agent reader
+/// ([`crate::deployed`]). `project_dir` is the user's picked project
+/// directory and is authoritative at project level.
+pub(crate) fn opencode_scope_for(project_dir: &Path, user_level: bool, home: &Path) -> Scope {
+    if user_level {
         Scope {
-            root: ctx.home.join(".config").join("opencode"),
+            root: home.join(".config").join("opencode"),
             dest: "",
         }
     } else {
         Scope {
-            // The user's picked project directory (Selection) is authoritative.
-            root: sel.project_dir.clone(),
+            root: project_dir.to_path_buf(),
             dest: ".opencode",
         }
     }
 }
 
-fn claude_scope(sel: &Selection, ctx: &EngineContext) -> Scope {
-    if sel.user_level {
+/// The claude scope from plain inputs — shared like
+/// [`opencode_scope_for`].
+pub(crate) fn claude_scope_for(project_dir: &Path, user_level: bool, home: &Path) -> Scope {
+    if user_level {
         Scope {
-            root: ctx.home.join(".claude"),
+            root: home.join(".claude"),
             dest: "",
         }
     } else {
         Scope {
-            // The user's picked project directory (Selection) is authoritative.
-            root: sel.project_dir.clone(),
+            root: project_dir.to_path_buf(),
             dest: ".claude",
         }
     }
 }
 
-/// Join a destination under a scope: `root/<dest>/<rel>`, where `dest` is ""
-/// at user level and the scope's root already IS the config root.
-fn scope_join(scope: &Scope, rel: &Path) -> PathBuf {
+/// The zcode root — always user-level `~/.zcode` regardless of `--user`
+/// (CLI :1130-1139); shared like [`opencode_scope_for`].
+pub(crate) fn zcode_root(home: &Path) -> PathBuf {
+    home.join(".zcode")
+}
+
+fn opencode_scope(sel: &Selection, ctx: &EngineContext) -> Scope {
+    opencode_scope_for(&sel.project_dir, sel.user_level, &ctx.home)
+}
+
+fn claude_scope(sel: &Selection, ctx: &EngineContext) -> Scope {
+    claude_scope_for(&sel.project_dir, sel.user_level, &ctx.home)
+}
+
+/// The scope's config root (`root/<dest>`) — the display form of a scope
+/// ([`crate::deployed`]'s `scope_label`).
+pub(crate) fn scope_root_path(scope: &Scope) -> PathBuf {
     let mut p = scope.root.clone();
     if !scope.dest.is_empty() {
         p.push(scope.dest);
     }
-    p.join(rel)
+    p
+}
+
+/// Join a destination under a scope: `root/<dest>/<rel>`, where `dest` is ""
+/// at user level and the scope's root already IS the config root.
+pub(crate) fn scope_join(scope: &Scope, rel: &Path) -> PathBuf {
+    scope_root_path(scope).join(rel)
 }
 
 /// Forward-slash form of a relative path, for `source_rel` display strings.
@@ -351,7 +375,7 @@ fn collect_before_dsh(
 
     if sel.targets.contains(&Target::Zcode) {
         // Always user-level ~/.zcode regardless of --user (CLI :1130-1139).
-        let zroot = ctx.home.join(".zcode");
+        let zroot = zcode_root(&ctx.home);
         let mut slots = render::UsedSlots::new(); // shared: agents + AGENTS.md
         collect_backend_agents(
             "zcode",
@@ -610,7 +634,9 @@ fn log_event(sink: &dyn EventSink, target: Option<Target>, level: LogLevel, text
     });
 }
 
-fn write_bytes(dest: &Path, bytes: &[u8]) -> std::io::Result<()> {
+/// Create the parent directories and write the bytes — the single write
+/// helper for install outputs and deployed-agent saves alike.
+pub(crate) fn write_bytes(dest: &Path, bytes: &[u8]) -> std::io::Result<()> {
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
     }

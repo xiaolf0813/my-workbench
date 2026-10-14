@@ -34,10 +34,12 @@ use std::path::Path;
 
 /// The per-backend frontmatter key inventories (zcode's thinking knob is
 /// `thoughtLevel`, a Claude Code subagent's only reasoning knob is `effort`,
-/// and OpenCode's reasoning selector is `variant`).
-const ZCODE_AGENT_KEYS: &[&str] = &["model", "thoughtLevel"];
-const CLAUDE_AGENT_KEYS: &[&str] = &["model", "effort"];
-const OPENCODE_AGENT_KEYS: &[&str] = &["model", "variant"];
+/// and OpenCode's reasoning selector is `variant`). Shared with the
+/// deployed-agent reader (`crate::deployed`), which reads and rewrites the
+/// same keys of the same files.
+pub(crate) const ZCODE_AGENT_KEYS: &[&str] = &["model", "thoughtLevel"];
+pub(crate) const CLAUDE_AGENT_KEYS: &[&str] = &["model", "effort"];
+pub(crate) const OPENCODE_AGENT_KEYS: &[&str] = &["model", "variant"];
 
 /// Which user-retuned model settings a destination carries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -78,14 +80,16 @@ fn rule_for(dest: &Path) -> Option<Rule> {
 // --------------------------------------------- frontmatter: per-backend keys
 
 /// A frontmatter line carries `key` when it is `<key>:` after optional
-/// spaces/tabs (the per-key `/^[ \t]*<key>:.*$/` rule).
-fn is_key_line(line: &str, key: &str) -> bool {
+/// spaces/tabs (the per-key `/^[ \t]*<key>:.*$/` rule). Shared with
+/// [`crate::deployed`]'s read/rewrite of the same frontmatter.
+pub(crate) fn is_key_line(line: &str, key: &str) -> bool {
     line.trim_start_matches([' ', '\t'])
         .starts_with(&format!("{key}:"))
 }
 
 /// The key a frontmatter line opens with (`^[ \t]*<key>:`), or `None`.
-fn frontmatter_key_of(line: &str) -> Option<&str> {
+/// Shared with [`crate::deployed`].
+pub(crate) fn frontmatter_key_of(line: &str) -> Option<&str> {
     let stripped = line.trim_start_matches([' ', '\t']);
     let colon = stripped.find(':')?;
     Some(&stripped[..colon])

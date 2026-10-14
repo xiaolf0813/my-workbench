@@ -15,7 +15,6 @@ import {
   pickDirectory,
   settingsGet,
   settingsSet,
-  type AppSettings,
   type IpcFailure,
   type PatStatus,
 } from "../lib/ipc";
@@ -35,7 +34,6 @@ export function SettingsPage({ envHome, envSourceVersion, appVersion }: Settings
 
   /* ---------------- 技能存储 ---------------- */
   const [rootInput, setRootInput] = useState("~\\.agents\\skills\\");
-  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [settingsError, setSettingsError] = useState<IpcFailure | null>(null);
   const [savingRoot, setSavingRoot] = useState(false);
 
@@ -53,7 +51,6 @@ export function SettingsPage({ envHome, envSourceVersion, appVersion }: Settings
     void (async () => {
       try {
         const s = await settingsGet();
-        setSettings(s);
         setRootInput(s.skillsRoot || "~\\.agents\\skills\\");
       } catch (e) {
         setSettingsError(describeIpcError(e));
@@ -88,11 +85,12 @@ export function SettingsPage({ envHome, envSourceVersion, appVersion }: Settings
   const saveRoot = useCallback(async () => {
     setSavingRoot(true);
     try {
-      const normalized = await settingsSet({
-        skillsRoot: rootInput,
-        language: settings?.language ?? "zh",
-      });
-      setSettings(normalized);
+      // Read-modify-write: the settings file also carries the Deploy page's
+      // scope (projectDir/userLevel) — resending only this card's fields
+      // would let the backend persist serde defaults over it. `language`
+      // always round-trips from the backend (serde default "zh", non-empty).
+      const fresh = await settingsGet();
+      const normalized = await settingsSet({ ...fresh, skillsRoot: rootInput });
       setRootInput(normalized.skillsRoot || rootInput);
       toast({ kind: "ok", title: "已保存", sub: `技能根目录 ${normalized.skillsRoot}` });
     } catch (e) {
@@ -100,7 +98,7 @@ export function SettingsPage({ envHome, envSourceVersion, appVersion }: Settings
     } finally {
       setSavingRoot(false);
     }
-  }, [rootInput, settings, toast]);
+  }, [rootInput, toast]);
 
   /* ---------------- GitHub 访问 handlers ---------------- */
   const refreshPat = useCallback(async () => {
