@@ -379,7 +379,7 @@ export function SettingsPage({ envHome, envSourceVersion, appVersion }: Settings
               <div className="set-c">
                 <div className="about">
                   <div className="about-tile">
-                    <Icon name="term" />
+                    <Icon name="mark" />
                   </div>
                   <div>
                     <div className="about-n">My Workbench 桌面版</div>

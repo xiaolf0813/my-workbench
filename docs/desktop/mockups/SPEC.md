@@ -8,55 +8,69 @@
 
 ## 0. Design language (summary)
 
-1. **Professional dev-tool, dark-first.** Deep blue-charcoal surfaces, hairline borders, no decorative chrome — hierarchy comes from typography, spacing and one accent, not from color noise.
-2. **One accent: 钢青 steel-cyan** (`#3ccfdb`). Accent means *actionable/active* (primary buttons, active nav, focus, selection, progress). It never means success — green is reserved for *healthy*.
-3. **Mono for everything the machine owns.** Paths, versions, SHAs, commands, log output, target names use the mono stack; UI prose uses the sans stack. Tabular numbers everywhere counts appear.
-4. **Status is a dot + word, always explicit.** Environment detection, tiers, skills, network — every state is visible text plus a colored dot; nothing is communicated by color alone, and absence (Node missing, target not found) is shown, never hidden.
-5. **Density where work happens, air where decisions happen.** Left config column breathes; the preview table and log viewer are compact (12–13px, 32px rows) because they are the product.
+> **[变更 2026-10 M3 刷新·三稿]** 高级纯净 is realized **light-first**: soft cool-neutral scaffold, pure-white cards, gentle tonal containers, azure primary, M3 state layers, pill buttons/nav, tonal secondary containers, soft diffuse shadows. **Layout, anatomy, density and all component contracts are untouched**, and the mockup's product surface stays structurally 1:1 with `ui/src` (restoration list in `m3-refresh-notes.md` §0). The port map for the implementer is `m3-refresh-notes.md`; **the implementation flips its default theme to light at port time (fixer lane)** — §10.8 amended.
+
+1. **Professional dev-tool, light-first, M3-tonal.** A soft cool-neutral ladder — base `#f3f6fb` scaffold → pure-white `#ffffff` cards → containers one gentle step darker (`#e8edf6`) → near-white wells — carries hierarchy through tone; hairlines are minimal and quiet; nothing heavy. **Default presentation is light; the dark theme remains a maintained secondary variant** re-derived from the same seed (§1.2, §10.8).
+2. **One accent: 晴空青 azure** (`#0b57d0` light / `#a8c7fa` dark) in the M3 **primary** role (on-primary white / `#041e49`, hover/press as on-color state layers). The azure seed earns its place on white — a confident, airy M3 blue (tone ~45 light / ~80 dark), far from the green channel. Accent means *actionable/active* (primary buttons, active nav, focus, selection, progress). It never means success — green is reserved for *healthy*.
+3. **M3 state layers, precomputed as tokens.** Hover on tonal surfaces = `--bg-hover` (on-surface overlay @8%: darkens on light, lifts on dark); press = `--bg-press`; filled buttons shift via on-color overlays (`--accent-hover/-down`, `--err-solid-hover`, `--warn-hover` = 8%/12% overlays). No brightness filters, no hover color swaps.
+4. **M3 signature shapes (pure style — geometry untouched).** Buttons and icon buttons are full pills; nav items are full pills and the tonal pill IS the active indicator (the former 3px sidebar edge bar is removed); the secondary button tier is a **tonal secondary-container** fill (`--tonal-container`, borderless), as are value chips and the active segment.
+5. **Mono for everything the machine owns.** Paths, versions, SHAs, commands, log output, target names use the mono stack; UI prose uses the sans stack. Tabular numbers everywhere counts appear.
+6. **Status is a dot + word, always explicit.** Environment detection, tiers, skills, network — every state is visible text plus a colored dot; nothing is communicated by color alone, and absence (Node missing, target not found) is shown, never hidden.
+7. **Density where work happens, air where decisions happen.** Left config column breathes; the preview table and log viewer are compact (12–13px, 32px rows) because they are the product.
+8. **Elevation is quiet.** M3 radius scale (`--r-xs 4 / --r-sm 6 / --r-md 8 / --r-lg 12 / --r-xl 16`, buttons/nav/icon-buttons are pills); tonal steps first, shadows soft and diffuse — dialogs/toasts get the two-layer M3 treatment, cards stay flat.
 
 ## 1. Tokens (CSS variables)
 
-### 1.1 Color — dark (default)
+### 1.1 Color — light (**default presentation**) — **[变更 2026-10 M3 刷新·三稿：light 升为默认；`--bg-*`/`--text-*`/status 为本轮终值；语义规则不变；逐值对照见 `m3-refresh-notes.md`]**
 
 | Token | Value | Usage |
 | --- | --- | --- |
-| `--bg-base` | `#0c0f14` | App background, sidebar |
-| `--bg-surface` | `#12161d` | Cards, panels, dialogs |
-| `--bg-raised` | `#181d26` | Hover fill, active nav, secondary buttons |
-| `--bg-inset` | `#0a0d12` | Input wells, log background, segmented track |
-| `--border` | `#1e2530` | Hairline card/row borders |
-| `--border-strong` | `#2c3545` | Input borders, hover borders |
-| `--text-1` | `#e7ecf4` | Primary text |
-| `--text-2` | `#9aa5b8` | Secondary text, log body (≥ 7:1 on surface) |
-| `--text-3` | `#6d7889` | Hints, labels (auxiliary only, ≥ 4.5:1) |
-| `--accent` | `#3ccfdb` | The single brand accent |
-| `--accent-hover / -down` | `#66dfe9` / `#2fb6c8` | Primary button hover/active |
-| `--accent-text` | `#06222a` | Text on accent fills |
-| `--accent-tint / -border` | `rgba(60,207,219,.10)` / `.38` | Selected card bg / accent outlines |
-| `--ok` (+`-tint`,`-border`) | `#46d68c` | Healthy: create-badge, detected, 通过， 已安装·最新 |
-| `--warn` (+`-tint`,`-border`) | `#f0b429` | Caution: overwrite-badge, local-modified **[变更 2026-10 十次修订：原 drift / Tier-2-skip 用例随健康检查 UI 一并移除]** |
-| `--err` (+`-tint`,`-border`,`-solid`) | `#f5716f` / `#c94a48` | Failure text / solid danger button |
-| `--vio` (+`-tint`,`-border`) | `#a78bfa` | Managed-block (受管块) only |
+| `--bg-base` | `#f3f6fb` | App background, sidebar (soft cool-neutral scaffold) |
+| `--bg-surface` | `#ffffff` | Cards, panels, dialogs (pure white — the clean layer) |
+| `--bg-raised` | `#e8edf6` | **Resting** selection/fills: active nav pill, `bn.mut`/`bd-skip`, log tag, floating pills (one step darker than base — M3 light containers) |
+| `--bg-hover` | `#dee5f1` | **Hover state layer** — every tonal hover fill (on-surface overlay @8%) |
+| `--bg-press` | `#d1dae9` | Press state layer (@14%) |
+| `--tonal-container` | `#e3ecfa` | **M3 secondary-container**（azure-tinted）: secondary buttons, value chips, active segment |
+| `--bg-inset` | `#f6f9fd` | Input wells, log background, segmented track |
+| `--border` | `#e3e8f1` | Hairline card/row borders (minimal, quiet) |
+| `--border-strong` | `#c6cfdd` | Input borders, tab-pill outlines |
+| `--text-1` | `#1b2230` | Primary text |
+| `--text-2` | `#3f4d63` | Secondary text, log body (≥ 7:1 on surface & raised) |
+| `--text-3` | `#5e6c81` | Hints, labels (auxiliary only, ≥ 4.5:1) |
+| `--accent` | `#0b57d0` | 晴空青 azure — M3 primary on light (tone ~45) |
+| `--accent-hover / -down` | `#1f64d4` / `#286bd6` | Filled-button hover/press = on-primary white overlay 8% / 12% |
+| `--accent-text` | `#ffffff` | On-primary text (6.4:1 on the fill) |
+| `--accent-tint / -border` | `rgba(11,87,208,.09)` / `.32` | Selected card bg / accent outlines |
+| `--ok` (+`-tint`,`-border`) | `#137a46` | Healthy: create-badge, detected, 通过， 已安装·最新 |
+| `--warn` (+`-tint`,`-border`,`-hover`) | `#a16207` / `#975d07` | Caution: overwrite-badge, local-modified **[变更 2026-10 十次修订：原 drift / Tier-2-skip 用例随健康检查 UI 一并移除]** |
+| `--err` (+`-tint`,`-border`,`-solid`,`-solid-hover`) | `#c93a37` / `#c93a37` / `#d74d4b` | Failure text / solid danger button / its hover overlay |
+| `--vio` (+`-tint`,`-border`) | `#6d4fd4` | Managed-block (受管块) only |
 
-**Semantic rule (do not drift):** cyan = actionable · green = healthy · amber = caution/loss-risk · red = error/destructive · violet = managed-block · gray = static/skip.
+**Semantic rule (do not drift):** blue/accent = actionable · green = healthy · amber = caution/loss-risk · red = error/destructive · violet = managed-block · gray = static/skip.
 
-### 1.2 Color — light (stretch goal; tokens shipped, demo-toggleable)
+**Brand constants (theme-independent, not tokens):** launcher/brand tile container `#0b57d0` + white hub-and-spoke glyph `#ffffff` (`.brand-tile`, `.about-tile`, `app-icon.svg`; the in-app 24-grid twin is sprite symbol `i-mark` — the port adds `mark` to `icons.tsx` and swaps the tiles' `term` icon, fixer lane).
+
+### 1.2 Color — dark (maintained secondary variant) — **[变更 2026-10 M3 刷新·三稿：dark 不再是默认/头条呈现；同一种子（azure, tone ~80）重推的深色梯，作为维护中的第二主题保留；契约结构与 §1.1 相同]**
 
 | Token | Value |
 | --- | --- |
-| `--bg-base / surface / raised / inset` | `#f4f6f9` / `#ffffff` / `#eef1f6` / `#f5f7fa` |
-| `--border / -strong` | `#e4e8ef` / `#ccd4e0` |
-| `--text-1 / 2 / 3` | `#182130` / `#57637a` / `#8b96a8` |
-| `--accent` (+`-text`) | `#0b93a8` (white on fills) |
-| `--ok / warn / err / err-solid / vio` | `#178a4c` / `#a16207` / `#d43d3b` / `#d43d3b` / `#6d4fd4` |
+| `--bg-base / surface / raised / inset` | `#0a0e16` / `#121826` / `#1b2334` / `#05080f` |
+| `--bg-hover / -press` | `#252f45` / `#2d3952` |
+| `--tonal-container` | `#1c2942` |
+| `--border / -strong` | `#202b42` / `#364260` |
+| `--text-1 / 2 / 3` | `#e9eef5` / `#a3b0c4` / `#8390a6` |
+| `--accent` (+`-hover/-down/-text`) | `#a8c7fa` (`#9bb9ec` / `#94b3ed`, on-primary `#041e49`) |
+| `--accent-tint / -border` | `rgba(168,199,250,.14)` / `.38` |
+| `--ok / warn / err / err-solid (+-hover) / vio` | `#5fd8a7` / `#f2c14e` / `#f99b97` / `#cc4b45` (`#d05954`) / `#b9a8f7` |
+| `--warn-hover` | `#e2b448` |
 
-Light is implemented purely by variable overrides (`html[data-theme="light"]`); no component changes. **Decision (locked): dark-only ships in M1; the light-theme pixel pass moves to M3 polish.** Tokens above remain the contract; the demo theme toggle exists for review and is labeled `主题 · M3`.
+Themes are implemented purely by variable overrides — **`html[data-theme="dark"]`** now overrides the light `:root` (no component changes; the mockup ships `data-theme="light"`). **Decision (§10.8 amended): default presentation = light; dark remains available and maintained.** The demo theme toggle exists for review and is labeled `主题 · M3`. The implementation flips its default theme at port time (fixer lane — see `m3-refresh-notes.md`).
 
 ### 1.3 Spacing / radius / elevation
 
-- **Spacing scale (4px base):** `2 · 4 · 6 · 8 · 12 · 14 · 16 · 20 · 24`. Card inner padding 14–16; column gap 16; page padding 20/24.
-- **Radius:** inputs & buttons `7`, small buttons `6`, cards & panels `10`, dialogs `12`, badges `5`, dots/knobs `50%`.
-- **Shadow:** `--shadow-1` (subtle, raised chips) · `--shadow-2` (popovers/toasts) · `--shadow-3` (dialogs). Dark theme leans on borders; shadows are depth accents only.
+- **Spacing scale (4px base):** `2 · 4 · 6 · 8 · 12 · 14 · 16 · 20 · 24`. Card inner padding 14–16; column gap 16; page padding 20/24. **[不变]**
+- **Radius — M3-flavored shape scale [变更 2026-10 M3 刷新·二稿]：** tokens `--r-xs 4 · --r-sm 6 · --r-md 8 · --r-lg 12 · --r-xl 16`. **Buttons (all sizes), icon buttons and nav items are full pills (`999`)** — M3 signature; the active nav pill is the indicator. Mapping from HEAD: inputs `7→8 (--r-md)`; chips/badges/seg segments `5,6→6 (--r-sm)`; micro chips & kbd `4 (--r-xs)`; radio cards, segmented track, dialogs' icon squares `8 (--r-md)`; cards & panels & banners & toasts `9,10,11→12 (--r-lg)`; dialogs `12→16 (--r-xl)`（`dlg-dep` 顶部 livebar 圆角同步 `16 16 0 0`）； empty-state icon square `12 (--r-lg)`; terminal report card `8→12`. Dots/knobs `50%`.
+- **Shadow (soft, diffuse — light-first) [变更 2026-10 M3 刷新·三稿]：** `--shadow-1: 0 1px 2px rgba(23,32,48,.08)` (raised chips) · `--shadow-2: 0 2px 8px rgba(23,32,48,.08), 0 12px 32px rgba(23,32,48,.12)` (popovers/toasts) · `--shadow-3: 0 8px 20px rgba(23,32,48,.10), 0 28px 72px rgba(23,32,48,.18)` (dialogs). Tone carries depth; shadows are gentle accents only. The dark variant keeps its own deeper shadow set (§1.2 lane in `m3-refresh-notes.md`).
 
 ### 1.4 Typography
 
@@ -86,24 +100,24 @@ Specific animations: dialog in = fade + `translateY(10px) scale(.98)`; toast in 
 
 ### 1.6 Focus
 
-`:focus-visible` = two-layer ring: `0 0 0 2px <surface>, 0 0 0 4px accent@65%`. Never removed, never replaced by color change alone.
+`:focus-visible` = two-layer ring: `0 0 0 2px <surface>, 0 0 0 4px accent@~55-66%` — light `rgba(11,87,208,.55)` / dark `rgba(168,199,250,.66)` **[变更 2026-10 M3 刷新·三稿：仅 rgba 随主题种子更新，双层结构不变]**. Never removed, never replaced by color change alone.
 
 ## 2. Layout & navigation
 
 - **Window:** default 1200×800, resizable, min 1024×680. **Frameless (`decorations: false`) — no OS title bar, and no in-app substitute:** there is no dedicated title-bar strip anywhere in the layout. The Windows-style 最小化 / 最大化·还原 / 关闭 controls (§3.18) are an **integrated fixed cluster floating over the window's top-right corner**, on top of the page-header area — they consume no layout height. **Dragging without a bar:** the sidebar brand row and the three page-header containers (部署 / 技能 / 设置) carry `data-tauri-drag-region="deep"`; the **whole surface of those rows** drags the window (double-click anywhere on a row toggles maximize) while child buttons/inputs stay fully interactive **[变更 2026-10：原为裸属性 — Tauri 只认属性所在元素本身，标题文字/图标吞掉 mousedown，实际几乎无可拖面积，窗口拖不动；改用 deep 值让整行成为拖拽面，可点击子元素仍自动阻断拖动]**. An **invisible top-edge strip** (`.drag-strip`, full width × 14px, no visual footprint, z-index under the control cluster) carries the bare `data-tauri-drag-region`: the layout padding above the brand row / page headers — the most title-bar-like surface — drags the window, and double-click on the top edge toggles maximize **[变更 2026-10 二次修订：用户反馈顶边窄条无法拖动 — 该区域是容器 padding，不在任何拖拽面内；补一条不可见顶边拖拽条]**. Page-header action clusters keep right padding (§3.18) so they never sit under the controls. Alt+F4 and the system menu keep working natively.
-- **Shell:** left sidebar 232px fixed + main content. Sidebar: brand (28px gradient tile + name), 3 nav items (部署 / 技能 / 设置)， footer **bare version line** — just the version number (the app's own bundled-source/app version), no card background, no 内置源 label **[变更 2026-10：原为带背景和边框的版本卡片 + 状态点 + 内置源字样；按用户要求精简为纯版本号]**. **[变更 2026-10 十一次修订]** third-party tool versions (Node, opencode, dsh) are no longer shown — the app is not their manager; `detect_environment` still runs at start and feeds the deploy page (scope bar, dialogs) and 设置.
-- **Nav item:** 36px tall, icon + label + right meta slot; active = raised bg + 3px accent bar on the sidebar edge + accent icon. `aria-current="page"`.
+- **Shell:** left sidebar 232px fixed + main content. Sidebar: brand (28px solid indigo-slate tile `#0f1728` + azure terminal glyph `#6cb0f5` — matches `app-icon.svg` **[变更 2026-10 M3 刷新·二稿：纯色品牌容器，常量随二稿色板]** + name), 3 nav items (部署 / 技能 / 设置)， footer **bare version line** — just the version number (the app's own bundled-source/app version), no card background, no 内置源 label **[变更 2026-10：原为带背景和边框的版本卡片 + 状态点 + 内置源字样；按用户要求精简为纯版本号；mockup 本轮已同步此结构]**. **[变更 2026-10 十一次修订]** third-party tool versions (Node, opencode, dsh) are no longer shown — the app is not their manager; `detect_environment` still runs at start and feeds the deploy page (scope bar, dialogs) and 设置.
+- **Nav item:** 36px tall, icon + label + right meta slot (only 技能 carries a count **[结构对齐 2026-10 M3 刷新：部署 项不再显示计数]**); **full-pill item — the tonal pill IS the active indicator** (active = raised pill + accent icon; the former 3px sidebar edge bar is removed **[变更 2026-10 M3 刷新·二稿：M3 导航签名，仅形状/样式，DOM 不变]**). `aria-current="page"`.
 - **Deploy page (v2 — amended 2026-10, §4):** backend tab bar + realm scope bar + a **single fluid content column** that fills the content area with the window (full-fluid, no width cap, scrolls) **[变更 2026-10 七次修订：原 max-width 900px 上限移除 — 技能 / 设置页保持各自较窄的栏宽上限]**. The former 2-column workspace (config 384px + preview panel, <1080px stacking) is retired — per-target deploy machinery moved into the target-scoped deploy dialog (§4.6); the min window (1024×680) is served by the fluid column. The Skills / Settings columns are unchanged.
 - **Skills / Settings pages:** single scrolling column (max 760–1080px), same page-header pattern.
 - **Page header:** title 20 + sub 12.5 muted; right-aligned primary actions.
 
 ## 3. Component inventory (anatomy + states)
 
-### 3.1 Buttons — tiers
+### 3.1 Buttons — tiers **[变更 2026-10 M3 刷新·二稿：全部按钮为 full pill（M3 签名，仅形状）；secondary 层改为 tonal secondary-container 填充（`--tonal-container`，无边框，tone 承载层级）— 尺寸/内边距不变]**
 | Tier | Look | Use |
 | --- | --- | --- |
-| Primary (`.btn-primary`) | accent fill, dark text, 600 | 开始安装， 保存， 覆盖重装 |
-| Secondary (`.btn`) | raised fill + strong border | 生成预览， 全部更新， 浏览… |
+| Primary (`.btn-primary`) | accent fill, dark text, 600, pill | 开始安装， 保存， 覆盖重装， 更新至v… |
+| Secondary (`.btn`) | tonal container fill, borderless, pill; hover `--bg-hover` | 生成预览， 全部更新， 浏览… |
 | Ghost (`.btn-ghost`) | transparent | 取消， low-emphasis actions |
 | Accent outline (`.btn-acc-o`) | accent tint bg + accent border | 安装 (skill), empty-state CTA |
 | Warn outline / Warn solid | amber | 更新 with local modifications / 备份后强制更新 |
@@ -118,7 +132,7 @@ Sizes: 32px (default) / 26px small. Disabled = 42% opacity, `cursor:not-allowed`
 7px circle. `.ok` = green fill + tint halo (detected) · `.off` = hollow gray ring (not found / not detected) · `.acc` = cyan (live/bundled source). Always paired with a text label; a target “未检测到” remains selectable — detection ≠ eligibility.
 
 ### 3.4 Radio card (content source) / Target checkbox card
-Selectable cards: 1px border → accent border + accent tint when on; custom radio dot / 15px checkbox with white tick; mono 600 label; 11px muted status line under (detection text or “与 opencode 互斥”). Hover = raised bg. Keyboard: space/enter toggles; native checkbox input is visually hidden but focusable — focus ring on the card.
+Selectable cards: 1px border → accent border + accent tint when on; custom radio dot / 15px checkbox with white tick; mono 600 label; 11px muted status line under (detection text or “与 opencode 互斥”). Hover = `--bg-hover` state layer **[变更 2026-10 M3 刷新：原 raised bg]**. Keyboard: space/enter toggles; native checkbox input is visually hidden but focusable — focus ring on the card.
 
 ### 3.5 Switch (`.sw`)
 34×20 pill, 16px knob, accent when on. Used for 覆盖已存在文件 / 自动滚动 (the former Deploy 用户级 switch became the 安装方式 segmented control, §4.1). `role="switch"` + `aria-checked`. Consequences appear immediately as hint lines (overwrite swaps hint to amber “已开启 — 已存在的文件将被直接覆盖”).
@@ -154,7 +168,7 @@ Section title + count chip `N 个文件与渲染期望不一致`; rows = warn fi
 info(cyan) / warn(amber) / err(red) / ok(green) / mut(neutral). Icon + title 12.5/600 + body 11.5 + optional right actions. Used for: Tier-2 pre-validation (checking/pass/blocked), rate-limit warning, offline notice.
 
 ### 3.13 Dialog (`.dlg`)
-520px (640 for diff), radius 12, shadow-3, header (30px tinted icon square + 15px title + close) / body (12.5, `--text-2`, forms & lists) / footer right-aligned buttons. Open = backdrop blur-fade + panel rise; Esc and backdrop click close; focus moves in on open and returns to the invoker on close. Dialogs in scope: 添加/编辑技能源 · 检测到本地修改 · 删除技能 · 删除技能源 **[变更 2026-10 十次修订：漂移详情 dialog 随健康检查 UI 移除 — the 640px diff width is currently unused]**.
+520px (640 for diff), radius 16 (`--r-xl` **[变更 2026-10 M3 刷新：原 12]**)， shadow-3 (two-layer M3 softness), header (30px tinted icon square + 15px title + close) / body (12.5, `--text-2`, forms & lists) / footer right-aligned buttons. Open = backdrop blur-fade + panel rise; Esc and backdrop click close; focus moves in on open and returns to the invoker on close. Dialogs in scope: 添加/编辑技能源 · 检测到本地修改 · 删除技能 · 删除技能源 **[变更 2026-10 十次修订：漂移详情 dialog 随健康检查 UI 移除 — the 640px diff width is currently unused]**.
 
 ### 3.14 Toast
 Bottom-right stack, 3.8s auto-dismiss, icon-colored by kind, optional mono sub-line. Used for command acknowledgements (安装完成 / 已删除 / 已保存源 …). Max ~3; newest at bottom.
@@ -170,31 +184,32 @@ Grid: main (mono name + muted zh description) / source 170px (git icon + owner/r
 
 ### 3.18 Window controls (frameless, integrated — `.win-ctl` / `.win-btn`)
 No bar, no strip: `.win-ctl` is `position: fixed; top: 0; right: 0; height: 40px` (page-header rhythm), a floating cluster **over the page-header area** — z-index above page content, below the dialog scrim and toasts. It draws no background of its own: buttons sit directly on the page surface, hover provides the only fill. **46px-wide** hit targets, hairline inline SVG glyphs (`.ic`, 14px):
-- **最小化** — hover = `--bg-raised` fill, text brightens.
+- **最小化** — hover = `--bg-hover` state-layer fill **[变更 2026-10 M3 刷新：原 `--bg-raised`]**, text brightens.
 - **最大化 / 还原** — icon swaps with window state (restore = double-square glyph); same hover as minimize.
 - **关闭** (`.win-close`) — hover = `--err-solid` fill, white glyph (reuses the existing error token set; no new token).
 
-**No collisions:** every page-header action cluster (`.ph-actions`) carries `padding-right: 150px` — wider than the 138px (3 × 46px) control cluster — so 生成预览/开始安装 (部署) and 全部更新/添加源 (技能) never render under the controls; 设置 has no header actions.
+**No collisions:** page-header action clusters sit at the header's flex-end (below the 40px control band by rhythm), so 全部更新/添加源 (技能) never render under the controls; 部署 and 设置 headers carry no actions **[结构对齐 2026-10 M3 刷新：与实现一致 — `.ph-actions` 无右内边距规则；原 `padding-right:150px` 条款随实现废止，部署页头部动作簇已于 v2 移入空态 CTA 与信息行（§4.5）]**.
 
 **Dragging without a bar:** `data-tauri-drag-region="deep"` sits on exactly four containers — the sidebar brand row and the three `.page-head` headers. Tauri's drag script drags from any mousedown in those containers' subtree that does not land on an interactive element (button, input, tabindex, interactive role), so the **whole row surface** drags the window (double-click there toggles maximize); child buttons/inputs and all content below the headers are unaffected **[变更 2026-10：由裸属性改为 deep — 裸属性要求 mousedown 精确命中属性所在元素，子元素覆盖整行时窗口无从拖动]**.
 
 Real `<button>`s: `aria-label` 最小化 / 最大化 / 还原 (swaps with state) / 关闭； §1.6 focus ring. **Browser degradation:** without Tauri IPC the cluster is **not rendered at all** (no dead controls, clean tab order).
 
 ### 3.19 Backend tab bar (deploy page, v2)
-Pill tabs, mono 12.5px (machine names), 32px tall, radius 999, gap 8. Rest: transparent bg + `--border-strong` border + `--text-2`; hover = raised fill + `--text-1`; **selected = accent fill + `--accent-text`, weight 600** (accent = active, §0.2). `role="tablist"/"tab"`, `aria-selected`, `aria-controls`, Left/Right arrow navigation; each tab's `aria-label`/`title` carries deployment status — `{target}（已部署）` / `{target}（未部署）`. No status dot inside the pills: the selected target's state is spelled out as **dot + word** at the bar's right end (`未部署` hollow · `已部署 · {n} 个智能体` · `已部署 · 预设 {name}`), per §0.4. Tabs switch the whole main view.
+Pill tabs, mono 12.5px (machine names), 32px tall, radius 999, gap 8. Rest: transparent bg + `--border-strong` border + `--text-2`; hover = `--bg-hover` state-layer fill + `--text-1` **[变更 2026-10 M3 刷新：原 raised fill]**; **selected = accent fill + `--accent-text`, weight 600** (accent = active, §0.2; selected-pill hover = `--accent-hover` on-color overlay). `role="tablist"/"tab"`, `aria-selected`, `aria-controls`, Left/Right arrow navigation; each tab's `aria-label`/`title` carries deployment status — `{target}（已部署）` / `{target}（未部署）`. No status dot inside the pills: the selected target's state is spelled out as **dot + word** at the bar's right end (`未部署` hollow · `已部署 · {n} 个智能体` · `已部署 · 预设 {name}`), per §0.4. Tabs switch the whole main view.
 
 ### 3.20 Agent card
-A full-width `<button>` (left-aligned): row 1 = mono agent name 13/600 + right-aligned value chips (§3.21); row 2 = mono deployed-file path 11px `--text-3`; row 3 = prompt-body preview, mono 12, **clamped to 2 lines** (line-clamp). States: rest (surface + border) → hover (raised + strong border). **[变更 2026-10 详情页化]** No open/closed card state — the card is a plain navigation trigger (no `aria-expanded`/`aria-controls`): clicking it opens the detail page (§3.22), which replaces the deploy content area, so the list is not visible while a detail page is open. Focus ring §1.6; the hover title carries the wireframe annotation copy (§8).
+A full-width `<button>` (left-aligned): row 1 = mono agent name 13/600 + right-aligned value chips (§3.21); row 2 = mono deployed-file path 11px `--text-3`; row 3 = prompt-body preview, mono 12, **clamped to 2 lines** (line-clamp). States: rest (surface + border) → hover (`--bg-hover` state layer **[变更 2026-10 M3 刷新：原 raised]** + strong border). **[变更 2026-10 详情页化]** No open/closed card state — the card is a plain navigation trigger (no `aria-expanded`/`aria-controls`): clicking it opens the detail page (§3.22), which replaces the deploy content area, so the list is not visible while a detail page is open. Focus ring §1.6; the hover title carries the wireframe annotation copy (§8).
 
 ### 3.21 Value chips (`.achip`)
-Mono 11px/500, radius 999, raised bg + strong border, `--text-2` **[变更 2026-10：open-card surface flip removed with the card open state]**. Chips render **machine-owned values verbatim** (`glm`, `high`) — never zh-translated, never status-colored (§0.3); the human label (模型 / 思考等级|推理强度|变体) lives in the `title` tooltip and the detail page's select label. These are *settings* chips, distinct from §3.2 status badges.
+Mono 11px/500, radius 999, **tonal secondary-container bg, borderless** **[变更 2026-10 M3 刷新·二稿：原 raised bg + strong border]**， `--text-2` **[变更 2026-10：open-card surface flip removed with the card open state]**. Chips render **machine-owned values verbatim** (`glm`, `high`) — never zh-translated, never status-colored (§0.3); the human label (模型 / 思考等级|推理强度|变体) lives in the `title` tooltip and the detail page's select label. These are *settings* chips, distinct from §3.2 status badges.
 
 ### 3.22 Agent detail page (deploy page) — full-page view
 **[变更 2026-10：原下方内嵌的详情编辑器改为整页视图；细节修订同月：页面头部一并让位]** Clicking a card replaces the deploy page's entire content area **including its header row** — the 部署 title, subtitle, contextual header actions, tab bar, scope bar and card list all give way; the detail page's own header (返回 + agent name) **is the title**. Only the app frame stays (sidebar, floating window controls; the deploy page's drag surface returns with the header on 返回). Two view states per target: **roster** (default) ↔ **detail page**; 返回 routes back to the roster with the same tab + scope. Anatomy: a **page-level title row** — 返回 back button (ghost tier + arrow-left icon; focus lands here when the page opens; **[变更 2026-10 六次修订]** its glyph sits **flush-left on the textarea frame's left edge** in the rest state — the ghost button's padding is cancelled by a negative margin with a matching clip-boundary shift, so hover/focus pill and focus ring paint unclipped) + the mono agent name, **nothing else** **[变更 2026-10 三次修订：zh 描述 / 只读 chips / 部署文件路径 trimmed from the title area — the path still lives on the roster cards (§3.20) and the model/reasoning values are the editable selects below]** — sitting on the page background; below it the **chromeless editor column** that fills the remaining viewport height **[变更 2026-10 四次修订：外层卡片边框整体移除 — 选择行与页脚直接置于页面背景，与标题行左对齐，页脚保留上侧发丝线；仅提示词 textarea 保留自身边框；卡片入场动画随之移除]**. **Meta row:** field groups on **one horizontal line** **[变更 2026-10 五次修订：原标签叠在 selects 上方，现内联 — 标签位于各自 select 左侧，两组同一行]** — the 模型 label left of its select, and the per-backend reasoning label (`zcode` 思考等级 / `claude` 推理强度 / `opencode` 变体) left of its select, groups side by side; values render verbatim, e.g. `high` (dsh has no reasoning group — the lone 模型 group keeps the same row rhythm). **A select change writes immediately** — no 保存 button **[变更 2026-10 十四次修订：模型/思考等级随选择即时写入已部署文件；失败 toast 并回退显示值]**. **Body:** mono **text block** (`<pre>`, inset well, min-height 230 floor — the only framed element) **[变更 2026-10 十二次修订：提示词正文不是编辑框 — 纯文本展示，无编辑语义、无聚焦/全选效果；my-workbench 部署提示词而不管理提示词，正文随部署更新，仅模型设置可编辑，保存/还原/未保存守卫仅作用于设置]** that **flexes to fill the space between the field row and the bottom-pinned footer**; long content scrolls inside the block (the manual resize handle is retired); on very short windows the floor kicks in and the page scrolls instead **[变更 2026-10 八次修订：详情页纵向充满视口 — 标题/字段行在上、正文块弹性占据剩余高度、页脚钉在内容区底部；正文块为内部滚动面，缩放柄移除，极矮窗口回退为页面滚动；十二次修订后为纯文本块]**. **Footer:** none **[变更 2026-10 十四次修订：保存按钮与底部发丝线分割线移除 — 模型/思考等级随选择即时写入，失败经 toast 并回退显示值；详情页不再产生未保存状态，放弃未保存的更改 守卫对话框随之退出详情页（基础设施保留为惰性）]**. The former footer hairline, 保存 / 保存中… / 状态行 / 还原 are all retired — [移除 2026-10 十四次修订]（§8）. The toast 已保存 {agent} 的设置 · 已写入已部署文件 confirms a write.
 
 ### 3.23 Deploy empty states (v2)
 - **Not deployed:** §3.15 anatomy — icon, `{target} 尚未部署`, explanation naming the install location in mono, plus a **部署 primary CTA**. Delta vs §3.15's ghost CTA: allowed because the CTA is the screen's only actionable element (accent = actionable).
-- **dsh preset summary:** same anatomy; title `dsh 已部署`, explanation that dsh deploys as a preset with **no per-agent files**, plus a key-value summary card (预设 / 主目录 / profile / 部署文件 / 部署时间 — mono values, `--border` hairlines). The 更新 action stays in the page header.
+- **dsh preset summary:** same anatomy; title `dsh 已部署`, explanation that dsh deploys as a preset with **no per-agent files**, plus a key-value summary card (预设 / 主目录 / profile / 部署文件 / 部署时间 — mono values, `--border` hairlines). The update action lives in the deployed info row (§4.5) **[结构对齐 2026-10 M3 刷新：原「更新 action stays in the page header」随信息行改造废止]**.
+- **Roster empty** **[新增 2026-10 M3 刷新·结构对齐：实现 notes §5.3 的 RosterEmpty 状态入约]** — a target marked deployed whose agent listing came back empty: §3.15 anatomy (file icon), title `未找到已部署的智能体文件`, body `目标已标记为部署，但没有可显示的智能体文件。内置源更新后，上方信息行会出现「更新至…」按钮，点击即可重新部署。`, **no CTA** (the info row's update button is the affordance). Never the generic not-deployed panel.
 
 ### 3.24 Deploy dialog (§3.13 instance, 720px)
 Scoped to the **one selected target**. Header: accent icon square + `{部署|更新} · {target}` + close. Body top: internal tablist **配置 / 预览 / 安装日志** (same `.seg` vocabulary as the former preview panel; **[变更 2026-10 十次修订：健康检查步移除，需要时再按原契约加回 — §10 尾注]**) + amber `覆盖已开启` badge + meta `{项目级|用户级} · 0 写入`; the 2px live bar sits across the dialog top while running (§3.9). Footer is contextual: config/preview = 取消 + 生成预览/重新生成 + 开始安装 (primary, gated by §4.2); log = 关闭. Panes reuse the existing component contract verbatim: 内容源 radios + 本地源 hints, 安装位置 (scope seg + project dir for opencode/claude; fixed-location line for zcode/dsh), 覆盖 switch, plan table + stale strip (§3.8, no filter chips — the scoped plan has ≤ ~6 rows), log viewer + terminal reports (§3.9).
@@ -315,7 +330,7 @@ Mono `owner/repo` + meta line (`@main · 8 个技能 · 公开` / lock icon + `@
 
 - Full keyboard path: nav → deploy tab bar (Left/Right) → scope bar → agent cards → detail-page fields → dialogs. Radio cards respond to Space/Enter; switches are `role="switch"`; **[变更 2026-10：详情页化]** agent cards are plain navigation buttons (no `aria-expanded` — the list is not visible while a detail page is open); the detail page is a labelled region (`提示词详情 · {agent}`), focus lands on its 返回 button when it opens and returns to the originating card on 返回； chips are buttons. [变更 2026-10：部署页 target checkboxes removed with the 安装目标 grid; 生成预览/开始安装 moved into the deploy dialog.]
 - `aria-current` on nav; `role="tablist"/tab/tabpanel` on the backend tab bar and the deploy dialog's step tabs (v2); `role="log"` + `aria-live="polite"` on the log viewer (report card is the polite announcement; individual lines are not each announced); `aria-modal` + label on dialogs; toasts container `aria-live="polite"`; the detail page's dirty/saved status line is `aria-live="polite"` (dot + word, never color-only).
-- Contrast: body text ≥ 7:1, secondary ≥ 4.5:1 on all surfaces (both themes); status is never color-only (dot shape/fill + text); focus ring is a 2px-offset 2px accent ring, visible on every interactive element.
+- Contrast: body text ≥ 7:1, secondary ≥ 4.5:1 on all surfaces (both themes); status is never color-only (dot shape/fill + text); focus ring is a 2px-offset 2px accent ring, visible on every interactive element. **[变更 2026-10 M3 刷新：tokens 重推后两主题按此逐对复核达标 — dark `--text-3` 旧值 ~4.06:1 与 light `--text-2/--text-3` 旧值不达标，已分别调至 `#8390a6` / `#3e4c63` / `#5d6b80`; 状态徽标文字于各自 tint 底 ≥ ~4.5:1 且始终带词/图标冗余]**
 - Shortcuts: **no shortcuts layer in v1 (locked)** — no page shortcuts; `/` is kept only as focus-search on the Skills page, guarded against input/typing contexts and open dialogs.
 - Frameless window controls (§3.18): the window-control buttons are real `<button>`s — tabbable, §1.6 focus ring; the drag surfaces (sidebar brand row / the three page headers, whole-row via deep drag-region, plus the invisible top-edge `.drag-strip`) are not focusable (no tab stop) and are not keyboard surfaces; double-click on a header or the top edge toggles maximize (native); closing via Alt+F4 keeps working natively.
 - Text selection policy **[变更 2026-10：桌面应用惯例]** — UI chrome is not selectable (`user-select: none` at the root): stray sweeps and drag-region presses never paint a selection across headers, tabs, buttons or labels. Real content surfaces opt back in: form fields (input / textarea / select) and the read-only prompt body (`.edt-ta`).
@@ -332,7 +347,7 @@ Replaces the former open-questions list; §10 numbering retained for references.
 5. **DSH detection data.** `detect_environment` payload for dsh: `{home, homeSource:'env'|'default', exists, profile:{name}|null, profilesCount}`. Row hint states: 未找到 DSH 主目录 · 仍可安装 / 未找到唯一 profile（共 {n} 个候选）· 仍可安装（补丁行将跳过并打印说明）/ profile：{name}; plus 「DSH_HOME 已覆盖」 chip when `homeSource='env'`. States live on the dsh target card, the sidebar env card, and the demo panel (dsh 检测). (§4.1, §8)
 6. **Skills progress — confirmed:** event `skill-progress` mirroring `install-log`/`install-progress`; exact phases fixed in the M2 skill-repo spec doc. Mockup unchanged. (§7)
 7. **Window min size — 1024×680** (default 1200×800); the <1080px stacking breakpoint stands. If the M0 scaffold wrote 960×640, the implementation lane reconciles to this spec — the spec is the contract. (§2)
-8. **Light theme — dark-only ships in M1**; tokens stay, light pass moves to M3 polish; demo theme toggle labeled `主题 · M3`. (§1.2)
+8. **Light theme — dark-only ships in M1**; tokens stay, light pass moves to M3 polish; demo theme toggle labeled `主题 · M3`. (§1.2) **[变更 2026-10 M3 刷新·三稿：default presentation = light（高级纯净 = 轻盈纯净），dark 降为维护中的第二主题并保持可用；实现侧在移植时翻转默认主题（fixer lane）]**
 9. **Shortcuts — cut from v1.** No Ctrl+1/2/3 page shortcuts; `/` kept only as focus-search on the Skills page (guarded against inputs). (§9)
 10. **Sample data — noted.** Versions/SHAs/paths/timestamps in the mockup are placeholders; wiring is the implementation lane's job.
 

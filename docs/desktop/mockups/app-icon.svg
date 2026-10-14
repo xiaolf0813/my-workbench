@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <title>My Workbench</title>
+  <!-- M3 launcher mark [变更 2026-10 M3 刷新·三稿]
+       Concept: HUB-AND-SPOKE ORCHESTRATION — a center node wired to three
+       specialist nodes. It reads as an agent workbench (assemble + orchestrate
+       a roster of agents), not a terminal.
+       Container: solid azure #0B57D0 (the light-first M3 primary — the brand
+       constant), corner radius 22.5% (squircle read at launcher sizes),
+       transparent outside the rounded corners; the azure field holds its edge
+       on both light and dark launcher backgrounds.
+       Foreground: white nodes/spokes, stroke 4.4/48 (≈1.5px at 16px) with round
+       caps/joins — survives 16→256px.
+       Brand constants — theme-independent, match .brand-tile/.about-tile in
+       app.html: container #0B57D0 · glyph #FFFFFF (the i-mark symbol is the
+       24-grid stroke twin of this composition). -->
+  <rect width="48" height="48" rx="10.8" fill="#0B57D0"/>
+  <circle cx="24" cy="28.5" r="4.8" fill="none" stroke="#FFFFFF" stroke-width="4.4"/>
+  <circle cx="24" cy="12.1" r="3.4" fill="none" stroke="#FFFFFF" stroke-width="4.4"/>
+  <circle cx="10.2" cy="35.8" r="3.4" fill="none" stroke="#FFFFFF" stroke-width="4.4"/>
+  <circle cx="37.8" cy="35.8" r="3.4" fill="none" stroke="#FFFFFF" stroke-width="4.4"/>
+  <path d="M24 22.3V16.9" fill="none" stroke="#FFFFFF" stroke-width="4.4" stroke-linecap="round"/>
+  <path d="M18.5 31.4 14.4 33.6M29.5 31.4l4.1 2.2" fill="none" stroke="#FFFFFF" stroke-width="4.4" stroke-linecap="round"/>
+</svg>

@@ -12,11 +12,12 @@ import { useEffect, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauriAvailable } from "../lib/ipc";
 
-/** Hairline window glyphs on the sprite's 24-grid (icons.tsx conventions). */
+/** Hairline window glyphs on the sprite's 24-grid (icons.tsx conventions);
+ *  geometry synced 1:1 with the mockup sprite (i-wmin/i-wmax/i-wrestore/i-wclose). */
 function MinimizeGlyph() {
   return (
     <svg className="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <line x1="5" y1="12" x2="19" y2="12" />
+      <line x1="5.5" y1="12" x2="18.5" y2="12" />
     </svg>
   );
 }
@@ -24,7 +25,7 @@ function MinimizeGlyph() {
 function MaximizeGlyph() {
   return (
     <svg className="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <rect x="6" y="6" width="12" height="12" rx="1" />
+      <rect x="6.3" y="6.3" width="11.4" height="11.4" rx="2.4" />
     </svg>
   );
 }
@@ -32,8 +33,8 @@ function MaximizeGlyph() {
 function RestoreGlyph() {
   return (
     <svg className="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <polyline points="8 8.5 8 5.5 18.5 5.5 18.5 16 15.5 16" />
-      <rect x="5.5" y="8.5" width="10" height="10" rx="1" />
+      <path d="M8.6 8.6V5.9h9.5v9.5h-2.7" />
+      <rect x="5.9" y="8.6" width="9.5" height="9.5" rx="2" />
     </svg>
   );
 }
@@ -41,8 +42,7 @@ function RestoreGlyph() {
 function CloseGlyph() {
   return (
     <svg className="ic" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
+      <path d="m6.8 6.8 10.4 10.4M17.2 6.8 6.8 17.2" />
     </svg>
   );
 }

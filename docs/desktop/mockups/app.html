@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark">
+<html lang="zh-CN" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,51 +13,84 @@
   --font-ui:system-ui,-apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans CJK SC",sans-serif;
   --font-mono:ui-monospace,"Cascadia Code","SF Mono","JetBrains Mono",Consolas,"Courier New",monospace;
 
-  --bg-base:#0c0f14;
-  --bg-surface:#12161d;
-  --bg-raised:#181d26;
-  --bg-inset:#0a0d12;
-  --border:#1e2530;
-  --border-strong:#2c3545;
-  --text-1:#e7ecf4;
-  --text-2:#9aa5b8;
-  --text-3:#6d7889;
+  /* [变更 2026-10 M3 刷新·三稿] LIGHT is the default presentation — 高级纯净 reads
+     as light/airy/pure: soft cool-neutral scaffold, pure-white cards, containers
+     one gentle step darker than base (M3 light convention), hairlines minimal,
+     shadows soft and diffuse. Dark remains a maintained secondary variant
+     (html[data-theme="dark"] below), re-derived from the same azure seed. */
+  --bg-base:#f3f6fb;
+  --bg-surface:#ffffff;
+  --bg-raised:#e8edf6;
+  --bg-inset:#f6f9fd;
+  /* M3 state layers, precomputed: on-surface overlay @8% (hover) / @14% (press) */
+  --bg-hover:#dee5f1;
+  --bg-press:#d1dae9;
+  /* M3 secondary-container: azure-tinted tonal fill for secondary buttons,
+     value chips and the active segment */
+  --tonal-container:#e3ecfa;
+  --border:#e3e8f1;
+  --border-strong:#c6cfdd;
+  --text-1:#1b2230;
+  --text-2:#3f4d63;   /* ≥ 7:1 on surface & raised */
+  --text-3:#5e6c81;   /* ≥ 4.5:1 on surface & raised */
 
-  --accent:#3ccfdb;          /* 钢青 — the single brand accent */
-  --accent-hover:#66dfe9;
-  --accent-down:#2fb6c8;
-  --accent-text:#06222a;
-  --accent-tint:rgba(60,207,219,.10);
-  --accent-border:rgba(60,207,219,.38);
+  --accent:#0b57d0;          /* 晴空青 azure — M3 primary on light (tone ~45, hue 217) */
+  --accent-hover:#1f64d4;    /* filled hover = on-primary white overlay 8% */
+  --accent-down:#286bd6;     /* filled press  = on-primary white overlay 12% */
+  --accent-text:#ffffff;     /* on-primary */
+  --accent-tint:rgba(11,87,208,.09);
+  --accent-border:rgba(11,87,208,.32);
 
-  --ok:#46d68c;  --ok-tint:rgba(70,214,140,.10);  --ok-border:rgba(70,214,140,.32);
-  --warn:#f0b429;--warn-tint:rgba(240,180,41,.10);--warn-border:rgba(240,180,41,.35);
-  --err:#f5716f; --err-tint:rgba(245,113,111,.10); --err-border:rgba(245,113,111,.38);
-  --err-solid:#c94a48;
-  --vio:#a78bfa; --vio-tint:rgba(167,139,250,.12); --vio-border:rgba(167,139,250,.38);
+  --ok:#137a46;  --ok-tint:rgba(19,122,70,.09);  --ok-border:rgba(19,122,70,.30);
+  --warn:#a16207;--warn-tint:rgba(161,98,7,.09); --warn-border:rgba(161,98,7,.32);
+  --err:#c93a37; --err-tint:rgba(201,58,55,.08); --err-border:rgba(201,58,55,.32);
+  --err-solid:#c93a37;
+  --err-solid-hover:#d74d4b;  /* danger fill hover = white overlay 8% */
+  --warn-hover:#975d07;       /* warn fill hover = dark overlay 8% */
+  --vio:#6d4fd4; --vio-tint:rgba(109,79,212,.10); --vio-border:rgba(109,79,212,.32);
 
-  --ring:0 0 0 2px var(--bg-base),0 0 0 4px rgba(60,207,219,.65);
-  --shadow-1:0 1px 2px rgba(0,0,0,.35);
-  --shadow-2:0 8px 24px rgba(0,0,0,.38);
-  --shadow-3:0 18px 56px rgba(0,0,0,.55);
+  /* M3-flavored shape scale — buttons / nav / icon buttons are full pills */
+  --r-xs:4px; --r-sm:6px; --r-md:8px; --r-lg:12px; --r-xl:16px;
+
+  --ring:0 0 0 2px var(--bg-surface),0 0 0 4px rgba(11,87,208,.55);
+  --shadow-1:0 1px 2px rgba(23,32,48,.08);
+  --shadow-2:0 2px 8px rgba(23,32,48,.08),0 12px 32px rgba(23,32,48,.12);
+  --shadow-3:0 8px 20px rgba(23,32,48,.10),0 28px 72px rgba(23,32,48,.18);
   --t-fast:120ms; --t-med:200ms; --t-slow:280ms;
   --ease:cubic-bezier(.16,1,.3,1);
 }
-html[data-theme="light"]{
-  --bg-base:#f4f6f9; --bg-surface:#ffffff; --bg-raised:#eef1f6; --bg-inset:#f5f7fa;
-  --border:#e4e8ef; --border-strong:#ccd4e0;
-  --text-1:#182130; --text-2:#57637a; --text-3:#8b96a8;
-  --accent:#0b93a8; --accent-hover:#0a8093; --accent-down:#096e80; --accent-text:#ffffff;
-  --accent-tint:rgba(11,147,168,.08); --accent-border:rgba(11,147,168,.35);
-  --ok:#178a4c;  --ok-tint:rgba(23,138,76,.09);  --ok-border:rgba(23,138,76,.30);
-  --warn:#a16207;--warn-tint:rgba(161,98,7,.09); --warn-border:rgba(161,98,7,.32);
-  --err:#d43d3b; --err-tint:rgba(212,61,59,.08); --err-border:rgba(212,61,59,.32);
-  --err-solid:#d43d3b;
-  --vio:#6d4fd4; --vio-tint:rgba(109,79,212,.08); --vio-border:rgba(109,79,212,.32);
-  --ring:0 0 0 2px var(--bg-surface),0 0 0 4px rgba(11,147,168,.55);
-  --shadow-1:0 1px 2px rgba(24,33,48,.08);
-  --shadow-2:0 8px 24px rgba(24,33,48,.12);
-  --shadow-3:0 18px 56px rgba(24,33,48,.22);
+/* Maintained secondary variant — same azure seed (tone ~80), stepped near-white
+   ladder inverted into a deep cool ramp; not the headline presentation. */
+html[data-theme="dark"]{
+  --bg-base:#0a0e16;
+  --bg-surface:#121826;
+  --bg-raised:#1b2334;
+  --bg-inset:#05080f;
+  --bg-hover:#252f45;
+  --bg-press:#2d3952;
+  --tonal-container:#1c2942;
+  --border:#202b42;
+  --border-strong:#364260;
+  --text-1:#e9eef5;
+  --text-2:#a3b0c4;
+  --text-3:#8390a6;
+  --accent:#a8c7fa;
+  --accent-hover:#9bb9ec;
+  --accent-down:#94b3ed;
+  --accent-text:#041e49;
+  --accent-tint:rgba(168,199,250,.14);
+  --accent-border:rgba(168,199,250,.38);
+  --ok:#5fd8a7;  --ok-tint:rgba(95,216,167,.11);  --ok-border:rgba(95,216,167,.30);
+  --warn:#f2c14e;--warn-tint:rgba(242,193,78,.11);--warn-border:rgba(242,193,78,.30);
+  --err:#f99b97; --err-tint:rgba(249,155,151,.11); --err-border:rgba(249,155,151,.32);
+  --err-solid:#cc4b45;
+  --err-solid-hover:#d05954;
+  --warn-hover:#e2b448;
+  --vio:#b9a8f7; --vio-tint:rgba(185,168,247,.12); --vio-border:rgba(185,168,247,.32);
+  --ring:0 0 0 2px var(--bg-base),0 0 0 4px rgba(168,199,250,.66);
+  --shadow-1:0 1px 2px rgba(0,0,0,.30);
+  --shadow-2:0 2px 6px rgba(0,0,0,.28),0 10px 28px rgba(0,0,0,.34);
+  --shadow-3:0 6px 16px rgba(0,0,0,.34),0 26px 68px rgba(0,0,0,.50);
 }
 
 *{box-sizing:border-box;margin:0;padding:0}
@@ -68,7 +101,7 @@ body{font-family:var(--font-ui);font-size:13px;color:var(--text-1);background:va
 ::selection{background:var(--accent-tint)}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 input,select{font:inherit;color:inherit}
-svg.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .mono{font-family:var(--font-mono)}
 .num{font-variant-numeric:tabular-nums}
 .mut{color:var(--text-3)}
@@ -77,11 +110,11 @@ svg.ic{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.7;str
 :where(button,a,input,select,[role="switch"],[tabindex]):focus{outline:none}
 :where(button,a,input,select,[role="switch"],[tabindex]):focus-visible{box-shadow:var(--ring)}
 kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);background:var(--bg-inset);
-  border:1px solid var(--border-strong);border-radius:4px;padding:0 5px;line-height:16px}
+  border:1px solid var(--border-strong);border-radius:var(--r-xs);padding:0 5px;line-height:16px}
 
 /* scrollbars */
 ::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:6px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:var(--r-sm);border:2px solid transparent;background-clip:content-box}
 ::-webkit-scrollbar-thumb:hover{background:var(--text-3);border:2px solid transparent;background-clip:content-box}
 ::-webkit-scrollbar-track{background:transparent}
 *{scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent}
@@ -97,35 +130,43 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
    data-tauri-drag-region — their empty background areas are the drag surface.
    z-index 30: above page content, below the dialog scrim (50) and toasts (80). ---------- */
 .win-ctl{position:fixed;top:0;right:0;z-index:30;height:40px;display:flex}
+/* invisible top-edge drag surface (App shell parity): bare drag-region, no visual
+   footprint; z-index 25 — over page content, under the .win-ctl controls */
+.drag-strip{position:fixed;top:0;left:0;right:0;height:14px;z-index:25}
 .win-btn{width:46px;display:grid;place-items:center;color:var(--text-2);transition:background var(--t-fast),color var(--t-fast)}
-.win-btn:hover{background:var(--bg-raised);color:var(--text-1)}
+.win-btn:hover{background:var(--bg-hover);color:var(--text-1)}
 .win-btn .ic{width:14px;height:14px}
 .win-btn.win-close:hover{background:var(--err-solid);color:#fff}
 .sidebar{width:232px;flex:none;display:flex;flex-direction:column;padding:14px 12px;border-right:1px solid var(--border);background:var(--bg-base)}
 .brand{display:flex;align-items:center;gap:10px;padding:2px 6px 16px}
-.brand-tile{width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;
-  background:linear-gradient(135deg,var(--accent) 0%,#1f9db4 100%);color:#04252d;box-shadow:var(--shadow-1)}
+/* [变更 2026-10 M3 刷新·三稿] brand tile = launcher mark: azure container +
+   white hub-and-spoke glyph (i-mark, the agent-orchestration identity).
+   Theme-independent constants: container #0b57d0 · glyph #ffffff. */
+.brand-tile{width:28px;height:28px;border-radius:var(--r-md);flex:none;display:grid;place-items:center;
+  background:#0b57d0;color:#ffffff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.30),var(--shadow-1)}
 .brand-tile svg.ic{width:15px;height:15px;stroke-width:2.2}
 .brand-name{font-size:14px;font-weight:600;letter-spacing:-.01em}
 .brand-sub{font-size:11px;color:var(--text-3);margin-top:1px}
 .nav{display:flex;flex-direction:column;gap:2px}
-.nav-item{position:relative;display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:8px;
+/* [变更 2026-10 M3 刷新·二稿] M3 navigation: full-pill items; the tonal pill IS
+   the active indicator (the former 3px sidebar edge bar is removed) */
+.nav-item{position:relative;display:flex;align-items:center;gap:10px;height:36px;padding:0 12px;border-radius:999px;
   color:var(--text-2);font-size:13.5px;font-weight:500;text-align:left;transition:background var(--t-fast),color var(--t-fast)}
 .nav-item .nv-s{font-size:11px;color:var(--text-3);margin-left:auto;font-weight:400}
-.nav-item:hover{background:var(--bg-raised);color:var(--text-1)}
+.nav-item:hover{background:var(--bg-hover);color:var(--text-1)}
+/* M3 press state layer (tonal controls without filled variants; filled buttons
+   press via their own on-color overlay tokens) */
+.nav-item:active,.icon-btn:active,.tb:active,.chip:active,.seg-b:active{background:var(--bg-press)}
 .nav-item.is-active{background:var(--bg-raised);color:var(--text-1)}
 .nav-item.is-active .ic{color:var(--accent)}
-.nav-item.is-active::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--accent)}
 .nav-item:focus-visible{box-shadow:none;outline:none}
-.nav-item.is-active:focus-visible::after{content:"";position:absolute;inset:0;border-radius:8px;box-shadow:var(--ring)}
+.nav-item.is-active:focus-visible::after{content:"";position:absolute;inset:0;border-radius:999px;box-shadow:var(--ring)}
 .side-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
-.env-card{background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
-.env-row{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-2)}
-.env-row .mono{margin-left:auto;font-size:11px;color:var(--text-3)}
+/* [结构对齐 2026-10 M3 刷新] bare version line — no card chrome (App.tsx) */
+.env-version{font-size:11px;font-family:var(--font-mono);color:var(--text-3);padding:0 6px}
 .dot{width:7px;height:7px;border-radius:50%;flex:none}
 .dot.ok{background:var(--ok);box-shadow:0 0 0 3px var(--ok-tint)}
 .dot.off{background:transparent;border:1.5px solid var(--text-3)}
-.dot.acc{background:var(--accent);box-shadow:0 0 0 3px var(--accent-tint)}
 .side-note{font-size:11px;color:var(--text-3);padding:0 6px;line-height:1.5}
 
 .main{flex:1;min-width:0;display:flex;flex-direction:column;padding:20px 24px 20px}
@@ -139,39 +180,42 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 .dep-acts{display:flex;gap:8px}
 .page-body{flex:1;min-height:0;display:flex;flex-direction:column}
 
-/* ---------- buttons ---------- */
-.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:7px;
-  font-size:13px;font-weight:500;border:1px solid var(--border-strong);background:var(--bg-raised);color:var(--text-1);
+/* ---------- buttons ----------
+   [变更 2026-10 M3 刷新·二稿] M3 button shapes: full pills at every size;
+   the secondary tier is a tonal secondary-container fill, borderless —
+   tone carries it (sizes/paddings untouched) */
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 14px;border-radius:999px;
+  font-size:13px;font-weight:500;border:1px solid transparent;background:var(--tonal-container);color:var(--text-1);
   transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast),transform var(--t-fast)}
-.btn:hover{background:var(--bg-base);border-color:var(--text-3)}
+.btn:hover{background:var(--bg-hover)}
 .btn:active{transform:translateY(1px)}
 .btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
 .btn-primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
 .btn-primary:active{background:var(--accent-down)}
 .btn-danger{background:var(--err-solid);border-color:transparent;color:#fff;font-weight:600}
-.btn-danger:hover{filter:brightness(1.1)}
+.btn-danger:hover{background:var(--err-solid-hover)}
 .btn-warn{background:var(--warn);border-color:transparent;color:#2a1f04;font-weight:600}
-.btn-warn:hover{filter:brightness(1.08)}
+.btn-warn:hover{background:var(--warn-hover)}
 .btn-ghost{background:transparent;border-color:transparent;color:var(--text-2)}
-.btn-ghost:hover{background:var(--bg-raised);color:var(--text-1)}
+.btn-ghost:hover{background:var(--bg-hover);color:var(--text-1)}
 .btn-danger-o{background:transparent;border-color:var(--err-border);color:var(--err)}
 .btn-danger-o:hover{background:var(--err-tint)}
 .btn-warn-o{background:transparent;border-color:var(--warn-border);color:var(--warn)}
 .btn-warn-o:hover{background:var(--warn-tint)}
 .btn-acc-o{background:var(--accent-tint);border-color:var(--accent-border);color:var(--accent)}
 .btn-acc-o:hover{background:var(--accent-tint);border-color:var(--accent)}
-.btn-sm{height:26px;padding:0 10px;font-size:12px;border-radius:6px;gap:5px}
+.btn-sm{height:26px;padding:0 10px;font-size:12px;border-radius:999px;gap:5px}
 .btn-sm .ic{width:13px;height:13px}
 .btn:disabled,.btn[aria-disabled="true"]{opacity:.42;cursor:not-allowed;transform:none}
-.btn:disabled:hover{background:var(--bg-raised);border-color:var(--border-strong)}
+.btn:disabled:hover{background:var(--tonal-container)}
 .btn-primary:disabled:hover{background:var(--accent)}
-.icon-btn{width:28px;height:28px;border-radius:6px;display:inline-grid;place-items:center;color:var(--text-3);
+.icon-btn{width:28px;height:28px;border-radius:999px;display:inline-grid;place-items:center;color:var(--text-3);
   transition:background var(--t-fast),color var(--t-fast)}
-.icon-btn:hover{background:var(--bg-raised);color:var(--text-1)}
+.icon-btn:hover{background:var(--bg-hover);color:var(--text-1)}
 .icon-btn:disabled{opacity:.4;cursor:not-allowed}
 
 /* ---------- cards ---------- */
-.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px}
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg)}
 .card-h{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--border)}
 .card-t{font-size:13px;font-weight:600}
 .card-s{font-size:11.5px;color:var(--text-3)}
@@ -182,34 +226,43 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
    agent cards + detail editor on the page; the deploy machinery moved into the
    target-scoped deploy dialog (§4.6). Same tokens, same radius scale. ---------- */
 .dep-wrap{flex:1;min-height:0;display:flex;flex-direction:column;overflow-y:auto;padding-bottom:8px} /* full-fluid: fills the content area with the window (no width cap) */
-#depMain{flex:1;min-height:0;display:flex;flex-direction:column}
+/* [结构对齐 2026-10 M3 刷新] .dep-main mirrors DeployPage's body container */
+.dep-main{flex:1;min-height:0;display:flex;flex-direction:column}
+.dep-main > .fhint.roster-loading{margin:12px 0}
 .dep-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex:none}
 .tabs{display:flex;gap:8px;flex-wrap:wrap}
 .tb{display:inline-flex;align-items:center;height:32px;padding:0 15px;border-radius:999px;border:1px solid var(--border-strong);
   font-family:var(--font-mono);font-size:12.5px;font-weight:500;color:var(--text-2);
   transition:background var(--t-fast),border-color var(--t-fast),color var(--t-fast)}
-.tb:hover{color:var(--text-1);background:var(--bg-raised)}
+.tb:hover{color:var(--text-1);background:var(--bg-hover)}
 .tb.is-on{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
 .tb.is-on:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
-.dep-status{margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12px;color:var(--text-2);white-space:nowrap}
+/* [结构对齐 2026-10 M3 刷新] deployed info row (SPEC §4.5, DeployPage.tsx):
+   status · location · deployed version · update action — replaces the former
+   toolbar status + actions cluster */
+.dep-inforow{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex:none;font-size:12px;color:var(--text-2);white-space:nowrap;min-width:0}
+.dep-inforow .sep{flex:none;width:1px;height:14px;background:var(--border)}
+.dep-inforow .mono{color:var(--text-1)}
+.dep-infopath{font-family:var(--font-mono);font-size:12px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;min-width:0}
 .dep-scopebar{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex:none;flex-wrap:wrap;min-height:32px}
 .dep-scopebar .path{width:300px}
 .dep-loclabel{font-size:12px;font-weight:600;color:var(--text-2)}
 .dep-loc{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);flex-wrap:wrap}
 .dep-loc .mono{color:var(--text-1)}
-.fixchip{font-family:var(--font-mono);font-size:10px;color:var(--text-3);border:1px solid var(--border-strong);border-radius:4px;padding:0 5px;line-height:16px}
+.fixchip{font-family:var(--font-mono);font-size:10px;color:var(--text-3);border:1px solid var(--border-strong);border-radius:var(--r-xs);padding:0 5px;line-height:16px}
 
 /* agent cards (SPEC §3.20): one card per deployed agent file; clicking a card
    navigates to the full-page detail view (§3.22) — no open/closed card state */
 .agclist{display:flex;flex-direction:column;gap:10px}
 .agc{width:100%;text-align:left;display:flex;flex-direction:column;gap:7px;padding:12px 16px;background:var(--bg-surface);
-  border:1px solid var(--border);border-radius:10px;transition:border-color var(--t-fast),background var(--t-fast)}
-.agc:hover{border-color:var(--border-strong);background:var(--bg-raised)}
+  border:1px solid var(--border);border-radius:var(--r-lg);transition:border-color var(--t-fast),background var(--t-fast)}
+.agc:hover{border-color:var(--border-strong);background:var(--bg-hover)}
 .agc-top{display:flex;align-items:center;gap:10px;width:100%}
 .agc-name{font-family:var(--font-mono);font-size:13px;font-weight:600;letter-spacing:-.01em}
 .agc-chips{margin-left:auto;display:flex;gap:6px;flex:none}
-.achip{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--text-2);background:var(--bg-raised);
-  border:1px solid var(--border-strong);border-radius:999px;padding:2px 10px;line-height:16px;white-space:nowrap}
+/* [变更 2026-10 M3 刷新·二稿] value chips = tonal secondary-container, borderless */
+.achip{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--text-2);background:var(--tonal-container);
+  border:1px solid transparent;border-radius:999px;padding:2px 10px;line-height:16px;white-space:nowrap}
 .agc-file{font-family:var(--font-mono);font-size:11px;color:var(--text-3)}
 .agc-prev{font-family:var(--font-mono);font-size:12px;line-height:1.65;color:var(--text-2);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -227,26 +280,26 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 .adp-back .ic{margin-left:-3px} /* optical flush: arrow artwork insets ~2.8px inside its 16px box — nudge so the painted glyph matches the frame pixel */
 .adp-name{font-family:var(--font-mono);font-size:13px;font-weight:600;letter-spacing:-.01em}
 .adp{display:flex;flex-direction:column;flex:1;min-height:0} /* chromeless editor column — no outer frame; fills the remaining height */
-/* detail state: 20px top clearance for the floating win-ctl strip — the roster
-   header row that normally offsets the content is not rendered (§3.18).
+/* detail state ([结构对齐 2026-10 M3 刷新] .adp-wrap class, mirroring DeployPage's
+   `dep-wrap adp-wrap` wrapper): 20px top clearance for the floating win-ctl strip —
+   the roster header row that normally offsets the content is not rendered (§3.18).
    flush-glyph compensation: .adp-back pulls 14px left (its .btn padding), and the
    focus ring overhangs 4px more (--ring's outer 4px shadow) — shift the scroll
    container's clip boundary (its padding box) 18px left so pill + ring paint fully
    while every row stays at x=0 (column is full-fluid, no width cap) */
-.dep-wrap.detail{display:flex;flex-direction:column;padding-top:20px;margin-left:-18px;padding-left:18px} /* fill-height editor: title/fields on top, textarea flexes, footer bottom-pinned; overflow-y is the short-window fallback */
-.dep-wrap.detail #depMain{flex:1;min-height:0;display:flex;flex-direction:column}
-.dep-wrap.detail #depMain>div{flex:1;min-height:0;display:flex;flex-direction:column} /* the labelled region wraps title + editor */
+.adp-wrap{display:flex;flex-direction:column;min-height:0;padding-top:20px;margin-left:-18px;padding-left:18px}
+.adp-wrap > div{flex:1;min-height:0;display:flex;flex-direction:column} /* the labelled region wraps title + editor */
 .edt-meta{display:flex;align-items:center;gap:12px;padding:0 0 12px;flex-wrap:wrap}
 .edt-fld{display:flex;flex-direction:row;align-items:center;gap:8px} /* inline group: label left of its select */
 .edt-fld .fsel{width:170px}
 .edt-b{flex:1;min-height:0;display:flex} /* textarea consumes the space between field row and footer */
-.edt-ta{flex:1;width:100%;min-height:230px;resize:none;background:var(--bg-inset);border:1px solid var(--border-strong);border-radius:7px;
+.edt-ta{flex:1;width:100%;min-height:230px;resize:none;background:var(--bg-inset);border:1px solid var(--border-strong);border-radius:var(--r-md);
   padding:10px 12px;font-family:var(--font-mono);font-size:12px;line-height:1.7;color:var(--text-1)white-space:pre-wrap;overflow-wrap:break-word;overflow-y:auto} /* fills .edt-b (internal scrolling; 230px floor + page-scroll fallback) */
 
 .edt-state{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-2)}
 
 /* dsh preset summary (SPEC §3.23): deployed state has no agent cards */
-.preset{margin-top:14px;width:340px;max-width:100%;background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;
+.preset{margin-top:14px;width:340px;max-width:100%;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);
   padding:2px 0;text-align:left}
 .pr-row{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:8px 16px;font-size:12px;color:var(--text-2);
   border-bottom:1px solid var(--border)}
@@ -255,7 +308,7 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 
 /* deploy dialog (SPEC §4.6): the former deploy workspace scoped to one target */
 .dlg-dep{width:720px;position:relative}
-.dlg-dep .livebar{border-radius:12px 12px 0 0}
+.dlg-dep .livebar{border-radius:var(--r-xl) var(--r-xl) 0 0}
 .dlg-tabrow{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .dlg-tabrow .mut{margin-left:auto}
 .dpane{display:none;flex-direction:column;gap:12px}
@@ -266,9 +319,9 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 
 /* source radio cards */
 .srcgrid{display:flex;flex-direction:column;gap:8px}
-.src{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;
+.src{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-md);cursor:pointer;
   transition:border-color var(--t-fast),background var(--t-fast)}
-.src:hover{border-color:var(--border-strong);background:var(--bg-raised)}
+.src:hover{border-color:var(--border-strong);background:var(--bg-hover)}
 .src.is-on{border-color:var(--accent-border);background:var(--accent-tint)}
 .src-rad{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--border-strong);flex:none;display:grid;place-items:center;transition:border-color var(--t-fast)}
 .src.is-on .src-rad{border-color:var(--accent)}
@@ -277,7 +330,7 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 .src-t{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
 .src-s{font-size:11.5px;color:var(--text-3);margin-top:2px}
 .src .vchip{font-family:var(--font-mono);font-size:10.5px;color:var(--accent);background:var(--accent-tint);border:1px solid var(--accent-border);
-  border-radius:4px;padding:1px 6px;font-weight:500}
+  border-radius:var(--r-xs);padding:1px 6px;font-weight:500}
 .local-panel{margin-top:10px;display:flex;flex-direction:column;gap:8px}
 .local-panel[hidden]{display:none}
 
@@ -285,7 +338,7 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 .field{display:flex;flex-direction:column;gap:6px}
 .flabel{font-size:12px;font-weight:600;color:var(--text-2)}
 .path{display:flex;gap:6px}
-.path-in{flex:1;min-width:0;height:32px;border:1px solid var(--border-strong);border-radius:7px;background:var(--bg-inset);
+.path-in{flex:1;min-width:0;height:32px;border:1px solid var(--border-strong);border-radius:var(--r-md);background:var(--bg-inset);
   padding:0 10px;font-family:var(--font-mono);font-size:12px;color:var(--text-1);display:flex;align-items:center;overflow:hidden;white-space:nowrap}
 .path-in input{flex:1;min-width:0;background:none;border:0;height:100%;font:inherit;color:inherit}
 .path-in input:focus{box-shadow:none}
@@ -301,7 +354,7 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
    安装位置 line and the page scope bar; the former target checkbox grid
    (.tgrid/.tck, SPEC §3.4 target cards) was removed by the deploy redesign. */
 .envchip{display:inline-flex;align-items:center;font-family:var(--font-mono);font-size:10px;color:var(--accent);
-  background:var(--accent-tint);border:1px solid var(--accent-border);border-radius:4px;padding:0 5px;line-height:16px}
+  background:var(--accent-tint);border:1px solid var(--accent-border);border-radius:var(--r-xs);padding:0 5px;line-height:16px}
 
 /* option switch rows */
 .opts{display:flex;flex-direction:column}
@@ -322,13 +375,13 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 /* 2px install live bar (SPEC §3.9) — now mounted on the deploy dialog (.dlg-dep) */
 .livebar{position:absolute;top:0;left:0;right:0;height:2px;background:var(--bg-inset);z-index:5;opacity:0;transition:opacity var(--t-med)}
 .livebar.is-on{opacity:1}
-.livebar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#8ce8f2);transition:width .25s var(--ease)}
+.livebar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#a7d0f9);transition:width .25s var(--ease)}
 .livebar.done i{background:var(--ok)}
-.seg{display:flex;gap:2px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:3px}
-.seg-b{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 12px;border-radius:6px;font-size:12.5px;font-weight:500;
+.seg{display:flex;gap:2px;background:var(--bg-inset);border:1px solid var(--border);border-radius:var(--r-md);padding:3px}
+.seg-b{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 12px;border-radius:var(--r-sm);font-size:12.5px;font-weight:500;
   color:var(--text-2);transition:background var(--t-fast),color var(--t-fast)}
 .seg-b:hover{color:var(--text-1)}
-.seg-b.is-on{background:var(--bg-raised);color:var(--text-1);box-shadow:var(--shadow-1)}
+.seg-b.is-on{background:var(--tonal-container);color:var(--text-1);box-shadow:var(--shadow-1)}
 .seg-b .pulse{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
 /* overwrite switch wrapper inside the deploy dialog config pane (SPEC §4.6) */
@@ -336,7 +389,7 @@ kbd.kbd{font-family:var(--font-mono);font-size:11px;color:var(--text-3);backgrou
 
 /* filter chips */
 .chips{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--border);flex:none;flex-wrap:wrap;align-items:center}
-.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:6px;font-size:12px;color:var(--text-2);
+.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:var(--r-sm);font-size:12px;color:var(--text-2);
   border:1px solid var(--border);background:transparent;transition:all var(--t-fast)}
 .chip b{font-weight:600;color:var(--text-3);font-variant-numeric:tabular-nums}
 .chip:hover{border-color:var(--border-strong);color:var(--text-1)}
@@ -354,12 +407,12 @@ table.tbl{width:100%;border-collapse:collapse}
   letter-spacing:.05em;padding:8px 12px;border-bottom:1px solid var(--border)}
 .tbl td{padding:7px 12px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle}
 .tbl tbody tr{transition:background var(--t-fast)}
-.tbl tbody tr:hover{background:var(--bg-raised)}
+.tbl tbody tr:hover{background:var(--bg-hover)}
 .tbl .p{font-family:var(--font-mono);font-size:12px;white-space:nowrap}
 .tbl .p .dir{color:var(--text-3)}
 .tbl .p .nm{color:var(--text-1)}
 .tbl td.note{color:var(--text-3);font-size:11.5px;white-space:nowrap}
-.bd{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:5px;letter-spacing:.02em;white-space:nowrap}
+.bd{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 7px;border-radius:var(--r-sm);letter-spacing:.02em;white-space:nowrap}
 .bd .ic{width:11px;height:11px;stroke-width:2.2}
 .bd-create{color:var(--ok);background:var(--ok-tint);border:1px solid var(--ok-border)}
 .bd-skip{color:var(--text-3);background:var(--bg-raised);border:1px solid var(--border)}
@@ -376,7 +429,7 @@ table.tbl{width:100%;border-collapse:collapse}
 
 /* empty state */
 .empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:40px;text-align:center}
-.empty-ic{width:44px;height:44px;border-radius:12px;background:var(--bg-raised);border:1px solid var(--border);display:grid;place-items:center;
+.empty-ic{width:44px;height:44px;border-radius:var(--r-lg);background:var(--bg-raised);border:1px solid var(--border);display:grid;place-items:center;
   color:var(--text-3);margin-bottom:8px}
 .empty-ic .ic{width:20px;height:20px}
 .empty-t{font-size:14px;font-weight:600}
@@ -386,7 +439,7 @@ table.tbl{width:100%;border-collapse:collapse}
 /* log viewer */
 .logwrap{flex:1;min-height:0;position:relative;display:flex;flex-direction:column}
 .logbar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--border);flex:none}
-.lchip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:5px}
+.lchip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:var(--r-sm)}
 .lchip.idle{color:var(--text-3);border:1px solid var(--border-strong)}
 .lchip.run{color:var(--accent);background:var(--accent-tint);border:1px solid var(--accent-border)}
 .lchip.ok{color:var(--ok);background:var(--ok-tint);border:1px solid var(--ok-border)}
@@ -399,7 +452,7 @@ table.tbl{width:100%;border-collapse:collapse}
 .mini-sw .sw[aria-checked="true"]::after{transform:translateX(12px)}
 .lprog{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);flex:none}
 .lpbar{flex:1;height:4px;border-radius:99px;background:var(--bg-inset);border:1px solid var(--border);overflow:hidden}
-.lpfill{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#8ce8f2);transition:width .25s var(--ease);position:relative}
+.lpfill{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),#a7d0f9);transition:width .25s var(--ease);position:relative}
 .lpfill.is-run::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);
   animation:sweep 1.3s linear infinite}
 @keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
@@ -411,7 +464,7 @@ table.tbl{width:100%;border-collapse:collapse}
 @keyframes lnin{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
 .ln .ts{color:var(--text-3);flex:none}
 .ln .tg{flex:none;font-size:10.5px;font-weight:600;color:var(--text-2);background:var(--bg-raised);border:1px solid var(--border);
-  border-radius:4px;padding:0 6px;height:17px;line-height:15px;margin-top:2px}
+  border-radius:var(--r-xs);padding:0 6px;height:17px;line-height:15px;margin-top:2px}
 .ln .lm{color:var(--text-2);min-width:0}
 .ln.ok .lm{color:var(--text-1)}
 .ln.ok .lm::before{content:"✓ ";color:var(--ok)}
@@ -425,7 +478,7 @@ table.tbl{width:100%;border-collapse:collapse}
   background:var(--bg-raised);border:1px solid var(--border-strong);border-radius:999px;padding:5px 12px;font-size:12px;color:var(--text-1);
   box-shadow:var(--shadow-2)}
 .resume.is-on{display:inline-flex}
-.report{margin:10px 12px;border-radius:8px;padding:12px 14px;border:1px solid;display:flex;flex-direction:column;gap:8px;animation:lnin var(--t-med) var(--ease)}
+.report{margin:10px 12px;border-radius:var(--r-lg);padding:12px 14px;border:1px solid;display:flex;flex-direction:column;gap:8px;animation:lnin var(--t-med) var(--ease)}
 .report.ok{background:var(--ok-tint);border-color:var(--ok-border)}
 .report.err{background:var(--err-tint);border-color:var(--err-border)}
 .report-t{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
@@ -434,14 +487,14 @@ table.tbl{width:100%;border-collapse:collapse}
 .report.warn{background:var(--warn-tint);border-color:var(--warn-border)}
 .report.warn .report-t{color:var(--warn)}
 .report-chips{display:flex;gap:6px;flex-wrap:wrap}
-.rc{font-size:11.5px;font-family:var(--font-mono);padding:2px 8px;border-radius:5px;background:var(--bg-surface);border:1px solid var(--border);color:var(--text-2)}
+.rc{font-size:11.5px;font-family:var(--font-mono);padding:2px 8px;border-radius:var(--r-sm);background:var(--bg-surface);border:1px solid var(--border);color:var(--text-2)}
 .report .errmsg{font-family:var(--font-mono);font-size:11.5px;color:var(--err);background:var(--bg-inset);border:1px solid var(--err-border);
-  border-radius:6px;padding:8px 10px;word-break:break-all}
+  border-radius:var(--r-sm);padding:8px 10px;word-break:break-all}
 .report-a{display:flex;gap:8px}
 .log-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--text-3);font-size:12.5px;font-family:var(--font-ui)}
 
 /* banners */
-.bn{display:flex;align-items:flex-start;gap:10px;border-radius:9px;border:1px solid;padding:10px 12px}
+.bn{display:flex;align-items:flex-start;gap:10px;border-radius:var(--r-lg);border:1px solid;padding:10px 12px}
 .bn .ic{width:15px;height:15px;margin-top:1px}
 .bn-c{flex:1;min-width:0}
 .bn-t{font-size:12.5px;font-weight:600}
@@ -460,30 +513,30 @@ table.tbl{width:100%;border-collapse:collapse}
 
 /* ---------- skills ---------- */
 .schips{display:flex;gap:8px;flex-wrap:wrap}
-.schip{display:inline-flex;align-items:center;gap:8px;padding:7px 10px 7px 12px;border:1px solid var(--border);border-radius:8px;
+.schip{display:inline-flex;align-items:center;gap:8px;padding:7px 10px 7px 12px;border:1px solid var(--border);border-radius:var(--r-md);
   background:var(--bg-surface);cursor:pointer;transition:border-color var(--t-fast),background var(--t-fast);max-width:320px}
-.schip:hover{border-color:var(--border-strong);background:var(--bg-raised)}
+.schip:hover{border-color:var(--border-strong);background:var(--bg-hover)}
 .schip.is-on{border-color:var(--accent-border);background:var(--accent-tint)}
 .schip .ic{width:13px;height:13px;color:var(--text-3)}
 .schip.is-on .ic{color:var(--accent)}
 .schip-r{font-family:var(--font-mono);font-size:12px;font-weight:600}
 .schip-m{font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:5px}
 .schip-x{display:inline-flex;gap:2px;margin-left:2px}
-.schip-x button{width:22px;height:22px;border-radius:5px;display:grid;place-items:center;color:var(--text-3)}
-.schip-x button:hover{background:var(--bg-base);color:var(--text-1)}
+.schip-x button{width:22px;height:22px;border-radius:var(--r-sm);display:grid;place-items:center;color:var(--text-3)}
+.schip-x button:hover{background:var(--bg-hover);color:var(--text-1)}
 .schip-x .ic{width:12px;height:12px}
 .schip-add{border-style:dashed;color:var(--text-2);background:transparent}
 .schip-add:hover{color:var(--text-1);border-color:var(--accent-border)}
 .sk-tools{display:flex;gap:8px;align-items:center;padding:10px 0;flex-wrap:wrap}
-.search{display:flex;align-items:center;gap:7px;height:30px;padding:0 10px;border:1px solid var(--border-strong);border-radius:7px;
+.search{display:flex;align-items:center;gap:7px;height:30px;padding:0 10px;border:1px solid var(--border-strong);border-radius:var(--r-md);
   background:var(--bg-inset);width:240px;color:var(--text-3)}
 .search input{flex:1;background:none;border:0;height:100%;font-size:12.5px;color:var(--text-1)}
 .search input:focus{box-shadow:none;outline:none}
 .search:focus-within{border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-tint)}
-.sk-list{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg-surface)}
+.sk-list{border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;background:var(--bg-surface)}
 .sk-row{display:flex;align-items:center;gap:14px;padding:10px 14px;border-bottom:1px solid var(--border);transition:background var(--t-fast)}
 .sk-row:last-child{border-bottom:0}
-.sk-row:hover{background:var(--bg-raised)}
+.sk-row:hover{background:var(--bg-hover)}
 .sk-main{flex:1;min-width:0}
 .sk-name{font-size:13px;font-weight:600;font-family:var(--font-mono)}
 .sk-desc{font-size:11.5px;color:var(--text-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -509,32 +562,54 @@ table.tbl{width:100%;border-collapse:collapse}
 .set-c{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
 .set-c .path{max-width:420px}
 .patbox{display:flex;align-items:center;gap:8px;max-width:420px}
-.patval{flex:1;height:32px;display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid var(--border-strong);border-radius:7px;
+.patval{flex:1;height:32px;display:flex;align-items:center;gap:8px;padding:0 10px;border:1px solid var(--border-strong);border-radius:var(--r-md);
   background:var(--bg-inset);font-family:var(--font-mono);font-size:12px;color:var(--text-2);position:relative;overflow:hidden}
 .patval .ic{width:13px;height:13px;color:var(--text-3)}
 .patval .mask{letter-spacing:2px}
 .about{display:flex;align-items:center;gap:14px;padding:4px 0}
-.about-tile{width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,var(--accent),#1f9db4);display:grid;place-items:center;color:#04252d;box-shadow:var(--shadow-1)}
+.about-tile{width:44px;height:44px;border-radius:var(--r-lg);background:#0b57d0;display:grid;place-items:center;color:#ffffff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.30),var(--shadow-1)}
 .about-tile svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .about-n{font-size:15px;font-weight:600}
 .about-v{font-size:12px;color:var(--text-3);margin-top:2px;display:flex;align-items:center;gap:8px}
-.vchip{font-family:var(--font-mono);font-size:11px;padding:1px 8px;border-radius:5px;border:1px solid var(--border-strong);color:var(--text-2)}
+.vchip{font-family:var(--font-mono);font-size:11px;padding:1px 8px;border-radius:var(--r-sm);border:1px solid var(--border-strong);color:var(--text-2)}
 .vchip.ok{color:var(--ok);border-color:var(--ok-border);background:var(--ok-tint)}
 .vchip.warn{color:var(--warn);border-color:var(--warn-border);background:var(--warn-tint)}
-select.fsel{height:30px;border:1px solid var(--border-strong);border-radius:7px;background:var(--bg-inset);padding:0 8px;font-size:12.5px;color:var(--text-1)}
+select.fsel{height:30px;border:1px solid var(--border-strong);border-radius:var(--r-md);background:var(--bg-inset);padding:0 8px;font-size:12.5px;color:var(--text-1)}
 select.fsel:disabled{opacity:.55}
 
+/* ---------- implementation-parity block ([结构对齐 2026-10 M3 刷新] mirrors
+   ui/src/index.css so the contract covers every product surface) ---------- */
+.page-body.sk-body{overflow-y:auto;gap:0}
+.sk-wrap{display:flex;flex-direction:column;gap:12px;max-width:1080px}
+.page-body .set-wrap{flex:1;min-height:0}
+.src-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sk-search-ic{width:13px;height:13px}
+.sk-cache{margin-left:auto;font-size:11.5px;color:var(--text-3);display:inline-flex;align-items:center;gap:6px}
+.sk-cache .ic{width:11px;height:11px}
+/* per-op progress (skill-progress channel) */
+.sk-prog{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--bg-surface);overflow:hidden}
+.sk-prog .lprog{border-bottom:0}
+.sk-prog-name{font-size:12px;font-weight:600;color:var(--text-1);white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.sk-prog .log.sk-prog-log{flex:none;max-height:150px;border-top:1px solid var(--border)}
+.sk-empty .ic.sk-empty-ic{width:20px;height:20px;color:var(--text-3)}
+.sk-empty-s{font-size:11.5px;color:var(--text-3);max-width:380px;line-height:1.6}
+.patbox .fld-in{flex:1;min-width:0;width:auto}
+.link-btn{font-size:12px;display:inline-flex;align-items:center;gap:5px}
+.link-ic{width:13px;height:13px}
+.link:disabled,button.link:disabled{opacity:.45;cursor:not-allowed;text-decoration:none}
+.set-actions{display:flex;justify-content:flex-end}
+
 /* ---------- dialog ---------- */
-.oback{position:fixed;inset:0;background:rgba(4,7,12,.62);display:none;align-items:center;justify-content:center;z-index:50;
+.oback{position:fixed;inset:0;background:rgba(23,32,48,.40);display:none;align-items:center;justify-content:center;z-index:50;
   animation:fadein var(--t-med) var(--ease)}
-html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
+html[data-theme="dark"] .oback{background:rgba(5,9,15,.55)}
 .oback.is-open{display:flex}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 .dlg{width:520px;max-width:92vw;max-height:86vh;display:flex;flex-direction:column;background:var(--bg-surface);
-  border:1px solid var(--border-strong);border-radius:12px;box-shadow:var(--shadow-3);animation:dlgup var(--t-slow) var(--ease)}
+  border:1px solid var(--border-strong);border-radius:var(--r-xl);box-shadow:var(--shadow-3);animation:dlgup var(--t-slow) var(--ease)}
 @keyframes dlgup{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
 .dlg-h{display:flex;align-items:center;gap:10px;padding:16px 20px 0}
-.dlg-ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none}
+.dlg-ic{width:30px;height:30px;border-radius:var(--r-md);display:grid;place-items:center;flex:none}
 .dlg-ic.warn{background:var(--warn-tint);color:var(--warn);border:1px solid var(--warn-border)}
 .dlg-ic.err{background:var(--err-tint);color:var(--err);border:1px solid var(--err-border)}
 .dlg-ic.info{background:var(--accent-tint);color:var(--accent);border:1px solid var(--accent-border)}
@@ -549,18 +624,18 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
 .fld{display:flex;flex-direction:column;gap:5px}
 .flab{font-size:12px;font-weight:600;color:var(--text-2)}
 .flab .opt-tag{font-weight:400;color:var(--text-3)}
-.fld-in{height:32px;border:1px solid var(--border-strong);border-radius:7px;background:var(--bg-inset);padding:0 10px;font-size:12.5px;
+.fld-in{height:32px;border:1px solid var(--border-strong);border-radius:var(--r-md);background:var(--bg-inset);padding:0 10px;font-size:12.5px;
   color:var(--text-1);width:100%}
 .fld-in:focus{border-color:var(--accent-border);box-shadow:0 0 0 3px var(--accent-tint)}
 .fld-in.mono{font-family:var(--font-mono);font-size:12px}
-.modlist{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.modlist{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
 .modlist .ml-h{padding:7px 12px;background:var(--bg-inset);font-size:11px;font-weight:600;color:var(--text-3);letter-spacing:.04em;
   border-bottom:1px solid var(--border)}
 .modlist .ml-r{display:flex;gap:8px;align-items:center;padding:7px 12px;font-family:var(--font-mono);font-size:11.5px;border-bottom:1px solid var(--border)}
 .modlist .ml-r:last-child{border-bottom:0}
 .modlist .ml-r .ic{width:13px;height:13px;color:var(--warn)}
 .diff2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.diff2 .dpan{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.diff2 .dpan{border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
 .diff2 .dp-h{padding:6px 10px;font-size:11px;font-weight:600;color:var(--text-2);background:var(--bg-inset);border-bottom:1px solid var(--border);
   display:flex;gap:6px;align-items:center}
 .diff2 .dp-h .ic{width:12px;height:12px}
@@ -571,7 +646,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
 /* ---------- toast ---------- */
 .toasts{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:8px;z-index:80}
 .toast{display:flex;align-items:flex-start;gap:9px;min-width:260px;max-width:380px;background:var(--bg-raised);border:1px solid var(--border-strong);
-  border-radius:9px;padding:10px 13px;box-shadow:var(--shadow-2);font-size:12.5px;color:var(--text-1);animation:tin var(--t-slow) var(--ease)}
+  border-radius:var(--r-lg);padding:10px 13px;box-shadow:var(--shadow-2);font-size:12.5px;color:var(--text-1);animation:tin var(--t-slow) var(--ease)}
 @keyframes tin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
 .toast .ic{width:15px;height:15px;margin-top:1px}
 .toast.ok .ic{color:var(--ok)}
@@ -586,7 +661,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
 .dfab:hover{color:var(--text-1);border-color:var(--text-3)}
 .dfab .ic{width:13px;height:13px}
 .dpanel{position:fixed;left:246px;bottom:16px;z-index:61;width:344px;max-height:calc(100vh - 48px);overflow-y:auto;
-  background:var(--bg-surface);border:1px dashed var(--border-strong);border-radius:10px;box-shadow:var(--shadow-3);padding:12px;display:none}
+  background:var(--bg-surface);border:1px dashed var(--border-strong);border-radius:var(--r-lg);box-shadow:var(--shadow-3);padding:12px;display:none}
 .dpanel.is-open{display:block}
 .dp-h{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--text-3);margin-bottom:10px}
 .dp-h .icon-btn{margin-left:auto;width:22px;height:22px}
@@ -615,54 +690,64 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
 </head>
 <body>
 
-<!-- icon sprite (inline, no external assets) -->
+<!-- icon sprite (inline, no external assets).
+     [变更 2026-10 M3 刷新] full redraw, M3/Symbols-flavored rounded language:
+     24px grid · stroke 1.8 (set once on .svg.ic) · round caps/joins ·
+     0.5–1px optical inset · corner radii 2–2.6 on rects · meanings/names unchanged. -->
 <svg hidden xmlns="http://www.w3.org/2000/svg">
-  <symbol id="i-deploy" viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></symbol>
-  <symbol id="i-skills" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></symbol>
-  <symbol id="i-set" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
-  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
-  <symbol id="i-checkc" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
-  <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
-  <symbol id="i-xc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></symbol>
-  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
-  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
-  <symbol id="i-ref" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
-  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
-  <symbol id="i-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="16 12 12 8 8 12"/><line x1="12" y1="16" x2="12" y2="8"/></symbol>
-  <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
-  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></symbol>
-  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></symbol>
-  <symbol id="i-term" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></symbol>
-  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
-  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
-  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
-  <symbol id="i-layers" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></symbol>
-  <symbol id="i-chevd" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
-  <symbol id="i-chevr" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
-  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
-  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
-  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></symbol>
-  <symbol id="i-git" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
-  <symbol id="i-offline" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></symbol>
-    <symbol id="i-arl" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
-<symbol id="i-wmin" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></symbol>
-  <symbol id="i-wmax" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1"/></symbol>
-  <symbol id="i-wrestore" viewBox="0 0 24 24"><polyline points="8 8.5 8 5.5 18.5 5.5 18.5 16 15.5 16"/><rect x="5.5" y="8.5" width="10" height="10" rx="1"/></symbol>
-  <symbol id="i-wclose" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+  <symbol id="i-deploy" viewBox="0 0 24 24"><path d="M21.3 2.7 10.9 13.1"/><path d="M21.3 2.7 14.6 21.2l-3.7-8.1L3 9.4l18.3-6.7z"/></symbol>
+  <symbol id="i-skills" viewBox="0 0 24 24"><path d="M20.5 16.2V7.8a1.9 1.9 0 0 0-.95-1.65l-6.6-3.81a1.9 1.9 0 0 0-1.9 0l-6.6 3.8A1.9 1.9 0 0 0 3.5 7.8v8.4a1.9 1.9 0 0 0 .95 1.65l6.6 3.81a1.9 1.9 0 0 0 1.9 0l6.6-3.81a1.9 1.9 0 0 0 .95-1.65z"/><polyline points="3.8 7.2 12 12 20.2 7.2"/><line x1="12" y1="21.5" x2="12" y2="12"/></symbol>
+  <symbol id="i-set" viewBox="0 0 24 24"><path d="M3.5 6.5h9.1m5.2 0h2.7M3.5 12h2.7m5.2 0h9.1M3.5 17.5h7.3m5.2 0h4.5"/><circle cx="15.2" cy="6.5" r="2.6"/><circle cx="8.8" cy="12" r="2.6"/><circle cx="13.4" cy="17.5" r="2.6"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M21.5 17.8a2.3 2.3 0 0 1-2.3 2.3H4.8a2.3 2.3 0 0 1-2.3-2.3V6.3a2.3 2.3 0 0 1 2.3-2.3h4.1a2.3 2.3 0 0 1 1.63.68L11.9 6.1h7.3a2.3 2.3 0 0 1 2.3 2.3v9.4z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><polyline points="19.8 6.8 9.3 17.2 4.2 12.1"/></symbol>
+  <symbol id="i-checkc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.3"/><path d="m8.2 12.3 2.7 2.7 5-5.4"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.6 6.6l10.8 10.8M17.4 6.6 6.6 17.4"/></symbol>
+  <symbol id="i-xc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.3"/><path d="m9.3 9.3 5.4 5.4M14.7 9.3l-5.4 5.4"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M10.42 4.06a1.83 1.83 0 0 1 3.16 0l7.24 12.4a1.83 1.83 0 0 1-1.58 2.75H4.76a1.83 1.83 0 0 1-1.58-2.75l7.24-12.4z"/><line x1="12" y1="9.3" x2="12" y2="13.2"/><line x1="12" y1="16.7" x2="12.01" y2="16.7"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.3"/><line x1="12" y1="16.2" x2="12" y2="11.8"/><line x1="12" y1="8.2" x2="12.01" y2="8.2"/></symbol>
+  <symbol id="i-ref" viewBox="0 0 24 24"><path d="M20.4 4.4v5.2h-5.2"/><path d="M3.6 19.6v-5.2h5.2"/><path d="M4.9 8.9a7.6 7.6 0 0 1 12.5-2.8l3 3.5"/><path d="M19.1 15.1a7.6 7.6 0 0 1-12.5 2.8l-3-3.5"/></symbol>
+  <symbol id="i-dl" viewBox="0 0 24 24"><path d="M20.7 14.8v3.4a2.3 2.3 0 0 1-2.3 2.3H5.6a2.3 2.3 0 0 1-2.3-2.3v-3.4"/><path d="m7.3 10.6 4.7 4.7 4.7-4.7"/><line x1="12" y1="15.3" x2="12" y2="3.6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.3"/><path d="M15.6 11.9 12 8.3l-3.6 3.6"/><line x1="12" y1="15.7" x2="12" y2="8.3"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.2 6.4h15.6"/><path d="M9.8 6.2V4.9a1.9 1.9 0 0 1 1.9-1.9h.6a1.9 1.9 0 0 1 1.9 1.9v1.3"/><path d="M18.9 6.4v12.3a2.3 2.3 0 0 1-2.3 2.3H7.4a2.3 2.3 0 0 1-2.3-2.3V6.4"/><line x1="10.1" y1="10.6" x2="10.1" y2="16.6"/><line x1="13.9" y1="10.6" x2="13.9" y2="16.6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5.2" x2="12" y2="18.8"/><line x1="5.2" y1="12" x2="18.8" y2="12"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M14.7 4.6a2.3 2.3 0 0 1 3.25 0l1.45 1.45a2.3 2.3 0 0 1 0 3.25L8.5 20.2 3 21l.8-5.5L14.7 4.6z"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 24 24"><path d="M18.2 13.4v5.1a2.3 2.3 0 0 1-2.3 2.3H5.5a2.3 2.3 0 0 1-2.3-2.3V8.1a2.3 2.3 0 0 1 2.3-2.3h5.1"/><path d="m14.9 3.5h5.6v5.6"/><path d="M10.2 13.8 20.5 3.5"/></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24"><path d="m5 16.6 4.9-4.9L5 6.8"/><line x1="12.4" y1="18.6" x2="19" y2="18.6"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11.2" cy="11.2" r="7.6"/><path d="m20.6 20.6-4.5-4.5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.9" y="8.9" width="12.4" height="12.4" rx="2.5"/><path d="M5.4 14.9h-.7a2.3 2.3 0 0 1-2.3-2.3V5.4a2.3 2.3 0 0 1 2.3-2.3h7.2a2.3 2.3 0 0 1 2.3 2.3v.7"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9.6" rx="2.6"/><path d="M7.9 11V7.6a4.1 4.1 0 0 1 8.2 0V11"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 21.6c4.3-1.7 7.5-4.9 7.5-9.5V5.3L12 2.4 4.5 5.3v6.8c0 4.6 3.2 7.8 7.5 9.5z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2.9 9.1 4.4L12 11.7 2.9 7.3 12 2.9z"/><path d="m2.9 12.1 9.1 4.4 9.1-4.4"/><path d="m2.9 16.7 9.1 4.4 9.1-4.4"/></symbol>
+  <symbol id="i-chevd" viewBox="0 0 24 24"><path d="m6.6 9.4 5.4 5.4 5.4-5.4"/></symbol>
+  <symbol id="i-chevr" viewBox="0 0 24 24"><path d="m9.4 6.6 5.4 5.4-5.4 5.4"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.3"/><path d="M12 7.1V12l3.2 1.9"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14.2 2.8H6.6a2.4 2.4 0 0 0-2.4 2.4v13.6a2.4 2.4 0 0 0 2.4 2.4h10.8a2.4 2.4 0 0 0 2.4-2.4V8.4z"/><path d="M14.2 2.8v5.6h5.6"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.4v13.2a.6.6 0 0 0 .92.5l10.4-6.6a.6.6 0 0 0 0-1L8.92 4.9a.6.6 0 0 0-.92.5z"/></symbol>
+  <symbol id="i-git" viewBox="0 0 24 24"><line x1="6.2" y1="3.4" x2="6.2" y2="14.6"/><circle cx="17.8" cy="6.2" r="2.8"/><circle cx="6.2" cy="17.8" r="2.8"/><path d="M17.8 9a8.8 8.8 0 0 1-8.8 8.8"/></symbol>
+  <symbol id="i-offline" viewBox="0 0 24 24"><line x1="2.3" y1="2.3" x2="21.7" y2="21.7"/><path d="M16.7 11.2a10.4 10.4 0 0 1 2.1 1.4M5.2 12.6a10.4 10.4 0 0 1 4.9-2.3M10.8 5.1a15.5 15.5 0 0 1 11.5 3.7M1.7 8.8a15.5 15.5 0 0 1 4.5-2.8M8.6 16.1a5.8 5.8 0 0 1 6.7 0"/><line x1="12" y1="19.8" x2="12.01" y2="19.8"/></symbol>
+  <symbol id="i-arl" viewBox="0 0 24 24"><line x1="19.3" y1="12" x2="5.3" y2="12"/><path d="m11.4 5.9-6.1 6.1 6.1 6.1"/></symbol>
+  <!-- [变更 2026-10 M3 刷新·三稿] brand mark: hub-and-spoke orchestration —
+       a center node wired to three specialist nodes (the agent workbench
+       identity; replaces the terminal glyph in the brand/about tiles) -->
+  <symbol id="i-mark" viewBox="0 0 24 24"><circle cx="12" cy="13.2" r="2.4"/><circle cx="12" cy="5" r="1.7"/><circle cx="5.1" cy="17.05" r="1.7"/><circle cx="18.9" cy="17.05" r="1.7"/><path d="M12 10.1V7.4M9.3 14.7 7.2 15.9M14.7 14.7l2.1 1.2"/></symbol>
+  <symbol id="i-wmin" viewBox="0 0 24 24"><line x1="5.5" y1="12" x2="18.5" y2="12"/></symbol>
+  <symbol id="i-wmax" viewBox="0 0 24 24"><rect x="6.3" y="6.3" width="11.4" height="11.4" rx="2.4"/></symbol>
+  <symbol id="i-wrestore" viewBox="0 0 24 24"><path d="M8.6 8.6V5.9h9.5v9.5h-2.7"/><rect x="5.9" y="8.6" width="9.5" height="9.5" rx="2"/></symbol>
+  <symbol id="i-wclose" viewBox="0 0 24 24"><path d="m6.8 6.8 10.4 10.4M17.2 6.8 6.8 17.2"/></symbol>
 </svg>
 
 <!-- Flat sidebar+main shell (SPEC §2): no dedicated title-bar strip. The window
      controls are the fixed .win-ctl cluster demoed inside the Deploy page header
      below; the sidebar brand row and the three page headers carry
-     data-tauri-drag-region — their empty background areas drag the window. -->
+     data-tauri-drag-region — their empty background areas drag the window.
+     [结构对齐 2026-10 M3 刷新] the invisible .drag-strip mirrors the app shell
+     (App.tsx): the layout padding above the brand row / page headers drags too. -->
+<div class="drag-strip" data-tauri-drag-region aria-hidden="true"></div>
 <div class="app">
   <!-- ======================= SIDEBAR ======================= -->
   <aside class="sidebar">
-    <div class="brand" data-tauri-drag-region>
-      <div class="brand-tile"><svg class="ic"><use href="#i-term"/></svg></div>
+      <div class="brand" data-tauri-drag-region>
+        <div class="brand-tile"><svg class="ic"><use href="#i-mark"/></svg></div>
       <div>
         <div class="brand-name">My Workbench</div>
         <div class="brand-sub">部署 · 技能 · 设置</div>
@@ -670,7 +755,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
     </div>
     <nav class="nav" aria-label="主导航">
       <button class="nav-item is-active" data-page="deploy" aria-current="page">
-        <svg class="ic"><use href="#i-deploy"/></svg>部署<span class="nv-s">1</span>
+        <svg class="ic"><use href="#i-deploy"/></svg>部署
       </button>
       <button class="nav-item" data-page="skills">
         <svg class="ic"><use href="#i-skills"/></svg>技能<span class="nv-s num">12</span>
@@ -680,9 +765,9 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
       </button>
     </nav>
     <div class="side-foot">
-      <div class="env-card" title="版本信息 · 内置源随应用打包">
-        <div class="env-row"><span class="dot acc"></span>内置源<span class="mono">v1.4.2</span></div>
-      </div>
+      <!-- [结构对齐 2026-10 M3 刷新] bare version line, no card chrome (App.tsx
+           side-foot): the 内置源 tooltip rides on the title attribute -->
+      <div class="env-version" title="内置源版本 · 随应用打包">v1.4.2</div>
     </div>
   </aside>
 
@@ -717,15 +802,18 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
 
       <div class="page-body">
         <div class="dep-wrap" id="depWrap">
+          <!-- [结构对齐 2026-10 M3 刷新] tabs-only toolbar (DeployPage.tsx): status
+               text and actions live in the deployed info row below; the
+               notDeployed 部署 entry is the empty state's own CTA -->
           <div class="dep-toolbar" id="depToolbar">
             <div class="tabs" role="tablist" aria-label="部署目标" id="depTabs"></div>
-            <div class="dep-status" id="depStatus"></div>
-            <!-- per-target actions (SPEC §4.5, 2026-10 move): 未部署 → [部署] · 已部署 → [更新] -->
-            <div class="dep-acts" id="depActions"></div>
           </div>
-          <div class="dep-scopebar" id="depScope"></div>
+          <!-- deployed target's info row (SPEC §4.5): status · location ·
+               deployed version · the update action; absent while not deployed -->
+          <div class="dep-inforow" id="depInforow" hidden></div>
+          <div class="dep-scopebar" id="depScope" hidden></div>
           <!-- per-state body: rendered from data (agents/roster) by renderDepMain() -->
-          <div id="depMain"></div>
+          <div class="dep-main" id="depMain"></div>
         </div>
       </div>
     </section>
@@ -738,7 +826,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
           <p class="ph-sub" id="skillsSub">从 GitHub 仓库安装与管理技能 · 安装位置 <span class="mono">~\.agents\skills\</span></p>
         </div>
         <div class="ph-actions">
-          <button class="btn" id="btnUpdAll"><svg class="ic"><use href="#i-up"/></svg>全部更新<span class="vchip upd-cnt" id="updCnt" style="margin-left:2px">3</span></button>
+          <button class="btn" id="btnUpdAll"><svg class="ic"><use href="#i-up"/></svg>全部更新<span class="vchip num" id="updCnt" style="margin-left:2px">3</span></button>
           <button class="btn btn-ghost" data-open="dlg-source"><svg class="ic"><use href="#i-plus"/></svg>添加源</button>
           <button class="icon-btn" id="btnRefreshSkills" title="从 GitHub 刷新（受 60 次/小时限额约束）"><svg class="ic"><use href="#i-ref"/></svg></button>
         </div>
@@ -750,7 +838,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
 
           <div class="card">
             <div class="card-h">
-              <span class="card-t">技能源</span><span class="card-s" id="srcMeta">2 个源 · 公开 1 · 私有 1</span>
+              <span class="card-t">技能源</span><span class="card-s" id="srcMeta">2 个源</span>
               <span class="card-hr"><button class="btn btn-sm btn-ghost" data-open="dlg-source"><svg class="ic"><use href="#i-plus"/></svg>添加源</button></span>
             </div>
             <div class="card-b">
@@ -764,7 +852,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
                   </span>
                 </div>
                 <div class="schip" data-src="xiaolf/workbench-skills" role="button" tabindex="0" title="点击按该源筛选">
-                  <svg class="ic"><use href="#i-lock"/></svg>
+                  <svg class="ic"><use href="#i-git"/></svg>
                   <div><div class="schip-r">xiaolf/workbench-skills</div><div class="schip-m">@v2 · 4 个技能 · 私有 · PAT</div></div>
                   <span class="schip-x">
                     <button title="编辑源" data-open="dlg-source" data-mode="edit"><svg class="ic"><use href="#i-edit"/></svg></button>
@@ -786,7 +874,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
             <button class="chip" data-sf="upd">可更新 <b>3</b></button>
             <button class="chip" data-sf="mod">有本地修改 <b>1</b></button>
             <button class="chip" data-sf="na">未安装 <b>4</b></button>
-            <span style="margin-left:auto;font-size:11.5px;color:var(--text-3)" id="cacheLabel"><svg class="ic" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-clock"/></svg> 列表缓存于 12 分钟前</span>
+            <span class="sk-cache num" id="cacheLabel"><svg class="ic"><use href="#i-clock"/></svg> 列表缓存于 12 分钟前</span>
           </div>
 
           <div class="sk-list" id="skList">
@@ -822,7 +910,8 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
                   <button class="btn btn-sm btn-ghost" style="height:32px">恢复默认</button>
                 </div>
                 <div class="fhint"><svg class="ic"><use href="#i-info"/></svg>技能清单存储于 <span class="mono">&nbsp;&lt;root&gt;\.workbench-skills.json&nbsp;</span>。</div>
-                <div><a class="link" style="font-size:12px;display:inline-flex;align-items:center;gap:5px"><svg class="ic" style="width:13px;height:13px"><use href="#i-folder"/></svg>打开技能目录</a></div>
+                <div><button class="link link-btn" disabled title="计划于 M3 提供"><svg class="ic link-ic"><use href="#i-folder"/></svg>打开技能目录</button></div>
+                <div class="set-actions"><button class="btn btn-primary btn-sm">保存</button></div>
               </div>
             </div>
           </div>
@@ -852,7 +941,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
               <div class="set-l"><div class="set-lt">界面语言</div></div>
               <div class="set-c">
                 <div style="display:flex;gap:8px;align-items:center">
-                  <select class="fsel" style="width:180px"><option selected>中文（简体）</option><option>English（计划于 M3）</option></select>
+                  <select class="fsel" style="width:180px" disabled><option selected>中文（简体）</option><option>English（计划于 M3）</option></select>
                 </div>
                 <div class="fhint"><svg class="ic"><use href="#i-info"/></svg>英文界面计划于 M3（i18n）提供。</div>
               </div>
@@ -872,7 +961,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
               <div class="set-l"><div class="set-lt">应用</div></div>
               <div class="set-c">
                 <div class="about">
-                  <div class="about-tile"><svg><use href="#i-term"/></svg></div>
+                  <div class="about-tile"><svg><use href="#i-mark"/></svg></div>
                   <div>
                     <div class="about-n">My Workbench 桌面版</div>
                     <div class="about-v">版本 <span class="mono">1.4.2</span> (stable) · Tauri 2</div>
@@ -895,7 +984,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
             <div class="set-row">
               <div class="set-l"><div class="set-lt">源代码仓库</div></div>
               <div class="set-c">
-                <a class="link mono" style="font-size:12.5px;display:inline-flex;align-items:center;gap:5px">github.com/xiaolf/my-workbench <svg class="ic" style="width:12px;height:12px"><use href="#i-ext"/></svg></a>
+                <a class="link mono link-btn" style="font-size:12.5px" href="https://github.com/xiaolf0813/my-workbench" target="_blank" rel="noreferrer">github.com/xiaolf0813/my-workbench <svg class="ic link-ic"><use href="#i-ext"/></svg></a>
               </div>
             </div>
             <div class="set-row">
@@ -914,12 +1003,12 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
 </div>
 
 <!-- ======================= DIALOGS ======================= -->
-<div class="oback" id="dlg-source" role="dialog" aria-modal="true" aria-labelledby="dlgSrcT">
+<div class="oback" id="dlg-source" role="dialog" aria-modal="true" aria-label="添加技能源">
   <div class="dlg">
     <div class="dlg-h">
       <div class="dlg-ic info"><svg class="ic"><use href="#i-git"/></svg></div>
-      <div class="dlg-t" id="dlgSrcT">添加技能源</div>
-      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+      <div class="dlg-t">添加技能源</div>
+      <button class="icon-btn dlg-x" data-close aria-label="关闭"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div class="dlg-b">
       <div class="fld">
@@ -927,7 +1016,7 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
         <input class="fld-in mono" id="fRepo" placeholder="owner/repo" value="">
         <div class="fhint"><svg class="ic"><use href="#i-info"/></svg>仅支持 GitHub 仓库（公开或私有）。</div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="src-grid2">
         <div class="fld">
           <label class="flab" for="fRef">分支 / Ref <span class="opt-tag">（可选）</span></label>
           <input class="fld-in mono" id="fRef" placeholder="默认分支">
@@ -949,12 +1038,12 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
   </div>
 </div>
 
-<div class="oback" id="dlg-updwarn" role="dialog" aria-modal="true" aria-labelledby="dlgUwT">
+<div class="oback" id="dlg-updwarn" role="dialog" aria-modal="true" aria-label="检测到本地修改">
   <div class="dlg">
     <div class="dlg-h">
       <div class="dlg-ic warn"><svg class="ic"><use href="#i-warn"/></svg></div>
-      <div class="dlg-t" id="dlgUwT">检测到本地修改</div>
-      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+      <div class="dlg-t">检测到本地修改</div>
+      <button class="icon-btn dlg-x" data-close aria-label="关闭"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div class="dlg-b">
       <span>技能 <b class="mono">code-review</b> 的以下文件自安装后被修改过：</span>
@@ -973,12 +1062,12 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
   </div>
 </div>
 
-<div class="oback" id="dlg-del" role="dialog" aria-modal="true" aria-labelledby="dlgDelT">
+<div class="oback" id="dlg-del" role="dialog" aria-modal="true" aria-label="删除技能">
   <div class="dlg">
     <div class="dlg-h">
       <div class="dlg-ic err"><svg class="ic"><use href="#i-trash"/></svg></div>
-      <div class="dlg-t" id="dlgDelT">删除技能</div>
-      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+      <div class="dlg-t">删除技能</div>
+      <button class="icon-btn dlg-x" data-close aria-label="关闭"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div class="dlg-b">
       <span>将从 <span class="mono">~\.agents\skills\</span> 移除 <b class="mono">docx</b> 及其清单条目。此操作不可撤销（除非勾选备份）。</span>
@@ -991,12 +1080,12 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
   </div>
 </div>
 
-<div class="oback" id="dlg-srcdel" role="dialog" aria-modal="true" aria-labelledby="dlgSdT">
+<div class="oback" id="dlg-srcdel" role="dialog" aria-modal="true" aria-label="删除技能源">
   <div class="dlg" style="width:440px">
     <div class="dlg-h">
       <div class="dlg-ic err"><svg class="ic"><use href="#i-trash"/></svg></div>
-      <div class="dlg-t" id="dlgSdT">删除技能源</div>
-      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+      <div class="dlg-t">删除技能源</div>
+      <button class="icon-btn dlg-x" data-close aria-label="关闭"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div class="dlg-b">
       <span>移除源 <b class="mono">acme-labs/skills</b>？已安装的技能不受影响，仅解除关联（无法再更新）。</span>
@@ -1015,20 +1104,20 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
      streaming install log with cooperative cancel. (The former 健康检查 step
      was UI-removed 2026-10 — SPEC §10 tail note.) From 更新 the 覆盖 switch
      presets to ON. -->
-<div class="oback" id="dlg-deploy" role="dialog" aria-modal="true" aria-labelledby="dlgDepT">
+<div class="oback" id="dlg-deploy" role="dialog" aria-modal="true" aria-label="部署 · zcode">
   <div class="dlg dlg-dep">
     <div class="livebar" id="livebar"><i id="livefill"></i></div>
     <div class="dlg-h">
       <div class="dlg-ic info"><svg class="ic"><use href="#i-deploy"/></svg></div>
-      <div class="dlg-t" id="dlgDepT">部署 · zcode</div>
-      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+      <div class="dlg-t">部署 · zcode</div>
+      <button class="icon-btn dlg-x" data-close aria-label="关闭"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div class="dlg-b">
       <div class="dlg-tabrow">
         <div class="seg" role="tablist" aria-label="部署步骤">
           <button class="seg-b is-on" data-dlgv="config" role="tab" aria-selected="true">配置</button>
           <button class="seg-b" data-dlgv="preview" role="tab" aria-selected="false">预览</button>
-          <button class="seg-b" data-dlgv="log" role="tab" aria-selected="false">安装日志<span id="dlgLogDot" hidden>&nbsp;<span class="pulse"></span></span></button>
+          <button class="seg-b" data-dlgv="log" role="tab" aria-selected="false">安装日志<span class="pulse" id="dlgLogPulse" hidden></span></button>
         </div>
         <span class="bd bd-over" id="dlgForceBadge" hidden>覆盖已开启</span>
         <span class="mut num" style="font-size:11.5px" id="planMeta">项目级 · 0 写入</span>
@@ -1153,12 +1242,12 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
 </div>
 
 <!-- unsaved-changes guard for the detail editor (SPEC §3.22) -->
-<div class="oback" id="dlg-unsaved" role="dialog" aria-modal="true" aria-labelledby="dlgUnT">
+<div class="oback" id="dlg-unsaved" role="dialog" aria-modal="true" aria-label="放弃未保存的更改？">
   <div class="dlg" style="width:440px">
     <div class="dlg-h">
       <div class="dlg-ic warn"><svg class="ic"><use href="#i-warn"/></svg></div>
-      <div class="dlg-t" id="dlgUnT">放弃未保存的更改？</div>
-      <button class="icon-btn dlg-x" data-close><svg class="ic"><use href="#i-x"/></svg></button>
+      <div class="dlg-t">放弃未保存的更改？</div>
+      <button class="icon-btn dlg-x" data-close aria-label="关闭"><svg class="ic"><use href="#i-x"/></svg></button>
     </div>
     <div class="dlg-b">
       <span>关闭后将丢失对 <b class="mono" id="dlgUnName">oracle</b> 提示词的修改。</span>
@@ -1185,10 +1274,12 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
     </div>
   </div>
   <div class="dp-row"><span class="dp-l">目标状态</span>
-    <div class="seg" data-dk="tstate">
+    <div class="seg wrap" data-dk="tstate">
       <button class="seg-b" data-dv="notdep">未部署</button>
       <button class="seg-b" data-dv="deployed">已部署</button>
+      <button class="seg-b" data-dv="emptyroster">空列表</button>
       <button class="seg-b is-on" data-dv="detail">详情</button>
+      <button class="seg-b" data-dv="loaderr">读取失败</button>
     </div>
   </div>
   <div class="dp-row"><span class="dp-l">部署对话框</span>
@@ -1239,8 +1330,8 @@ html[data-theme="light"] .oback{background:rgba(24,33,48,.35)}
   </div>
   <div class="dp-row"><span class="dp-l">主题 · M3</span>
     <div class="seg" data-dk="theme">
-      <button class="seg-b is-on" data-dv="dark">深色</button>
-      <button class="seg-b" data-dv="light">浅色</button>
+      <button class="seg-b" data-dv="dark">深色</button>
+      <button class="seg-b is-on" data-dv="light">浅色</button>
     </div>
   </div>
 </div>
@@ -1260,6 +1351,9 @@ const state = {
   dep:{
     tab:'zcode',
     st:{opencode:'deployed', claude:'notdep', zcode:'detail', dsh:'deployed'},
+    /* deployed-version stamps (sample data): opencode reads v1.4.1 → the info
+       row offers 更新至v1.4.2; the rest are current (SPEC §4.5) */
+    ver:{opencode:'1.4.1', claude:null, zcode:'1.4.2', dsh:'1.4.2'},
     open:{opencode:'oracle', claude:null, zcode:'oracle', dsh:null},
     dirty:{}, pending:null, dirtyKey:null,
   },
@@ -1270,7 +1364,7 @@ const state = {
   dlg:{open:false, view:'config', from:'deploy', force:false, planned:false, stale:false},
   run:'idle', runTimer:null, autoScroll:true, runCancelled:false, runFiles:0,
   preval:'na', dsh:'profile',
-  net:'fresh', srcFilter:null, sf:'all', q:'',
+  net:'fresh', srcFilter:null, sf:'all', q:'', theme:'light',
 };
 
 /* ---------------- data (deploy v2, SPEC §4/§8) ---------------- */
@@ -1385,7 +1479,7 @@ document.addEventListener('click', e=>{
     const d = $('#'+o.dataset.open);
     const title = d.querySelector('.dlg-t'), btn = d.querySelector('.dlg-f .btn-primary');
     if(o.dataset.open==='dlg-source'){
-      title.textContent = mode==='edit' ? '编辑技能源' : '添加技能源';
+      title.textContent = mode==='edit' ? '编辑技能源' : '添加技能源'; d.setAttribute('aria-label', title.textContent);
       btn.textContent = mode==='edit' ? '保存' : '添加源';
       if(mode==='edit'){ $('#fRepo').value='acme-labs/skills'; $('#fRef').value='main'; $('#fSub').value='skills/'; }
       else { $('#fRepo').value=''; $('#fRef').value=''; $('#fSub').value=''; }
@@ -1443,19 +1537,22 @@ function locShort(t){
   return state.user ? '用户配置目录' : '项目目录';
 }
 
-/* ---------------- deploy page: tabs / status / header actions ---------------- */
+/* ---------------- deploy page: tabs + deployed info row (SPEC §4.5) ---------------- */
+/* [结构对齐 2026-10 M3 刷新] the toolbar is tabs-only (DeployPage.tsx); status
+   text and the update action live in the deployed target's info row below it */
+const BUNDLED_VER='1.4.2';
 function statusLine(t){
-  if(state.dep.st[t]==='notdep') return '<span class="dot off"></span>未部署';
-  return t==='dsh'
-    ? `<span class="dot ok"></span>已部署 · 预设 ${DSH_PRESET.name}`
-    : `<span class="dot ok"></span>已部署 · ${AGENTS[t].length} 个智能体`;
+  if(state.dep.st[t]==='notdep') return {dot:'off', text:'未部署'};
+  if(state.dep.st[t]==='emptyroster') return {dot:'ok', text:'已部署'}; // roster read empty → no count claim
+  if(t==='dsh') return {dot:'ok', text:`已部署 · 预设 ${DSH_PRESET.name}`};
+  return {dot:'ok', text:`已部署 · ${AGENTS[t].length} 个智能体`};
 }
 function tabMeta(t){
   return t + (state.dep.st[t]==='notdep' ? '（未部署）' : '（已部署）');
 }
 function renderDepTabs(){
   $('#depTabs').innerHTML = TARGETS.map(t=>
-    `<button class="tb${t===cur()?' is-on':''}" role="tab" aria-selected="${t===cur()}" aria-controls="depMain" aria-label="${tabMeta(t)}" title="${tabMeta(t)}" data-t="${t}">${t}</button>`
+    `<button class="tb${t===cur()?' is-on':''}" role="tab" aria-selected="${t===cur()}" aria-controls="depMain" aria-label="${tabMeta(t)}" title="${tabMeta(t)}" data-t="${t}" tabindex="${t===cur()?0:-1}">${t}</button>`
   ).join('');
   $$('#depTabs .tb').forEach(b => b.onclick = ()=>guardDep(()=>setDepTab(b.dataset.t)));
 }
@@ -1466,14 +1563,28 @@ $('#depTabs').addEventListener('keydown', e=>{
   guardDep(()=>setDepTab(n));
   requestAnimationFrame(()=>{ const b=$(`#depTabs .tb[data-t="${n}"]`); if(b) b.focus(); });
 });
-function renderDepStatus(){ $('#depStatus').innerHTML = statusLine(cur()); }
-function renderDepActions(){
-  const st = curSt();
-  $('#depActions').innerHTML = st==='notdep'
-    ? '<button class="btn btn-primary" id="hdDeploy"><svg class="ic"><use href="#i-deploy"/></svg>部署</button>'
-    : '<button class="btn btn-primary" id="hdUpdate"><svg class="ic"><use href="#i-up"/></svg>更新</button>';
-  const d=$('#hdDeploy'); if(d) d.onclick = ()=>openDeploy('deploy');
-  const u=$('#hdUpdate'); if(u) u.onclick = ()=>openDeploy('update'); // 更新：覆盖 presets ON (SPEC §4.6)
+/* resolved scope root for the info row's 位置 slot (sample data) */
+function scopeRootLabel(t){
+  if(t==='zcode') return '~\\.zcode';
+  if(t==='dsh'){
+    const s = DSH_STATES[state.dsh]||DSH_STATES.profile;
+    return s.profile==='—' ? s.home : s.home+'\\profiles\\'+s.profile;
+  }
+  return prefixFor(t).replace(/\\$/,'');
+}
+function renderDepInforow(){
+  const t = cur(), st = curSt(), el = $('#depInforow');
+  const show = (st==='deployed' || st==='emptyroster');
+  el.hidden = !show;
+  if(!show) return;
+  const sl = statusLine(t);
+  const ver = state.dep.ver[t];
+  const upd = ver!==null && ver!==BUNDLED_VER; // sample: opencode reads v1.4.1 → offers the update
+  el.innerHTML = `<span class="dot ${sl.dot}"></span><span>${sl.text}</span><span class="sep"></span>`+
+    `<span class="dep-loclabel">位置</span><span class="dep-infopath">${esc(scopeRootLabel(t))}</span><span class="sep"></span>`+
+    `<span class="dep-loclabel">已部署</span><span class="mono">${ver!==null?'v'+ver:'v—'}</span>`+
+    (upd?` <button class="btn btn-primary" id="irUpdate"><svg class="ic"><use href="#i-up"/></svg>更新至v${BUNDLED_VER}</button>`:'');
+  const b=$('#irUpdate'); if(b) b.onclick = ()=>openDeploy('update'); // 更新：覆盖 presets ON (SPEC §4.6)
 }
 
 /* ---------------- deploy page: realm scope bar (SPEC §4.3) ---------------- */
@@ -1493,12 +1604,14 @@ function renderDepScope(){
     $$('#depScope .seg-b').forEach(b => b.onclick = ()=>setScope(b.dataset.scope==='user'));
     const inp=$('#scopePathIn'); if(inp) inp.oninput = e=>{ state.scopePath=e.target.value; renderDlgScope(); markStale(); };
     const sb=$('#scopeBrowse'); if(sb) sb.onclick = ()=>toast('浏览器预览模式','info','系统目录选择器不可用 — 请直接在输入框中填写路径');
-  } else if(t==='zcode'){
-    el.innerHTML = '<span class="dep-loclabel">部署位置</span><span class="dep-loc"><span class="mono">~\\.zcode</span></span><span class="fixchip">固定</span>';
   } else {
-    const s = DSH_STATES[state.dsh]||DSH_STATES.profile;
-    el.innerHTML = `<span class="dep-loclabel">部署位置</span><span class="dep-loc"><span class="mono">DSH_HOME → ${s.home}</span><span class="mono">· profile ${s.profile}</span></span>${s.chip?'<span class="envchip">DSH_HOME 已覆盖</span>':''}`;
+    /* [结构对齐 2026-10 M3 刷新] zcode/dsh have fixed locations with no scope
+       choice — the former fixed-location lines are UI-removed from the page
+       (ScopeBar renders nothing); the location lives in the info row above */
+    el.hidden = true; el.innerHTML = '';
+    return;
   }
+  el.hidden = false;
 }
 function setScope(u){
   if(u===state.user) return;
@@ -1517,7 +1630,8 @@ function agentCard(t, a){
 }
 function detailHTML(t, a){
   const uniq = arr => [...new Set(arr)];
-  const opts = (arr,v) => arr.map(x=>`<option${x===v?' selected':''}>${x}</option>`).join('');
+  /* optionsWithCurrent parity: "" = 未设置 (clears the key) first */
+  const opts = (arr,v) => uniq(['',...arr]).map(x=>`<option value="${x}"${x===v?' selected':''}>${x===''?'未设置':x}</option>`).join('');
   return `<div role="region" aria-label="提示词详情 · ${a.n}">
     <div class="adp-title">
       <button class="btn btn-ghost adp-back" id="adpBack"><svg class="ic"><use href="#i-arl"/></svg>返回</button>
@@ -1525,8 +1639,8 @@ function detailHTML(t, a){
     </div>
     <div class="adp">
     <div class="edt-meta">
-      <div class="edt-fld"><label class="flab" for="edtModel">模型</label><select class="fsel" id="edtModel">${opts(uniq([...MODELS,a.model]),a.model)}</select></div>
-      <div class="edt-fld"><label class="flab" for="edtLvl">${LV_LABEL[t]}</label><select class="fsel" id="edtLvl">${opts(uniq([...LEVELS,a.lvl]),a.lvl)}</select></div>
+      <div class="edt-fld"><label class="flab" for="edtModel">模型</label><select class="fsel" id="edtModel">${opts(MODELS,a.model)}</select></div>
+      <div class="edt-fld"><label class="flab" for="edtLvl">${LV_LABEL[t]}</label><select class="fsel" id="edtLvl">${opts(LEVELS,a.lvl)}</select></div>
     </div>
     <div class="edt-b"><pre class="edt-ta" aria-label="提示词内容（随部署更新）">${esc(a.body)}</pre></div>
 
@@ -1546,12 +1660,30 @@ function renderDepMain(){
     $('#empDeploy').onclick = ()=>openDeploy('deploy');
     return;
   }
+  /* overview read failure (demo state; DeployPage renders the same bn err) */
+  if(st==='loaderr'){
+    m.innerHTML = `<div class="bn err"><svg class="ic"><use href="#i-warn"/></svg>
+      <div class="bn-c"><div class="bn-t">部署状态读取失败 — 后端未就绪</div></div>
+      <div class="bn-a"><button class="btn btn-sm" id="depRetry"><svg class="ic"><use href="#i-ref"/></svg>重试</button></div>
+    </div>`;
+    $('#depRetry').onclick = ()=>setDepState(cur(),'deployed');
+    return;
+  }
+  /* deployed but the roster came back empty (SPEC §3.23 RosterEmpty) */
+  if(st==='emptyroster'){
+    m.innerHTML = `<div class="empty">
+      <div class="empty-ic"><svg class="ic sk-empty-ic"><use href="#i-file"/></svg></div>
+      <div class="empty-t">未找到已部署的智能体文件</div>
+      <div class="empty-s">目标已标记为部署，但没有可显示的智能体文件。内置源更新后，上方信息行会出现「更新至…」按钮，点击即可重新部署。</div>
+    </div>`;
+    return;
+  }
   if(t==='dsh'){ /* dsh has no per-agent files: preset summary only (SPEC §4.5) */
     const s = DSH_STATES[state.dsh]||DSH_STATES.profile;
     m.innerHTML = `<div class="empty">
       <div class="empty-ic"><svg class="ic"><use href="#i-layers"/></svg></div>
       <div class="empty-t">dsh 已部署</div>
-      <div class="empty-s">dsh 以预设为单位部署 — 没有单独的智能体文件。点击右上角「更新」从内置源重新部署。</div>
+      <div class="empty-s">dsh 以预设为单位部署 — 没有单独的智能体文件。内置源更新后，上方信息行会出现「更新至…」按钮，点击即可从内置源重新部署。</div>
       <div class="preset">
         <div class="pr-row"><span>预设</span><span class="mono">${DSH_PRESET.name}</span></div>
         <div class="pr-row"><span>主目录</span><span class="mono">${s.home}</span></div>
@@ -1573,12 +1705,13 @@ function renderDepMain(){
   $$('#depMain .agc').forEach(b => { b.onclick = ()=>guardDep(()=>openEditor(t,b.dataset.ag)); });
 }
 function renderDepAll(){
-  renderDepTabs(); renderDepStatus(); renderDepActions(); renderDepScope(); renderDepMain();
+  renderDepTabs(); renderDepInforow(); renderDepScope(); renderDepMain();
   const detail = curSt()==='detail' && cur()!=='dsh' && !!state.dep.open[cur()];
   /* detail state: the whole page gives way to the detail view — the 部署 header
-     row (title/subtitle/actions) included; 返回 + name is the title (§3.22/§4.1) */
+     row (title/subtitle) included; 返回 + name is the title (§3.22/§4.1).
+     [结构对齐] the wrapper gains the implementation's .adp-wrap class */
   $('#depHead').style.display = detail?'none':'';
-  $('#depWrap').classList.toggle('detail', detail);
+  $('#depWrap').classList.toggle('adp-wrap', detail);
   $('#depToolbar').style.display = detail?'none':'';
   $('#depScope').style.display = detail?'none':'';
 }
@@ -1589,7 +1722,7 @@ function setDepTab(t){
   renderDepAll(); syncDepDemo();
 }
 function setDepState(t, s){
-  if(t==='dsh' && s==='detail') return; // dsh 没有智能体详情
+  if(t==='dsh' && (s==='detail'||s==='emptyroster'||s==='loaderr')) return; // dsh 没有智能体详情/空列表
   state.dep.st[t] = s;
   if(s==='notdep'){
     state.dep.open[t] = null;
@@ -1648,7 +1781,7 @@ function openDeploy(from, view){
   state.dlg.open = true; state.dlg.from = from; state.dlg.view = view;
   state.dlg.force = (from==='update'); /* 更新 → 覆盖 presets ON */
   if(view==='preview'){ state.dlg.planned = true; state.dlg.stale = false; }
-  $('#dlgDepT').textContent = (from==='update'?'更新':'部署')+' · '+cur();
+  $('#dlg-deploy .dlg-t').textContent = (from==='update'?'更新':'部署')+' · '+cur(); $('#dlg-deploy').setAttribute('aria-label', $('#dlg-deploy .dlg-t').textContent);
   renderDlgScope(); syncForceUI();
   setDlgView(view);
   openDialog('dlg-deploy');
@@ -1658,7 +1791,7 @@ function setDlgView(v){
   state.dlg.view = v;
   $$('[data-dlgv]').forEach(b=>{ const on=b.dataset.dlgv===v; b.classList.toggle('is-on',on); b.setAttribute('aria-selected',on); });
   ['config','preview','log'].forEach(k=>{ const p=$('#dp-'+k), on=k===v; p.classList.toggle('is-on',on); p.hidden=!on; });
-  $('#dlgLogDot').hidden = state.run!=='running';
+  $('#dlgLogPulse').hidden = state.run!=='running';
   renderDlgFooter();
   if(v==='preview') renderDlgPreview();
   updateDlgButtons();
@@ -1686,10 +1819,11 @@ function renderDlgScope(){
     $('#dlgScopeUserHint').hidden = !state.user;
     $('#dlgProjHint').hidden = state.user;
   } else if(t==='zcode'){
-    $('#dlgScopeFixed').innerHTML = '<span class="dep-loclabel">安装位置</span><span class="dep-loc"><span class="mono">~\\.zcode</span></span><span class="fixchip">固定</span>';
+    /* [结构对齐] the label rides inside .dep-loc (DeployDialog.tsx fixedLocation) */
+    $('#dlgScopeFixed').innerHTML = '<div class="dep-loc"><span class="dep-loclabel">安装位置</span><span class="dep-loc"><span class="mono">~\\.zcode</span></span><span class="fixchip">固定</span></div>';
   } else {
     const s = DSH_STATES[state.dsh]||DSH_STATES.profile;
-    $('#dlgScopeFixed').innerHTML = `<span class="dep-loclabel">安装位置</span><span class="dep-loc"><span class="mono">DSH_HOME → ${s.home}</span><span class="mono">· profile ${s.profile}</span></span>${s.chip?'<span class="envchip">DSH_HOME 已覆盖</span>':''}`;
+    $('#dlgScopeFixed').innerHTML = `<div class="dep-loc"><span class="dep-loclabel">安装位置</span><span class="dep-loc"><span class="mono">DSH_HOME → ${s.home}</span><span class="mono">· profile ${s.profile}</span></span>${s.chip?'<span class="envchip">DSH_HOME 已覆盖</span>':''}</div>`;
   }
 }
 function syncForceUI(){
@@ -1827,7 +1961,8 @@ function renderReport(kind){
     const rows = planRows(), c = {create:0,skip:0,over:0,mgd:0}; rows.forEach(x=>c[x.s]++);
     r.className = 'report ok';
     r.innerHTML = `<div class="report-t"><svg class="ic"><use href="#i-checkc"/></svg>安装完成</div>
-      <div class="report-chips"><span class="rc">${c.create} 新建</span><span class="rc">${c.skip} 跳过</span><span class="rc">${c.over} 覆盖</span><span class="rc">${c.mgd} 受管块</span><span class="rc">用时 ${state.runDur}</span></div>`;
+      <div class="report-chips"><span class="rc">${c.create} 新建</span><span class="rc">${c.skip} 跳过</span><span class="rc">${c.over} 覆盖</span><span class="rc">${c.mgd} 受管块</span><span class="rc">用时 ${state.runDur}</span></div>
+      <div class="report-chips"><span class="rc">部署版本 v${BUNDLED_VER}</span></div>`;
   } else if(kind==='cancel'){
     r.className = 'report warn';
     r.innerHTML = `<div class="report-t"><svg class="ic"><use href="#i-info"/></svg>安装已取消</div>
@@ -1846,7 +1981,7 @@ function renderReport(kind){
 }
 function setRunUI(){
   const chip = $('#logChip'), bar = $('#lpfill'), lb = $('#livebar');
-  $('#dlgLogDot').hidden = state.run!=='running';
+  $('#dlgLogPulse').hidden = state.run!=='running';
   $('#btnStop').hidden = state.run!=='running';
   if(state.run==='idle'){
     chip.className='lchip idle'; chip.textContent='未开始';
@@ -1999,10 +2134,10 @@ function renderSkills(){
 
   // cache label
   const cl = $('#cacheLabel');
-  cl.innerHTML = state.net==='offline' ? '<svg class="ic" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-offline"/></svg> 离线 · 显示本地清单（12 个技能）'
-    : state.net==='cached' ? '<svg class="ic" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-clock"/></svg> 列表缓存于 12 分钟前 · 上次刷新 14:08'
-    : state.net==='rate' ? '<svg class="ic" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-warn"/></svg> 限额预警 · 显示缓存清单'
-    : '<svg class="ic" style="width:11px;height:11px;vertical-align:-1px"><use href="#i-clock"/></svg> 刚刚刷新 · 14:32';
+  cl.innerHTML = state.net==='offline' ? '<svg class="ic"><use href="#i-offline"/></svg> 离线 · 显示本地清单（12 个技能）'
+    : state.net==='cached' ? '<svg class="ic"><use href="#i-clock"/></svg> 列表缓存于 12 分钟前 · 上次刷新 14:08'
+    : state.net==='rate' ? '<svg class="ic"><use href="#i-warn"/></svg> 限额预警 · 显示缓存清单'
+    : '<svg class="ic"><use href="#i-clock"/></svg> 刚刚刷新 · 14:32';
   // sub
   $('#skillsSub').innerHTML = state.net==='offline'
     ? '离线模式 · 从本地清单管理技能'
@@ -2027,11 +2162,11 @@ function renderSkills(){
     return `<div class="sk-row">
       <div class="sk-main"><div class="sk-name">${s.n}</div><div class="sk-desc">${s.d}</div></div>
       <div class="sk-src"><svg class="ic"><use href="#i-git"/></svg>${s.src}</div>
-      <div class="sk-ver">${ver}</div>
+      <div class="sk-ver num">${ver}</div>
       <div class="sk-st"><span class="bd ${bc}">${bt}</span></div>
-      <div class="sk-acts">${acts}<button class="btn btn-sm btn-ghost btn-danger-o" data-act="del" data-name="${s.n}"><svg class="ic"><use href="#i-trash"/></svg></button></div>
+      <div class="sk-acts">${acts}<button class="btn btn-sm btn-ghost btn-danger-o" data-act="del" data-name="${s.n}" aria-label="删除 ${s.n}"><svg class="ic"><use href="#i-trash"/></svg></button></div>
     </div>`;
-  }).join('') || `<div class="sk-empty"><svg class="ic" style="width:20px;height:20px"><use href="#i-search"/></svg>没有匹配的技能<button class="btn btn-sm btn-ghost" onclick="clearSkillFilters()">清除筛选</button></div>`;
+  }).join('') || `<div class="sk-empty"><svg class="ic sk-empty-ic"><use href="#i-search"/></svg>没有匹配的技能<button class="btn btn-sm btn-ghost" onclick="clearSkillFilters()">清除筛选</button></div>`;
 
   // disabled tooltip
   if(disabled) $$('#skRows [data-act="install"],#skRows [data-act="update"],#skRows [data-act="updmod"]').forEach(b=>b.title='离线状态：安装与更新不可用');

@@ -72,7 +72,7 @@ export default function App() {
         <aside className="sidebar">
           <div className="brand" data-tauri-drag-region="deep">
             <div className="brand-tile">
-              <Icon name="term" />
+              <Icon name="mark" />
             </div>
             <div>
               <div className="brand-name">My Workbench</div>
