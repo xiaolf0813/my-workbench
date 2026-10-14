@@ -1,9 +1,12 @@
-// App shell (SPEC §2): flat sidebar+main layout — no dedicated title-bar strip. The
+// Frameless window (SPEC §2): flat sidebar+main layout — no dedicated title-bar strip. The
 // frameless window's controls (TitleBar) are a fixed cluster floating over the top-right
-// corner; the sidebar brand row and each page header carry data-tauri-drag-region, so
-// their empty background areas drag the window. 232px sidebar — brand, nav (部署/技能/
-// 设置, aria-current), footer environment card + side-note — and main. Pages stay
-// mounted (mockup behavior) so in-flight install/preview state survives nav.
+// corner; the sidebar brand row and each page header carry data-tauri-drag-region="deep", so
+// the whole row surface drags the window (Tauri keeps clicks on buttons/inputs interactive).
+// The invisible .drag-strip covers the window's top edge — the layout padding above the
+// brand row and page headers, the most title-bar-like surface — and drags from there too.
+// 232px sidebar — brand, nav (部署/技能/设置, aria-current), footer environment card +
+// side-note — and main. Pages stay mounted (mockup behavior) so in-flight install/preview
+// state survives nav. Sidebar footer: a bare version line (no card chrome).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DeployPage, type EnvStatus } from "./pages/DeployPage";
 import { SkillsPage } from "./pages/SkillsPage";
@@ -64,9 +67,10 @@ export default function App() {
   return (
     <ToastProvider>
       <TitleBar />
+      <div className="drag-strip" data-tauri-drag-region aria-hidden="true" />
       <div className="app">
         <aside className="sidebar">
-          <div className="brand" data-tauri-drag-region>
+          <div className="brand" data-tauri-drag-region="deep">
             <div className="brand-tile">
               <Icon name="term" />
             </div>
@@ -97,12 +101,8 @@ export default function App() {
             ))}
           </nav>
           <div className="side-foot">
-            <div className="env-card" title="版本信息 · 内置源随应用打包">
-              <div className="env-row">
-                <span className="dot acc" />
-                内置源
-                <span className="mono">{bundledVersionLabel(env, appVersion)}</span>
-              </div>
+            <div className="env-version" title="内置源版本 · 随应用打包">
+              {bundledVersionLabel(env, appVersion)}
             </div>
           </div>
         </aside>

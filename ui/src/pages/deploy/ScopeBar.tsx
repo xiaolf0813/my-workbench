@@ -1,11 +1,11 @@
-// Realm scope bar (SPEC §4.3): one compact row under the backend tabs.
-// opencode/claude — 项目级/用户级 segmented control + project directory
-// input + 浏览… (one app-wide persisted state shared with the deploy dialog);
-// zcode/dsh — fixed-location line instead, with the scope seg never shown
-// (not even disabled). The dsh line mirrors the sidebar env card's §10.5
-// payload (`DSH_HOME → {home} · profile {name}` + the 已覆盖 chip).
+// Realm scope bar (SPEC §4.3): one compact row under the backend tabs, for
+// opencode/claude only — 项目级/用户级 segmented control + project directory
+// input + 浏览… (one app-wide persisted state shared with the deploy dialog).
+// zcode/dsh have fixed locations with no scope choice (2026-10: the former
+// fixed-location info lines are UI-removed — they carry no control) and the
+// component renders nothing for them.
 import { Icon } from "../../icons";
-import type { EnvironmentInfo, Target } from "../../lib/ipc";
+import type { Target } from "../../lib/ipc";
 
 interface ScopeBarProps {
   target: Target;
@@ -15,39 +15,10 @@ interface ScopeBarProps {
   onProjectDir: (dir: string) => void;
   /** Page-level picker (pickDirectory + browser-degradation toast). */
   onBrowse: () => void;
-  /** detect_environment payload — feeds the dsh fixed-location line. */
-  env: EnvironmentInfo | null;
 }
 
-export function ScopeBar({ target, userLevel, projectDir, onUserLevel, onProjectDir, onBrowse, env }: ScopeBarProps) {
-  if (target === "zcode") {
-    return (
-      <div className="dep-scopebar">
-        <span className="dep-loclabel">部署位置</span>
-        <span className="dep-loc">
-          <span className="mono">~\.zcode</span>
-        </span>
-        <span className="fixchip">固定</span>
-      </div>
-    );
-  }
-
-  if (target === "dsh") {
-    const dsh = env?.dsh ?? null;
-    const home = dsh !== null ? dsh.home : "—";
-    const profile = dsh !== null ? (dsh.profile ?? "—") : "—";
-    const overridden = dsh !== null && dsh.homeSource === "env";
-    return (
-      <div className="dep-scopebar">
-        <span className="dep-loclabel">部署位置</span>
-        <span className="dep-loc">
-          <span className="mono">DSH_HOME → {home}</span>
-          <span className="mono">· profile {profile}</span>
-        </span>
-        {overridden && <span className="envchip">DSH_HOME 已覆盖</span>}
-      </div>
-    );
-  }
+export function ScopeBar({ target, userLevel, projectDir, onUserLevel, onProjectDir, onBrowse }: ScopeBarProps) {
+  if (target === "zcode" || target === "dsh") return null;
 
   return (
     <div className="dep-scopebar">

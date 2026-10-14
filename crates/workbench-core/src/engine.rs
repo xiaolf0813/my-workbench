@@ -27,9 +27,9 @@ use crate::{checks, dsh, dsh_deps, render, roster};
 // ---------------------------------------------------------------- constants
 
 /// Stamp file written once per deployment realm (CLI :26).
-const VERSION_FILE: &str = "my-workbench.version";
+pub(crate) const VERSION_FILE: &str = "my-workbench.version";
 /// The user-realm stamp, hidden in the home directory (CLI :29).
-const HOME_VERSION_FILE: &str = ".my-workbench.version";
+pub(crate) const HOME_VERSION_FILE: &str = ".my-workbench.version";
 /// Progress phase label carried on [`InstallEvent::Progress`].
 /// Progress-line phase shown verbatim in the GUI progress row (`正在安装 · i/n · p%`).
 const PROGRESS_PHASE: &str = "正在安装";

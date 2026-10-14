@@ -2,8 +2,8 @@
 // selected = filled accent. `role=tablist/tab`, `aria-selected`, `aria-controls`,
 // Left/Right arrow navigation; each tab's aria-label/title carries the
 // deployment status — `{target}（已部署）` / `{target}（未部署）`. No dot inside
-// the pills: the selected target's state renders as dot + word at the bar's
-// right end (DeployPage renders that sibling `.dep-status` line).
+// the pills: the toolbar is tabs-only and the selected target's state renders
+// in the info row below it (DeployPage, 2026-10 slim-down).
 import { useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { TARGET_ORDER, type Target } from "../../lib/ipc";
 

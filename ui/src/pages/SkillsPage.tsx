@@ -645,7 +645,7 @@ export function SkillsPage({ goToSettings, onInstalledCount }: SkillsPageProps) 
 
   return (
     <>
-      <header className="page-head" data-tauri-drag-region>
+      <header className="page-head" data-tauri-drag-region="deep">
         <div>
           <h1 className="ph-title">技能</h1>
           <p className="ph-sub">

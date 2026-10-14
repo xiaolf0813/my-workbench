@@ -2,8 +2,8 @@
 // to the window's top-right corner, rendered OVER the page header area. There is no
 // dedicated title-bar strip — the controls consume no layout height and sit directly
 // on the page surface. Dragging does not live here: the sidebar brand row and the
-// three page-header containers carry data-tauri-drag-region (SPEC §2), so their
-// empty background areas are the drag surface.
+// three page-header containers carry data-tauri-drag-region="deep" (SPEC §2), so the
+// whole row surface drags the window while buttons and inputs stay interactive.
 //
 // Degradation (SPEC §3.18): without Tauri IPC (plain `vite dev` in a browser) the
 // component renders NOTHING — no dead controls, clean tab order. Window APIs are

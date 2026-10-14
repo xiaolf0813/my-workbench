@@ -173,7 +173,7 @@ export function SettingsPage({ envHome, envSourceVersion, appVersion }: Settings
 
   return (
     <>
-      <header className="page-head" data-tauri-drag-region>
+      <header className="page-head" data-tauri-drag-region="deep">
         <div>
           <h1 className="ph-title">设置</h1>
           <p className="ph-sub">技能存储、GitHub 访问与应用信息</p>

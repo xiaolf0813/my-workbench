@@ -492,6 +492,8 @@ export interface DeployedTargetState {
   presetFileCount: number | null;
   /** dsh only: newest preset file mtime in millis; null for the other targets and when the root is absent or empty. */
   deployedAtMs: number | null;
+  /** The target realm's version stamp (`my-workbench.version` / `.my-workbench.version`), trimmed; null when the stamp is missing, unreadable or empty. */
+  deployedVersion: string | null;
 }
 
 /** One deployed agent markdown of a target (`deployed_list_agents`). */

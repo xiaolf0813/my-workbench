@@ -28,7 +28,10 @@ use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::engine::{claude_scope_for, opencode_scope_for, scope_join, scope_root_path, write_bytes, zcode_root, Scope};
+use crate::engine::{
+    claude_scope_for, opencode_scope_for, scope_join, scope_root_path, write_bytes, zcode_root,
+    Scope, HOME_VERSION_FILE, VERSION_FILE,
+};
 use crate::error::WorkbenchError;
 use crate::preserve::{
     frontmatter_key_of, CLAUDE_AGENT_KEYS, OPENCODE_AGENT_KEYS, ZCODE_AGENT_KEYS,
@@ -62,7 +65,9 @@ pub struct DeployedParams<'a> {
 /// fields are populated for the DSH target only (the other targets are
 /// agents-directory based): the recursive regular-file count under the DSH
 /// preset root and the newest of those files' mtime in millis — both `None`
-/// when the preset root is absent or holds no files.
+/// when the preset root is absent or holds no files. `deployed_version` is
+/// the target realm's version stamp, trimmed — `None` when the stamp file is
+/// missing, unreadable or empty.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeployedTargetState {
@@ -73,6 +78,8 @@ pub struct DeployedTargetState {
     pub preset_file_count: Option<usize>,
     #[serde(default)]
     pub deployed_at_ms: Option<i64>,
+    #[serde(default)]
+    pub deployed_version: Option<String>,
 }
 
 /// One deployed agent markdown. `settings` carries EVERY model key of the
@@ -134,6 +141,27 @@ fn scope_label_for(params: &DeployedParams<'_>, target: Target) -> String {
             .map(|scope| scope_root_path(&scope).to_string_lossy().into_owned())
             .unwrap_or_default(),
     }
+}
+
+/// The target realm's version stamp, read with the engine's own file names
+/// ([`VERSION_FILE`] / [`HOME_VERSION_FILE`]) and the same realm split
+/// [`crate::engine::stamp_plans`] writes: opencode/claude read the project
+/// stamp `<project_dir>/my-workbench.version` at project level and the home
+/// stamp `<home>/.my-workbench.version` at user level; zcode/dsh are
+/// user-level-only targets and always read the home stamp. `None` when the
+/// stamp is missing, unreadable or empty — never an error.
+fn stamp_version_for(params: &DeployedParams<'_>, target: Target) -> Option<String> {
+    let path = match target {
+        Target::Opencode | Target::Claude if params.user_level => {
+            params.home.join(HOME_VERSION_FILE)
+        }
+        Target::Opencode | Target::Claude => params.project_dir?.join(VERSION_FILE),
+        Target::Zcode | Target::Dsh => params.home.join(HOME_VERSION_FILE),
+    };
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|text| text.trim().to_string())
+        .filter(|version| !version.is_empty())
 }
 
 /// The backend's model-setting key inventory — the same lists a force
@@ -293,7 +321,8 @@ fn value_of_line(line: &str) -> String {
 /// Per-target deployed state for ALL four targets, in APPLY_ORDER
 /// (opencode → claude → zcode → dsh). Zero writes, read-only. The preset
 /// file count / deployment time ride on the dsh row only; the other targets
-/// report `None`.
+/// report `None`. Every row carries its realm's version stamp (see
+/// [`stamp_version_for`]).
 pub fn deployed_overview(params: &DeployedParams<'_>) -> Vec<DeployedTargetState> {
     let dsh_stats = dsh_preset_stats(params.dsh_home);
     APPLY_ORDER
@@ -310,6 +339,7 @@ pub fn deployed_overview(params: &DeployedParams<'_>) -> Vec<DeployedTargetState
                 scope_label: scope_label_for(params, *target),
                 preset_file_count,
                 deployed_at_ms,
+                deployed_version: stamp_version_for(params, *target),
             }
         })
         .collect()
@@ -763,6 +793,66 @@ mod tests {
         assert!(dsh.deployed);
         assert!(dsh.preset_file_count.is_none());
         assert!(dsh.deployed_at_ms.is_none());
+    }
+
+    #[test]
+    fn overview_reads_each_realm_version_stamp() {
+        let sb = sandbox();
+
+        // No stamp files anywhere: every row reports null.
+        let p = params(&sb, Some(&sb.project), false);
+        for row in deployed_overview(&p) {
+            assert!(row.deployed_version.is_none(), "{:?}", row.target);
+        }
+
+        // The engine's stamp_plans realms (project level): the markdown
+        // targets read the project stamp, zcode/dsh the home stamp. The
+        // engine writes `format!("{}\n", version)` — the trailing newline
+        // trims away.
+        fs::write(sb.project.join(VERSION_FILE), "0.14.0\n").unwrap();
+        fs::write(sb.home.join(HOME_VERSION_FILE), "0.13.0\n").unwrap();
+        let stamped = deployed_overview(&p);
+        let version = |t: Target| {
+            stamped
+                .iter()
+                .find(|r| r.target == t)
+                .unwrap()
+                .deployed_version
+                .clone()
+                .unwrap()
+        };
+        assert_eq!(version(Target::Opencode), "0.14.0");
+        assert_eq!(version(Target::Claude), "0.14.0");
+        assert_eq!(version(Target::Zcode), "0.13.0");
+        assert_eq!(version(Target::Dsh), "0.13.0");
+
+        // User level: the markdown targets read the home realm too.
+        let u = deployed_overview(&params(&sb, None, true));
+        for t in [Target::Opencode, Target::Claude, Target::Zcode, Target::Dsh] {
+            assert_eq!(
+                u.iter().find(|r| r.target == t).unwrap().deployed_version.as_deref(),
+                Some("0.13.0"),
+                "{t:?}"
+            );
+        }
+
+        // Project level without a project directory: the project realm cannot
+        // resolve, the home realm still reads.
+        let n = deployed_overview(&params(&sb, None, false));
+        for t in [Target::Opencode, Target::Claude] {
+            assert!(
+                n.iter().find(|r| r.target == t).unwrap().deployed_version.is_none(),
+                "{t:?}"
+            );
+        }
+        assert_eq!(
+            n.iter().find(|r| r.target == Target::Dsh).unwrap().deployed_version.as_deref(),
+            Some("0.13.0")
+        );
+
+        // An empty / blank stamp carries no version: null, not "".
+        fs::write(sb.project.join(VERSION_FILE), "  \n").unwrap();
+        assert!(stamp_version_for(&p, Target::Opencode).is_none());
     }
 
     // ---------------------------------------------------------------- list

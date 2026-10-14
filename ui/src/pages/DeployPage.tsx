@@ -657,6 +657,14 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
 
   const scopeLabel = currentRow?.scopeLabel ?? "";
 
+  /* Bundled version, raw (no `v` prefix): the same input as logic.ts's
+     bundledVersionLabel, unprefixed for the stamp comparison. Update needed
+     when the stamp is missing/unreadable (null) or differs; an empty raw
+     version (browser preview / stub backend) never offers an update. */
+  const bundledRawVersion = (env?.sourceVersion || "").trim() || appVersion || "";
+  const deployedVersion = currentRow?.deployedVersion ?? null;
+  const updateAvailable = bundledRawVersion !== "" && deployedVersion !== bundledRawVersion;
+
   const cachedAgents = agentsRef.current[target] ?? [];
 
   /* View state (notes §3): roster (default) ↔ agent detail. The detail page
@@ -704,7 +712,7 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
           In the detail view the page's own 返回 + name header is the title — this
           row (and its data-tauri-drag-region surface) gives way entirely. */}
       {!showDetail && (
-        <header className="page-head" data-tauri-drag-region>
+        <header className="page-head" data-tauri-drag-region="deep">
           <div>
             <h1 className="ph-title">部署</h1>
             <p className="ph-sub">管理各后端已部署的智能体与提示词 · 预览与安装均不访问网络</p>
@@ -719,28 +727,38 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
           renderDetailPage(editorAgent)
         ) : (
           <div className="dep-wrap">
+            {/* tabs only (2026-10 slim-down): the status text lives in the
+                deployed target's info row below, and the notDeployed 部署
+                entry is the empty state's own CTA below */}
             <div className="dep-toolbar">
               <BackendTabs value={target} statusOf={tabStatusOf} onSelect={selectTab} />
-              <div className="dep-status">
+            </div>
+
+            {/* deployed target's info row (SPEC §4.5): status · location ·
+                deployed version · the update action, one line at the top of
+                the content area; absent entirely while not deployed */}
+            {depState === "deployed" && (
+              <div className="dep-inforow">
                 <span className={`dot ${statusLine.dot}`} />
                 <span>{statusLine.text}</span>
+                <span className="sep" />
+                {scopeLabel !== "" && (
+                  <>
+                    <span className="dep-loclabel">位置</span>
+                    <span className="dep-infopath">{scopeLabel}</span>
+                    <span className="sep" />
+                  </>
+                )}
+                <span className="dep-loclabel">已部署</span>
+                <span className="mono">{deployedVersion !== null ? `v${deployedVersion}` : "v—"}</span>
+                {updateAvailable && (
+                  <button type="button" className="btn btn-primary" onClick={() => openDeploy("update")}>
+                    <Icon name="up" />
+                    更新至v{bundledRawVersion}
+                  </button>
+                )}
               </div>
-              {/* per-target actions (SPEC §4.5, 2026-10 move): deployment is per-backend,
-                  so the buttons live in the selected backend's own toolbar row —
-                  未部署 → 部署 · 已部署 → 更新 */}
-              {depState === "notDeployed" && (
-                <button type="button" className="btn btn-primary" onClick={() => openDeploy("deploy")}>
-                  <Icon name="deploy" />
-                  部署
-                </button>
-              )}
-              {depState === "deployed" && (
-                <button type="button" className="btn btn-primary" onClick={() => openDeploy("update")}>
-                  <Icon name="up" />
-                  更新
-                </button>
-              )}
-            </div>
+            )}
 
             <ScopeBar
               target={target}
@@ -749,7 +767,6 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
               onUserLevel={scopeStore.setUserLevel}
               onProjectDir={scopeStore.setProjectDir}
               onBrowse={() => void browse("选择项目目录", scopeStore.setProjectDir)}
-              env={env}
             />
 
             {/* per-state body (notes §5.1: no flash of the empty state while loading) */}

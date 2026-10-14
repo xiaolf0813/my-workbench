@@ -55,7 +55,7 @@ export function DshPresetEmpty({ home, profile, presetFileCount, deployedAtMs }:
         <Icon name="layers" />
       </div>
       <div className="empty-t">dsh 已部署</div>
-      <div className="empty-s">dsh 以预设为单位部署 — 没有单独的智能体文件。点击右上角「更新」从内置源重新部署。</div>
+      <div className="empty-s">dsh 以预设为单位部署 — 没有单独的智能体文件。内置源更新后，上方信息行会出现「更新至…」按钮，点击即可从内置源重新部署。</div>
       <div className="preset">
         <div className="pr-row">
           <span>预设</span>
@@ -89,7 +89,7 @@ export function RosterEmpty() {
         <Icon name="file" />
       </div>
       <div className="empty-t">未找到已部署的智能体文件</div>
-      <div className="empty-s">目标已标记为部署，但没有可显示的智能体文件。点击「更新」重新部署。</div>
+      <div className="empty-s">目标已标记为部署，但没有可显示的智能体文件。内置源更新后，上方信息行会出现「更新至…」按钮，点击即可重新部署。</div>
     </div>
   );
 }
