@@ -1,0 +1,99 @@
+ui/src/pages/deploy/AgentDetailPage.tsx
+  s_140b623687415b::t_5a4618120c2685 2-123
+  s_140b623687415b::t_28926450e23e68 1
+  s_140b623687415b::t_526d229a8400c9 124-126
+docs/desktop/mockups/SPEC.md
+  s_140b623687415b::t_12319d2e6c1552 37,94,96,127,141-144,149-150,157,183-193,195-197,199-200,202,204,206-246,284,288,302,304-306,314-315,335-338
+docs/desktop/mockups/app.html
+  s_140b623687415b::t_dfe9477028759b 139,181-265,300-302,322,334,588-589,597-599,605-606,650-651,683,692-698,700-711,714,718-724,726-728,994-1020,1022-1023,1027-1031,1033-1147,1151,1155-1156,1159-1160,1164,1168,1179-1184,1187-1203,1257-1266,1268-1270,1272,1276-1288,1290-1304,1306-1338,1371,1375,1377-1378,1415-1624,1626-1643,1645-1703,1706,1709,1714-1720,1727,1729-1730,1732-1736,1739-1749,1752-1754,1758-1759,1761,1763-1779,1781-1783,1785,1788-1810,1827,1830,1835,1840,1844,1849,1870,1877-1881,1884,1886,1890,1895,1898,1902,1906-1907,1916-1920,1922-1924,1926-1928,1946,1949,1952,1968,1972,1974-1976,1981-1982,2082-2101,2105,2108-2111,2115,2122,2125
+docs/desktop/mockups/deploy-redesign-notes.md
+  s_140b623687415b::t_3ef98a2ea9a317 1-216
+ui/src/App.tsx
+  s_140b623687415b::t_cf71bc8519551f 7,15,27-30,85-91,100,118
+ui/src/index.css
+  s_140b623687415b::t_da7c92b7073d38 183-268,303-305,325-326,340-341,612-613
+ui/src/pages/DeployPage.tsx
+  s_140b623687415b::t_031a913d5c4003 1-12,14,17-19,27-28,36-41,43,46,53,59-60,65-67,70,72-75,78-82,84-87,89,92-124,144-149,151-160,168-170,175-232,259-283,313,315,317-318,339-413,421-430,434,441-451,457-458,482,493,497,534-546,548-555,557-581,583-599,601-604,613-633,635,638-647,649-698,703-710,712-726,728-735,737-740,745-757,761,764,766,770-796,798,801,803,807-810,813-814,817-891
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "5.30.1",
+  "base_commit_sha": "4ca3d5720e94b72c036ef4aba14632925fb2faf5",
+  "prompts": {},
+  "humans": {
+    "h_4caa6cf001325b": {
+      "author": "xiaolifan1 <xiaolifan1@h-partners.com>"
+    }
+  },
+  "sessions": {
+    "s_140b623687415b": {
+      "agent_id": {
+        "tool": "zcode",
+        "id": "sess_6e2e18e7-4ba5-4861-aecb-d761f8d3728d",
+        "model": "GLM-5.3-Flash"
+      },
+      "human_author": "xiaolifan1 <xiaolifan1@h-partners.com>",
+      "total_additions": 1245,
+      "total_deletions": 133,
+      "overridden_lines": 0,
+      "turn_models": {
+        "t_0152256490f84d": "GLM-5.3-Flash",
+        "t_0a2f45967e5fe4": "GLM-5.3-Flash",
+        "t_0d65e17871f43f": "GLM-5.3-Flash",
+        "t_102c3fe7e69332": "GLM-5.3-Flash",
+        "t_15bb3d54b485d7": "GLM-5.3-Flash",
+        "t_1d39257b42abcd": "GLM-5.3-Flash",
+        "t_1ec8ba730a4457": "GLM-5.3-Flash",
+        "t_231e3918aa6c3f": "GLM-5.3-Flash",
+        "t_2613eebce86d7e": "GLM-5.3-Flash",
+        "t_2654a48bf718ad": "GLM-5.3-Flash",
+        "t_29baf5a9fd460f": "GLM-5.3-Flash",
+        "t_33d449198efd14": "GLM-5.3-Flash",
+        "t_363f61b3779017": "GLM-5.3-Flash",
+        "t_36a187ade70399": "GLM-5.3-Flash",
+        "t_3e078c630e0ce5": "GLM-5.3-Flash",
+        "t_4823fd20fee5f4": "GLM-5.3-Flash",
+        "t_4922792dce40ad": "GLM-5.3-Flash",
+        "t_4d773a1ae1a41c": "GLM-5.3-Flash",
+        "t_5a11d91482be32": "GLM-5.3-Flash",
+        "t_5a4618120c2685": "GLM-5.3-Flash",
+        "t_5c983838c1bc49": "GLM-5.3-Flash",
+        "t_65b8efe0efab12": "GLM-5.3-Flash",
+        "t_671c16d0356384": "GLM-5.3-Flash",
+        "t_672e375963ea50": "GLM-5.3-Flash",
+        "t_7580a001065a6d": "GLM-5.3-Flash",
+        "t_76db65d5d48683": "GLM-5.3-Flash",
+        "t_76f9e5b294b889": "GLM-5.3-Flash",
+        "t_7f7a4b2d67e028": "GLM-5.3-Flash",
+        "t_86e03d68e61acd": "GLM-5.3-Flash",
+        "t_874b4533bc5df8": "GLM-5.3-Flash",
+        "t_8bf9edebd2c932": "GLM-5.3-Flash",
+        "t_9609db2c66108d": "GLM-5.3-Flash",
+        "t_a8bb67e617d098": "GLM-5.3-Flash",
+        "t_ab25958b3e7771": "GLM-5.3-Flash",
+        "t_ae3b4f351b7729": "GLM-5.3-Flash",
+        "t_b370fcbcc2b4ca": "GLM-5.3-Flash",
+        "t_b38b9a39de8dbe": "GLM-5.3-Flash",
+        "t_ba98761d4607ee": "GLM-5.3-Flash",
+        "t_c0c7c44f8eb880": "GLM-5.3-Flash",
+        "t_c35f0e1d6a0532": "GLM-5.3-Flash",
+        "t_c847610e57d18a": "GLM-5.3-Flash",
+        "t_d3e7a6597821c0": "GLM-5.3-Flash",
+        "t_d42ea684ae9fcd": "GLM-5.3-Flash",
+        "t_defd656bdd8760": "GLM-5.3-Flash",
+        "t_e1c1d5dce0df0e": "GLM-5.3-Flash",
+        "t_e56a137da00fdc": "GLM-5.3-Flash",
+        "t_ee5d50e01bc5c2": "GLM-5.3-Flash",
+        "t_f5111ef7bba0b4": "GLM-5.3-Flash",
+        "t_f6d926144c950b": "GLM-5.3-Flash",
+        "t_feb6f05602f68b": "GLM-5.3-Flash"
+      },
+      "model_totals": {
+        "GLM-5.3-Flash": {
+          "additions": 1245,
+          "deletions": 133
+        }
+      }
+    }
+  }
+}
