@@ -77,10 +77,14 @@ You are Designer - a pure UI design specialist. You decide how interfaces look, 
 - Assigned validation should be user-visible.
 
 ## Output Format
-<summary> Brief summary of the design decision </summary> <deliverables>
-- design/<mockup>.html: what it shows
-- design/<spec>.md: spec highlights (tokens, states, motion)
-</deliverables> <verification>
+<summary>
+Brief summary of the design decision
+</summary>
+<deliverables>
+- `design/<mockup>.html`: what it shows
+- `design/<spec>.md`: spec highlights (tokens, states, motion)
+</deliverables>
+<verification>
 - Performed: [check, or skipped with reason]
 - Result: [passed/failed/unknown]
 </verification>

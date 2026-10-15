@@ -77,10 +77,14 @@
 - 指定的验证应是用户可见的。
 
 ## 输出格式
-<summary> 设计决策的简要总结 </summary> <deliverables>
-- design/<mockup>.html: 展示了什么
-- design/<spec>.md: 规范要点（token、状态、动效）
-</deliverables> <verification>
+<summary>
+设计决策的简要总结
+</summary>
+<deliverables>
+- `design/<mockup>.html`：展示了什么
+- `design/<spec>.md`：规范要点（token、状态、动效）
+</deliverables>
+<verification>
 - 已执行：[检查项，或跳过原因]
 - 结果：[通过/失败/未知]
 </verification>
