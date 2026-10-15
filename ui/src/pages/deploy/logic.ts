@@ -1,8 +1,8 @@
-// Deploy-area helpers: plan-table derivation, DSH detection states (SPEC §10.5),
+// Deploy-area helpers: DSH detection states (SPEC §10.5),
 // per-backend reasoning vocabulary + location labels for the v2 page
 // (deploy-redesign-notes §2), formatters. Pure functions only — no React, no IPC.
 import { TARGET_ORDER } from "../../lib/ipc";
-import type { DshInfo, EnvironmentInfo, InstallReport, Plan, PlanKind, Selection, Source, Target } from "../../lib/ipc";
+import type { DshInfo, EnvironmentInfo, InstallReport, Selection, Target } from "../../lib/ipc";
 
 export type RunState = "idle" | "running" | "success" | "failed" | "cancelled";
 
@@ -36,68 +36,18 @@ export function nextLogId(): number {
 }
 
 /* ------------------------------------------------------------------ */
-/* Badges / table                                                      */
-/* ------------------------------------------------------------------ */
-
-export const KIND_BADGE: Record<PlanKind, { label: string; cls: string }> = {
-  create: { label: "新建", cls: "bd-create" },
-  skip: { label: "跳过", cls: "bd-skip" },
-  overwrite: { label: "覆盖", cls: "bd-over" },
-  "managed-block": { label: "受管块", cls: "bd-mgd" },
-};
-
-/** 说明 column copy derived from the plan kind (the IPC payload carries no note). */
-export function noteFor(kind: PlanKind): string {
-  switch (kind) {
-    case "create":
-      return "";
-    case "skip":
-      return "已存在";
-    case "overwrite":
-      return "已存在 · 将被覆盖";
-    case "managed-block":
-      return "追加受管块 · 保留既有内容";
-  }
-}
-
-export interface PlanCounts {
-  create: number;
-  skip: number;
-  overwrite: number;
-  "managed-block": number;
-  total: number;
-}
-
-export function planCounts(plan: Plan): PlanCounts {
-  const c: PlanCounts = { create: 0, skip: 0, overwrite: 0, "managed-block": 0, total: plan.items.length };
-  for (const it of plan.items) c[it.kind]++;
-  return c;
-}
-
-export function splitPath(p: string): { dir: string; name: string } {
-  const i = Math.max(p.lastIndexOf("\\"), p.lastIndexOf("/"));
-  if (i === -1) return { dir: "", name: p };
-  return { dir: p.slice(0, i + 1), name: p.slice(i + 1) };
-}
-
-/* ------------------------------------------------------------------ */
 /* Selection                                                           */
 /* ------------------------------------------------------------------ */
 
-export function buildSource(srcMode: "bundled" | "local", localRoot: string): Source {
-  return srcMode === "bundled" ? { mode: "bundled" } : { mode: "local", root: localRoot.trim() };
-}
-
+/** Bundled is the only content source engine-wide — the selection carries no
+ *  source mode; the backend always resolves the bundled `agents/` tree. */
 export function buildSelection(
-  srcMode: "bundled" | "local",
-  localRoot: string,
   projectDir: string,
   targets: ReadonlySet<Target>,
   userLevel: boolean,
   force: boolean,
 ): Selection {
   return {
-    source: buildSource(srcMode, localRoot),
     projectDir: projectDir.trim(),
     targets: TARGET_ORDER.filter((t) => targets.has(t)),
     userLevel,
@@ -113,12 +63,6 @@ export function buildSelection(
 export function bundledVersionLabel(env: EnvironmentInfo | null, appVersion: string | null): string {
   const v = (env?.sourceVersion || "").trim() || appVersion || "";
   return v ? `v${v}` : "v—";
-}
-
-/** `v1.2.3` from a possibly already-prefixed version string (guards `vv1.2.3`). */
-export function versionLabel(version: string | null | undefined): string {
-  const v = (version ?? "").trim().replace(/^v/i, "");
-  return v ? `v${v}` : "";
 }
 
 /* ------------------------------------------------------------------ */
@@ -222,11 +166,6 @@ export function chipValue(v: string | null | undefined): string {
 export function agentFilePath(scopeLabel: string, fileName: string): string {
   if (scopeLabel.trim() === "") return fileName;
   return `${scopeLabel.replace(/[\\/]+$/, "")}\\agents\\${fileName}`;
-}
-
-/** {项目级|用户级} for dialog meta + scope context; zcode/dsh are always user-level (engine parity). */
-export function realmLabel(target: Target, userLevel: boolean): string {
-  return target === "opencode" || target === "claude" ? (userLevel ? "用户级" : "项目级") : "用户级";
 }
 
 /** Short install-location word for the not-deployed empty state (mockup locShort). */

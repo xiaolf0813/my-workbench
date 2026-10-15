@@ -5,7 +5,7 @@
 //! Source-root convention (shared with `roster`/`render`/`checks`): the
 //! `source_root` passed across lanes is the directory CONTAINING `agents/`
 //! (the package root), i.e. `agents/` hangs below it. `EngineContext::source_root`
-//! supplies it for both bundled and local sources.
+//! supplies it — always the bundled tree, the engine's only content source.
 //!
 //! Phase split: `plan` performs zero writes and returns one
 //! [`PlanItem`] per file (`create` | `skip` | `overwrite`; DSH managed blocks
@@ -649,7 +649,7 @@ pub(crate) fn write_bytes(dest: &Path, bytes: &[u8]) -> std::io::Result<()> {
 /// gates and the source-repo guard fail here with the CLI's friendly text.
 pub fn plan(sel: &Selection, ctx: &EngineContext) -> Result<Plan, WorkbenchError> {
     validate_selection(sel)?;
-    let source_root = ctx.source_root(&sel.source);
+    let source_root = ctx.source_root();
     check_prerequisites(sel, ctx)?;
     check_source_repo_guard(sel, &source_root)?;
 
@@ -689,7 +689,7 @@ pub fn execute(
     sink: &dyn EventSink,
 ) -> Result<InstallReport, WorkbenchError> {
     validate_selection(sel)?;
-    let source_root = ctx.source_root(&sel.source);
+    let source_root = ctx.source_root();
 
     let mut t = Traversal::default();
     collect_before_dsh(sel, ctx, &source_root, &mut t)?;
@@ -880,13 +880,9 @@ fn replay_action(
 /// the DSH preset's own byte-compare when that target is selected, plus the
 /// structural checks on the source. Tier 2 is the host shell's job — always
 /// `None` here.
-pub fn check_drift(
-    source: &Source,
-    sel: &Selection,
-    ctx: &EngineContext,
-) -> Result<DriftReport, WorkbenchError> {
+pub fn check_drift(sel: &Selection, ctx: &EngineContext) -> Result<DriftReport, WorkbenchError> {
     validate_selection(sel)?;
-    let source_root = ctx.source_root(source);
+    let source_root = ctx.source_root();
 
     let mut t = Traversal::default();
     collect_before_dsh(sel, ctx, &source_root, &mut t)?;
@@ -1106,7 +1102,6 @@ mod tests {
         /// A Selection picking this sandbox's project directory.
         fn sel(&self, targets: Vec<Target>, user_level: bool, force: bool) -> Selection {
             Selection {
-                source: Source::Bundled,
                 project_dir: self.project_dir.clone(),
                 targets,
                 user_level,
@@ -1364,7 +1359,7 @@ mod tests {
         execute(&p, &s, &sb.ctx, &CollectSink::default()).unwrap();
 
         // Untampered: no drift anywhere.
-        let clean = check_drift(&Source::Bundled, &s, &sb.ctx).unwrap();
+        let clean = check_drift(&s, &sb.ctx).unwrap();
         assert!(clean.tier1.drifted.is_empty(), "{:?}", clean.tier1.drifted);
         assert!(clean.tier2.is_none());
         let files_compared = clean.tier1.compared;
@@ -1377,7 +1372,7 @@ mod tests {
         let stamp = sb.project_dir.join("my-workbench.version");
         fs::write(&stamp, "0.0.1\n").unwrap();
 
-        let dr = check_drift(&Source::Bundled, &s, &sb.ctx).unwrap();
+        let dr = check_drift(&s, &sb.ctx).unwrap();
         assert_eq!(dr.tier1.compared, files_compared);
         assert!(dr.tier1.drifted.iter().any(|f| f.path == settings
             && f.target == Target::Claude
@@ -1405,7 +1400,6 @@ mod tests {
         };
         fs::create_dir_all(&ctx.home).unwrap();
         let into_source = Selection {
-            source: Source::Bundled,
             project_dir: root.clone(),
             targets: vec![Target::Claude],
             user_level: false,
@@ -1438,7 +1432,6 @@ mod tests {
         };
         fs::create_dir_all(&ctx.home).unwrap();
         let s = Selection {
-            source: Source::Bundled,
             project_dir: picked.path().to_path_buf(),
             targets: vec![Target::Claude],
             user_level: false,
@@ -1682,7 +1675,7 @@ mod tests {
         // Nothing installed yet: the plan still succeeds, there are no
         // structural problems, and the only drift is the missing managed row
         // (a rerun would add it).
-        let before = check_drift(&Source::Bundled, &s, &sb.ctx).unwrap();
+        let before = check_drift(&s, &sb.ctx).unwrap();
         assert!(
             before.tier1.problems.is_empty(),
             "{:?}",
@@ -1703,7 +1696,7 @@ mod tests {
 
         // Untouched install: no drift; the nine preset files (plus the managed
         // row and the home stamp) all count into `compared`.
-        let clean = check_drift(&Source::Bundled, &s, &sb.ctx).unwrap();
+        let clean = check_drift(&s, &sb.ctx).unwrap();
         assert!(clean.tier1.drifted.is_empty(), "{:?}", clean.tier1.drifted);
         assert!(
             clean.tier1.problems.is_empty(),
@@ -1719,7 +1712,7 @@ mod tests {
             .join("my-workbench")
             .join("preset.yml");
         fs::write(&preset_yml, b"tampered\n").unwrap();
-        let dr = check_drift(&Source::Bundled, &s, &sb.ctx).unwrap();
+        let dr = check_drift(&s, &sb.ctx).unwrap();
         assert_eq!(dr.tier1.compared, compared);
         assert_eq!(dr.tier1.drifted.len(), 1, "{:?}", dr.tier1.drifted);
         assert_eq!(dr.tier1.drifted[0].path, preset_yml);

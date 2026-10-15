@@ -15,10 +15,7 @@
 //! - `cancel_install` — sets the cooperative cancel flag; harmless when idle.
 //! - `check_drift` — engine Tier 1 plus the Tier 2 execution-state checks run
 //!   through the local Node (lock 6: absent Node → explicit skip, never a
-//!   block).
-//! - `validate_custom_source` — the deliberately stricter custom-source
-//!   pre-install validation (structural checks + Tier 2 on the custom
-//!   source's rendered DSH artifacts).
+//!   block). The bundled `agents/` tree is the only content source.
 //!
 //! M2 adds the skill-management surface, all over
 //! `workbench_core::skills`:
@@ -66,9 +63,9 @@ use workbench_core::skills::{
 };
 use workbench_core::types::{
     DriftReport, EngineContext, EnvironmentInfo, EventSink, InstallEvent, InstallReport, LogLevel,
-    Plan, Selection, StructuralProblem, Target, Tier1Report, Tier2Report, Tier2Status,
+    Plan, Selection, Target, Tier2Report, Tier2Status,
 };
-use workbench_core::{checks, dsh, engine, render, WorkbenchError};
+use workbench_core::{dsh, engine, render, WorkbenchError};
 
 // ---------------------------------------------------------------- constants
 
@@ -725,61 +722,9 @@ fn cancel_install(state: State<'_, InstallState>) {
 #[tauri::command]
 async fn check_drift(app: AppHandle, selection: Selection) -> Result<DriftReport, String> {
     let ctx = engine_context(&app)?;
-    let source = selection.source.clone();
-    let mut report = engine::check_drift(&source, &selection, &ctx).map_err(error_message)?;
-    report.tier2 = Some(run_tier2(&ctx.source_root(&source)));
+    let mut report = engine::check_drift(&selection, &ctx).map_err(error_message)?;
+    report.tier2 = Some(run_tier2(&ctx.source_root()));
     Ok(report)
-}
-
-/// Custom-source pre-install validation ("deliberately stricter than
-/// the CLI install path"): structural checks on the chosen `agents/` tree
-/// plus Tier 2 on ITS rendered DSH artifacts — no byte comparison is
-/// possible before an install, so `tier1.compared` stays 0. Every problem is
-/// reported; nothing is written.
-#[tauri::command]
-async fn validate_custom_source(app: AppHandle, source_root: String) -> Result<DriftReport, String> {
-    let root = PathBuf::from(source_root.trim());
-    if !root.is_dir() {
-        return Err(single_line(&format!(
-            "source root is not a directory: {}",
-            root.display()
-        )));
-    }
-    // The app handle is only needed for the general context contract; this
-    // command validates a user-chosen tree, so no bundled resolution happens.
-    let _ = &app;
-
-    let mut problems: Vec<StructuralProblem> = checks::agent_source_problems(&root)
-        .into_iter()
-        .map(|detail| StructuralProblem {
-            check: "agentSourceProblems".to_string(),
-            detail,
-        })
-        .collect();
-    problems.extend(checks::lane_plugin_problems(&root).into_iter().map(|detail| {
-        StructuralProblem {
-            check: "lanePluginProblems".to_string(),
-            detail,
-        }
-    }));
-    problems.extend(
-        checks::lane_ui_plugin_problems(&root)
-            .into_iter()
-            .map(|detail| StructuralProblem {
-                check: "laneUiPluginProblems".to_string(),
-                detail,
-            }),
-    );
-
-    let tier2 = run_tier2(&root);
-    Ok(DriftReport {
-        tier1: Tier1Report {
-            compared: 0,
-            drifted: Vec::new(),
-            problems,
-        },
-        tier2: Some(tier2),
-    })
 }
 
 // ------------------------------------------------------- deployed agents
@@ -1600,7 +1545,6 @@ pub fn run() {
             execute_install,
             cancel_install,
             check_drift,
-            validate_custom_source,
             deployed_overview,
             deployed_list_agents,
             deployed_save_agent,

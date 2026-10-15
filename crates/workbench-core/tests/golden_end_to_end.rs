@@ -44,9 +44,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 use workbench_core::engine::{check_drift, execute, plan};
-use workbench_core::types::{
-    EngineContext, EventSink, Plan, Selection, Source, StampRealm, Target,
-};
+use workbench_core::types::{EngineContext, EventSink, Plan, Selection, StampRealm, Target};
 
 /// Per-CLI-spawn watchdog (the CLI must never hang the gate).
 const CLI_TIMEOUT: Duration = Duration::from_secs(60);
@@ -602,7 +600,6 @@ fn run_install_case(
     );
 
     let selection = Selection {
-        source: Source::Bundled,
         project_dir: core.project.clone(),
         targets: case.targets.to_vec(),
         user_level: case.user_level,
@@ -1155,7 +1152,6 @@ fn golden_end_to_end_cli_vs_workbench_core() {
         fs::write(&tampered, body).unwrap();
 
         let selection = Selection {
-            source: Source::Bundled,
             project_dir: sandbox.project.clone(),
             targets: vec![Target::Opencode, Target::Claude],
             user_level: false,
@@ -1168,7 +1164,7 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             bundled_root: repo.clone(),
             version: workbench_core::VERSION.to_string(),
         };
-        let drift = check_drift(&Source::Bundled, &selection, &ctx).unwrap();
+        let drift = check_drift(&selection, &ctx).unwrap();
         assert_eq!(
             drift.tier1.drifted.len(),
             1,

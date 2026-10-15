@@ -258,9 +258,6 @@ input, textarea, .edt-ta { user-select: text; }
 .dep-scopebar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex: none; flex-wrap: wrap; min-height: 32px; }
 .dep-scopebar .path { width: 300px; }
 .dep-loclabel { font-size: 12px; font-weight: 600; color: var(--text-2); }
-.dep-loc { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); flex-wrap: wrap; }
-.dep-loc .mono { color: var(--text-1); }
-.fixchip { font-family: var(--font-mono); font-size: 10px; color: var(--text-3); border: 1px solid var(--border-strong); border-radius: var(--r-xs); padding: 0 5px; line-height: 16px; }
 
 /* agent cards (SPEC §3.20): one card per deployed agent file; clicking a card
    navigates to the full-page detail view (§3.22) — no open/closed card state */
@@ -337,34 +334,12 @@ input, textarea, .edt-ta { user-select: text; }
 .pr-row:last-child { border-bottom: 0; }
 .pr-row .mono { color: var(--text-1); font-size: 11.5px; }
 
-/* deploy dialog (SPEC §4.6): the former deploy workspace scoped to one target */
+/* deploy dialog (SPEC §4.6): the former deploy workspace scoped to one target;
+   both entries are tab-free (2026-10) — config body / log pane render directly */
 .dlg-dep { width: 720px; position: relative; }
 .dlg-dep .livebar { border-radius: var(--r-xl) var(--r-xl) 0 0; }
-.dlg-tabrow { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex: none; }
-.dlg-tabrow .mut { margin-left: auto; }
-.dpane { display: none; flex-direction: column; gap: 12px; }
-.dpane.is-on { display: flex; }
-.dsec-t { font-size: 11px; font-weight: 600; letter-spacing: .05em; color: var(--text-3); }
 .dlg-dep .empty { flex: none; padding: 36px 20px; }
 .dlg-dep .logwrap { flex: none; height: 360px; }
-.dlg-dep .tblw { flex: none; max-height: 300px; }
-
-/* source radio cards */
-.srcgrid { display: flex; flex-direction: column; gap: 8px; }
-.src { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-md); cursor: pointer;
-  transition: border-color var(--t-fast), background var(--t-fast); }
-.src:hover { border-color: var(--border-strong); background: var(--bg-hover); }
-.src.is-on { border-color: var(--accent-border); background: var(--accent-tint); }
-.src-rad { width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--border-strong); flex: none; display: grid; place-items: center; transition: border-color var(--t-fast); }
-.src.is-on .src-rad { border-color: var(--accent); }
-.src.is-on .src-rad::after { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-.src-c { min-width: 0; }
-.src-t { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
-.src-s { font-size: 11.5px; color: var(--text-3); margin-top: 2px; }
-.src .vchip { font-family: var(--font-mono); font-size: 10.5px; color: var(--accent); background: var(--accent-tint); border: 1px solid var(--accent-border);
-  border-radius: var(--r-xs); padding: 1px 6px; font-weight: 500; }
-.local-panel { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
-.local-panel[hidden] { display: none; }
 
 /* path field */
 .field { display: flex; flex-direction: column; gap: 6px; }
@@ -381,12 +356,6 @@ input, textarea, .edt-ta { user-select: text; }
 .fhint.ok { color: var(--ok); }
 .fhint.err { color: var(--err); }
 .fhint.warn { color: var(--warn); }
-
-/* dsh env-override chip (SPEC §10.5) — rendered in the page scope bar and the
-   deploy dialog's fixed 安装位置 line; the former target checkbox grid
-   (.tgrid/.tck, SPEC §3.4 target cards) was removed by the deploy redesign. */
-.envchip { display: inline-flex; align-items: center; font-family: var(--font-mono); font-size: 10px; color: var(--accent);
-  background: var(--accent-tint); border: 1px solid var(--accent-border); border-radius: var(--r-xs); padding: 0 5px; line-height: 16px; }
 
 /* option switch rows */
 .opts { display: flex; flex-direction: column; }
@@ -416,8 +385,6 @@ input, textarea, .edt-ta { user-select: text; }
   color: var(--text-2); transition: background var(--t-fast), color var(--t-fast); }
 .seg-b:hover { color: var(--text-1); }
 .seg-b.is-on { background: var(--tonal-container); color: var(--text-1); box-shadow: var(--shadow-1); }
-.seg-b .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 .scope-opts { margin-top: 10px; border-top: 1px solid var(--border); }
 
 /* filter chips (.chip is shared with the skills toolbar; the deploy plan table
@@ -428,36 +395,15 @@ input, textarea, .edt-ta { user-select: text; }
 .chip:hover { border-color: var(--border-strong); color: var(--text-1); }
 .chip.is-on { background: var(--accent-tint); border-color: var(--accent-border); color: var(--accent); }
 .chip.is-on b { color: var(--accent); }
-.stalebar { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: var(--warn-tint); border-bottom: 1px solid var(--warn-border);
-  font-size: 12px; color: var(--warn); flex: none; }
-.stalebar[hidden] { display: none; }
 
-/* table */
-.tblw { flex: 1; min-height: 0; overflow: auto; }
-table.tbl { width: 100%; border-collapse: collapse; }
-.tbl th { position: sticky; top: 0; z-index: 1; background: var(--bg-surface); text-align: left; font-size: 11px; font-weight: 600; color: var(--text-3);
-  letter-spacing: .05em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
-.tbl td { padding: 7px 12px; border-bottom: 1px solid var(--border); font-size: 12px; vertical-align: middle; }
-.tbl tbody tr { transition: background var(--t-fast); }
-.tbl tbody tr:hover { background: var(--bg-hover); }
-.tbl .p { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
-.tbl .p .dir { color: var(--text-3); }
-.tbl .p .nm { color: var(--text-1); }
-.tbl td.note { color: var(--text-3); font-size: 11.5px; white-space: nowrap; }
+/* badge (skills toolbar states; the deploy plan-table variants bd-create/skip/
+   over/mgd went with the preview pane, 2026-10) */
 .bd { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: var(--r-sm); letter-spacing: .02em; white-space: nowrap; }
 .bd .ic { width: 11px; height: 11px; stroke-width: 2.2; }
-.bd-create { color: var(--ok); background: var(--ok-tint); border: 1px solid var(--ok-border); }
-.bd-skip { color: var(--text-3); background: var(--bg-raised); border: 1px solid var(--border); }
-.bd-over { color: var(--warn); background: var(--warn-tint); border: 1px solid var(--warn-border); }
-.bd-mgd { color: var(--vio); background: var(--vio-tint); border: 1px solid var(--vio-border); }
 .bd-na { color: var(--text-2); background: transparent; border: 1px solid var(--border-strong); }
 .bd-lat { color: var(--ok); background: var(--ok-tint); border: 1px solid var(--ok-border); }
 .bd-mod { color: var(--warn); background: var(--warn-tint); border: 1px solid var(--warn-border); }
 .bd-upd { color: var(--accent); background: var(--accent-tint); border: 1px solid var(--accent-border); }
-.pfoot { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--border); flex: none; font-size: 12px; color: var(--text-2); }
-.psum { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
-.psum b { color: var(--text-1); font-weight: 600; }
-.pfoot .pright { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-3); }
 
 /* empty state */
 .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 40px; text-align: center; }
@@ -533,15 +479,9 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .bn-s { font-size: 11.5px; color: var(--text-2); margin-top: 2px; line-height: 1.55; }
 .bn-s .mono { font-size: 11px; }
 .bn-a { margin-left: auto; display: flex; gap: 6px; align-items: center; flex: none; }
-.bn.info { background: var(--accent-tint); border-color: var(--accent-border); color: var(--accent); }
-.bn.info .bn-s { color: var(--text-2); }
 .bn.warn { background: var(--warn-tint); border-color: var(--warn-border); color: var(--warn); }
 .bn.err { background: var(--err-tint); border-color: var(--err-border); color: var(--err); }
-.bn.ok { background: var(--ok-tint); border-color: var(--ok-border); color: var(--ok); }
 .bn.mut { background: var(--bg-raised); border-color: var(--border-strong); color: var(--text-2); }
-.bn ul { margin: 6px 0 0; padding-left: 2px; list-style: none; display: flex; flex-direction: column; gap: 3px; }
-.bn li { font-family: var(--font-mono); font-size: 11px; color: var(--err); display: flex; gap: 6px; }
-.bn li::before { content: "—"; color: var(--text-3); }
 
 /* ---------- skills ---------- */
 .schips { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -584,7 +524,7 @@ table.tbl { width: 100%; border-collapse: collapse; }
 .sk-empty { padding: 36px; text-align: center; color: var(--text-3); font-size: 12.5px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
 
 /* ---------- settings ---------- */
-.set-wrap { max-width: 760px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; padding-bottom: 8px; }
+.set-wrap { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; padding-bottom: 8px; } /* full-fluid: fills .main with the window (no width cap, same as .dep-wrap) */
 .set-row { display: flex; gap: 20px; padding: 13px 16px; border-bottom: 1px solid var(--border); align-items: flex-start; }
 .set-row:last-child { border-bottom: 0; }
 .set-l { width: 230px; flex: none; }
@@ -613,7 +553,7 @@ select.fsel:disabled { opacity: .55; }
 
 /* ---------- M2 additions: skills page (single scrolling column, SPEC §2/§5) ---------- */
 .page-body.sk-body { overflow-y: auto; gap: 0; }
-.sk-wrap { display: flex; flex-direction: column; gap: 12px; max-width: 1080px; }
+.sk-wrap { display: flex; flex-direction: column; gap: 12px; } /* full-fluid: fills .main with the window (no width cap, same as .dep-wrap) */
 /* settings column scrolls within the page body */
 .page-body .set-wrap { flex: 1; min-height: 0; }
 

@@ -2,10 +2,14 @@
 // backend tab bar + realm scope bar + a single fluid column showing the
 // selected target's state (not-deployed empty state / agent card list with the
 // full-page detail view / dsh preset summary). Deployment status derives from
-// `deployed_overview`, never from detection. The whole former deploy workspace
-// (内容源 / 安装位置 / 覆盖 / plan preview / streaming log)
-// lives — behavior-unchanged — in the target-scoped deploy dialog; its state
-// is owned HERE (above the dialog) so closing mid-run keeps the run going.
+// `deployed_overview`, never from detection. [变更 2026-10 极简部署弹窗] The
+// target-scoped deploy dialog is switch-only: both entries (部署 / 更新) render
+// just the 覆盖 switch + 取消/安装 — bundled is the only content source
+// engine-wide (the selection is built HERE, page-side) and 内容源/安装位置
+// live on the page's scope bar or nowhere. Dialog run/log/progress state is owned HERE (above the
+// dialog) so closing mid-run keeps the run going. [变更 2026-10 无页签化]
+// One-step installs — 安装 plans and executes at click time; no held plan, no
+// preview, no stale machinery.
 // (The former health-check/drift surface was UI-removed 2026-10 — SPEC §10
 // tail note; the backend check_drift command stays.)
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -23,7 +27,6 @@ import {
   pickDirectory,
   planInstall,
   subscribeInstallEvents,
-  validateCustomSource,
   type DeployedAgent,
   type DeployedTargetState,
   type EnvironmentInfo,
@@ -82,11 +85,6 @@ interface RosterState {
   error: IpcFailure | null;
 }
 
-interface LocalCheck {
-  status: "idle" | "checking" | "pass" | "fail" | "error";
-  problems: string[];
-}
-
 export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
   const toast = useToast();
 
@@ -123,24 +121,15 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
   const [dlgOpen, setDlgOpen] = useState(false);
   const [dlgFrom, setDlgFrom] = useState<DeployDialogFrom>("deploy");
   const [dlgView, setDlgView] = useState<DeployView>("config");
-  const [srcMode, setSrcMode] = useState<"bundled" | "local">("bundled");
-  const [localRoot, setLocalRoot] = useState("");
   const [force, setForce] = useState(false);
 
-  const [plan, setPlan] = useState<Plan | null>(null);
-  const [planStamp, setPlanStamp] = useState<string | null>(null);
-  const [stale, setStale] = useState(false);
   const [planning, setPlanning] = useState(false);
-  const [planError, setPlanError] = useState<IpcFailure | null>(null);
 
   const [run, setRun] = useState<RunState>("idle");
   const [lines, setLines] = useState<LogLine[]>([]);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [report, setReport] = useState<TerminalReport | null>(null);
   const [stopDisabled, setStopDisabled] = useState(false);
-
-  const [localCheck, setLocalCheck] = useState<LocalCheck>({ status: "idle", problems: [] });
-  const [localCheckNonce, setLocalCheckNonce] = useState(0);
 
   /* ---------------- refs ---------------- */
   const scopeRef = useRef(scope);
@@ -151,30 +140,21 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
   const runRef = useRef(run);
   runRef.current = run;
 
+  /* The install selection: the current target and the page scope bar's realm.
+     Bundled is the only content source engine-wide — no source mode here.
+     [变更 2026-10 极简部署弹窗] */
   const selection = useMemo(
     () =>
       buildSelection(
-        srcMode,
-        localRoot,
         scopeRef.current.projectDir,
         new Set<Target>([target]),
         scopeRef.current.userLevel,
         force,
       ),
-    [srcMode, localRoot, target, force, scope.userLevel, scope.projectDir],
+    [target, force, scope.userLevel, scope.projectDir],
   );
   const selectionRef = useRef(selection);
   selectionRef.current = selection;
-
-  const planRef = useRef<Plan | null>(null);
-  planRef.current = plan;
-
-  /* STALE-PREVIEW RULE (SPEC §4.2): any config change invalidates the plan —
-     including scope flips made in the page scope bar while the dialog holds a
-     preview (single shared scope state). */
-  const invalidate = useCallback(() => {
-    setStale((s) => s || planRef.current !== null);
-  }, []);
 
   /* ---------------- overview (deployment status source) ---------------- */
   const overviewSeq = useRef(0);
@@ -280,65 +260,8 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
       scopeEffectRan.current = true;
       return;
     }
-    invalidate();
     void refreshOverview();
-  }, [scope.userLevel, scope.projectDir, invalidate, refreshOverview]);
-
-  /* ---------------- local source validation (debounced, dialog config) ----- */
-  useEffect(() => {
-    if (srcMode !== "local" || localRoot.trim() === "") {
-      setLocalCheck({ status: "idle", problems: [] });
-      return;
-    }
-    let cancelled = false;
-    setLocalCheck({ status: "checking", problems: [] });
-    const timer = window.setTimeout(async () => {
-      try {
-        const rep = await validateCustomSource(localRoot.trim());
-        if (cancelled) return;
-        const problems = [
-          ...rep.tier1.problems.map((p) => `${p.check} — ${p.detail}`),
-          ...(rep.tier2 && rep.tier2.status === "fail" ? rep.tier2.problems : []),
-        ];
-        setLocalCheck({ status: problems.length === 0 ? "pass" : "fail", problems });
-      } catch (e) {
-        if (cancelled) return;
-        setLocalCheck({ status: "error", problems: [describeIpcError(e).message] });
-      }
-    }, 400);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [srcMode, localRoot, localCheckNonce]);
-
-  const revalidate = useCallback(() => setLocalCheckNonce((n) => n + 1), []);
-
-  const prevalApplies = srcMode === "local" && target === "dsh";
-
-  /* ---------------- derived gating (ported verbatim) ---------------- */
-  const localInvalid = srcMode === "local" && localCheck.status === "fail";
-  const prevalBlocking = prevalApplies && (localCheck.status === "checking" || localCheck.status === "fail");
-  const canRun = plan !== null && !stale && run !== "running" && !planning && !localInvalid && !prevalBlocking;
-  const runDisabledReason = prevalBlocking
-    ? localCheck.status === "fail"
-      ? "预校验未通过，安装已被阻止"
-      : "正在预校验本地源…"
-    : stale
-      ? "选择已更改，请重新生成预览"
-      : plan === null
-        ? "先生成预览"
-        : localInvalid
-          ? "本地源无效，请重新选择"
-          : run === "running"
-            ? "正在安装"
-            : "";
-  const planDisabled = planning || localInvalid;
-  const planDisabledReason = localInvalid
-    ? "本地源无效 — 请选择包含 agents/ 的上层目录"
-    : planning
-      ? "正在生成预览…"
-      : "";
+  }, [scope.userLevel, scope.projectDir, refreshOverview]);
 
   /* ---------------- roster loading effects ---------------- */
   useEffect(() => {
@@ -414,37 +337,7 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
     g?.proceed();
   }, [guard, target]);
 
-  /* ---------------- deploy-machine actions (ported from the former page) ---- */
-  const genPreview = useCallback(
-    async (forceOverride?: boolean) => {
-      const useForce = forceOverride ?? force;
-      if (srcMode === "local" && localCheck.status === "fail") return;
-      setPlanning(true);
-      setPlanError(null);
-      try {
-        const p = await planInstall(
-          buildSelection(
-            srcMode,
-            localRoot,
-            scopeRef.current.projectDir,
-            new Set<Target>([targetRef.current]),
-            scopeRef.current.userLevel,
-            useForce,
-          ),
-        );
-        setPlan(p);
-        setPlanStamp(hhmmss(new Date()));
-        setStale(false);
-        setDlgView("preview");
-      } catch (e) {
-        setPlanError(describeIpcError(e));
-      } finally {
-        setPlanning(false);
-      }
-    },
-    [srcMode, localRoot, force, localCheck.status],
-  );
-
+  /* ---------------- deploy-machine actions ---------------- */
   /** After any terminal install state the page re-queries deployed_overview —
      the run may have deployed (or partially written) the current target. */
   const refreshAfterRun = useCallback(
@@ -455,10 +348,9 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
     [refreshOverview],
   );
 
-  /* The run body takes the plan + selection explicitly: the full-dialog entry
-     passes the held plan/selection, the quick-update entry (§4.6 快速更新)
-     passes the plan it just generated at 安装-click time — a held state read
-     would risk a stale plan. */
+  /* The run body takes the plan + selection explicitly: the caller always hands
+     over a plan generated at install-click time — a held state read would risk
+     a stale plan. */
   const runInstall = useCallback(async (currentPlan: Plan, currentSelection: Selection) => {
     const runTarget = targetRef.current;
     setDlgView("log");
@@ -502,31 +394,21 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
     }
   }, [toast, refreshAfterRun]);
 
+  /* One-step install for BOTH entries [变更 2026-10 无页签化, 极简部署弹窗]:
+     plan-then-execute at click time with the selection built above — no
+     preview, no held plan, so a run can never pick up a stale plan (the log
+     view's 重试安装 re-plans the same way). Run-level guards live here; the
+     dialog's 安装 button stays ungated. */
   const startInstall = useCallback(async () => {
-    const currentPlan = planRef.current;
-    if (!currentPlan || stale || run === "running") return;
-    await runInstall(currentPlan, selectionRef.current);
-  }, [stale, run, runInstall]);
-
-  /* Quick-update 安装 [变更 2026-10 快速更新, SPEC §4.6]: plan-then-execute in
-     one step — bundled source only, current force switch, no preview gate.
-     The fresh plan is handed to runInstall directly so the run can never pick
-     up a stale held plan; the full-dialog path (startInstall) is untouched. */
-  const quickInstall = useCallback(async () => {
     if (planning || run === "running") return;
     setPlanning(true);
-    setPlanError(null);
     try {
-      const sel: Selection = { ...selectionRef.current, source: { mode: "bundled" } };
+      const sel: Selection = selectionRef.current;
       const p = await planInstall(sel);
-      setPlan(p);
-      setPlanStamp(hhmmss(new Date()));
-      setStale(false);
       setPlanning(false);
       await runInstall(p, sel);
     } catch (e) {
       const failure = describeIpcError(e);
-      setPlanError(failure);
       toast({ kind: "err", title: "安装准备失败", sub: failure.message });
     } finally {
       setPlanning(false);
@@ -569,21 +451,16 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
   );
 
   /* ---------------- dialog open (部署 / 更新) ---------------- */
-  const openDeployDialog = useCallback(
-    (from: DeployDialogFrom) => {
-      // 更新 presets 覆盖 ON (SPEC §4.6); a flip with a held plan marks it stale.
-      const nextForce = from === "update";
-      if (nextForce !== force && planRef.current !== null) setStale(true);
-      setForce(nextForce);
-      setDlgFrom(from);
-      // 快速更新 (§4.6): the entry always owns the log once a run exists —
-      // reopening mid-run (or after a terminal state) lands on the live
-      // log/report, not back on the 覆盖 switch. Fresh entry → quick body.
-      setDlgView(from === "update" && runRef.current !== "idle" ? "log" : "config");
-      setDlgOpen(true);
-    },
-    [force],
-  );
+  const openDeployDialog = useCallback((from: DeployDialogFrom) => {
+    // 更新 presets 覆盖 ON (SPEC §4.6).
+    setForce(from === "update");
+    setDlgFrom(from);
+    // Both entries: the entry always owns the log once a run exists — reopening
+    // mid-run (or after a terminal state) lands on the live log/report, not
+    // back on the config body.
+    setDlgView(runRef.current !== "idle" ? "log" : "config");
+    setDlgOpen(true);
+  }, []);
 
   /* Every header/empty-state dialog invocation is an editor exit path —
      guarded like card/tab switches (notes §5.6). */
@@ -637,18 +514,6 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
       document.querySelector<HTMLElement>(`.agc[data-ag="${CSS.escape(p.name)}"]`)?.focus();
     });
   }, [openMap, target]);
-
-  /* ---------------- config change handlers (each invalidates) ---------------- */
-  const pickSource = (mode: "bundled" | "local") => {
-    if (mode === srcMode) return;
-    setSrcMode(mode);
-    invalidate();
-  };
-
-  const setForceOpt = (v: boolean) => {
-    setForce(v);
-    invalidate();
-  };
 
   /* ---------------- editor save (deployed_save_agent) ---------------- */
   const handleEditorSave = useCallback(
@@ -874,52 +739,20 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
         )}
       </div>
 
-      {/* target-scoped deploy dialog — state lives above, closing keeps runs going */}
+      {/* target-scoped deploy dialog — switch-only, state lives above, closing keeps runs going */}
       <DeployDialog
         open={dlgOpen}
         from={dlgFrom}
         view={dlgView}
         target={target}
-        onView={setDlgView}
         onClose={() => setDlgOpen(false)}
-        env={env}
-        appVersion={appVersion}
-        userLevel={scope.userLevel}
-        projectDir={scope.projectDir}
-        onUserLevel={scopeStore.setUserLevel}
-        onProjectDir={scopeStore.setProjectDir}
-        onBrowseProject={() => void browse("选择项目目录", scopeStore.setProjectDir)}
-        srcMode={srcMode}
-        onSrcMode={pickSource}
-        localRoot={localRoot}
-        onLocalRoot={(root) => {
-          setLocalRoot(root);
-          invalidate();
-        }}
-        onBrowseLocal={() =>
-          void browse("选择本地源目录", (p) => {
-            setLocalRoot(p);
-            invalidate();
-          })
-        }
-        localCheck={localCheck}
-        onRevalidate={revalidate}
         force={force}
-        onForceToggle={setForceOpt}
-        plan={plan}
-        planStamp={planStamp}
-        stale={stale}
+        onForceToggle={setForce}
+        /* 无页签化: both entries share the one-step plan→execute action — the
+           log view's 重试安装 included (a retry always re-plans, never reuses
+           a plan). */
         planning={planning}
-        planError={planError}
-        canRun={canRun}
-        runDisabledReason={runDisabledReason}
-        planDisabled={planDisabled}
-        planDisabledReason={planDisabledReason}
-        onGenPreview={() => void genPreview()}
-        /* 快速更新 (§4.6): the quick 安装 button and the log view's 重试安装
-           both re-run the quick plan→execute path; the full dialog keeps
-           startInstall (held plan + gating). */
-        onStartInstall={dlgFrom === "update" ? () => void quickInstall() : () => void startInstall()}
+        onStartInstall={() => void startInstall()}
         run={run}
         lines={lines}
         progress={progress}
@@ -927,7 +760,7 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
         stopDisabled={stopDisabled}
         onStop={() => void stopInstall()}
         onCopyLog={() => void copyLog()}
-        onRetry={dlgFrom === "update" ? () => void quickInstall() : () => void startInstall()}
+        onRetry={() => void startInstall()}
       />
 
       {/* unsaved-changes guard (SPEC §3.22) — Esc/backdrop = 取消 */}

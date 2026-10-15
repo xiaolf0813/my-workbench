@@ -13,10 +13,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 
 export type Target = "opencode" | "claude" | "zcode" | "dsh";
 
-export type Source = { mode: "bundled" } | { mode: "local"; root: string };
-
 export interface Selection {
-  source: Source;
   /** Authoritative project directory; still sent when userLevel is on (backend ignores it for user-level targets). */
   projectDir: string;
   targets: Target[];
@@ -66,9 +63,9 @@ export interface StructuralProblem {
   detail: string;
 }
 
-/** Retained for `validate_custom_source` (local-source pre-validation, a
- *  separate feature); the health-check/drift UI surface was UI-removed
- *  2026-10 (SPEC §10 tail note) — the backend `check_drift` command stays. */
+/** Drift contract of the retained backend `check_drift` command (the
+ *  health-check/drift UI surface was UI-removed 2026-10, SPEC §10 tail note —
+ *  the backend command stays; these shapes mirror it for future use). */
 export interface DriftFile {
   path: string;
   sourceRel: string;
@@ -141,7 +138,6 @@ const COMMAND_LABELS: Record<string, string> = {
   plan_install: "预览生成",
   execute_install: "安装",
   cancel_install: "停止安装",
-  validate_custom_source: "预校验",
   settings_get: "设置读取",
   settings_set: "设置保存",
   pat_status: "令牌状态读取",
@@ -241,10 +237,6 @@ export function executeInstall(plan: Plan, selection: Selection): Promise<Instal
 
 export function cancelInstall(): Promise<void> {
   return call<void>("cancel_install");
-}
-
-export function validateCustomSource(sourceRoot: string): Promise<DriftReport> {
-  return call<DriftReport>("validate_custom_source", { sourceRoot });
 }
 
 /** App version from the Tauri shell; null in a plain browser session. */

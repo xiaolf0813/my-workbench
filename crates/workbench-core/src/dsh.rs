@@ -1178,7 +1178,6 @@ mod tests {
 
     fn selection_with_profile(force: bool, dsh_profile: Option<&str>) -> Selection {
         Selection {
-            source: crate::types::Source::Bundled,
             // Inert here: DSH is user-level-only, so nothing reads the
             // Selection's project directory on this path.
             project_dir: std::path::PathBuf::new(),

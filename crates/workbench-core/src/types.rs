@@ -28,25 +28,13 @@ pub const APPLY_ORDER: [Target; 4] = [
     Target::Dsh,
 ];
 
-// -------------------------------------------------------- source & selection
-
-/// Content source mode ("two modes"). `Bundled` resolves through
-/// [`EngineContext::bundled_root`]; `Local` carries the user-chosen root.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "mode", rename_all = "lowercase")]
-pub enum Source {
-    Bundled,
-    Local {
-        root: PathBuf,
-    },
-}
+// ------------------------------------------------------------- selection
 
 /// The GUI's install control state, mirroring the CLI flag matrix
 /// (`--user`, `--force`, `--dsh-profile`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Selection {
-    pub source: Source,
     /// Project directory for project-level targets (the GUI's directory
     /// picker). User-level-only selections (zcode) ignore it but it is
     /// always present; the source-repo guard compares against it.
@@ -85,12 +73,10 @@ pub struct EngineContext {
 }
 
 impl EngineContext {
-    /// Effective source root for this selection.
-    pub fn source_root(&self, source: &Source) -> PathBuf {
-        match source {
-            Source::Bundled => self.bundled_root.clone(),
-            Source::Local { root } => root.clone(),
-        }
+    /// Content source root for every engine operation: always the bundled
+    /// `agents/` tree (the only content source).
+    pub fn source_root(&self) -> PathBuf {
+        self.bundled_root.clone()
     }
 }
 
