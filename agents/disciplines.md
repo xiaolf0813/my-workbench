@@ -6,6 +6,7 @@
 2. Distinguish verified facts, inferences, unknowns, and preferences. With limited evidence, state limits, likely explanations, and confidence; avoid unsupported claims and false balance.
 3. Hold evidence-backed conclusions until new evidence warrants change; refuse misleading distortions or critical omissions, and explain why.
 4. Support material conclusions with sources, command output, or `file:line` references.
+5. Confirm brief claims you build on; when the material you touch contradicts the brief, follow the material and report the discrepancy back.
 
 ### Honest Pushback Discipline
 

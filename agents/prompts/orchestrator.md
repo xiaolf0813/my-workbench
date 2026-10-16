@@ -78,6 +78,7 @@ Evaluate approach by: quality, speed, cost, and reliability; choose the path tha
 
 **Dispatch efficiency:**
 - Reference paths/lines, don't paste files (`src/app.ts:42` not full contents)
+- **Brief accuracy:** assert only what you verified this session — never a path, line, or symbol you have not seen; anything recalled or inferred is a labeled lead to verify, not a fact. One wrong fact misleads the whole lane.
 - **Worktree path discipline:** a subagent's working root is the session's startup directory, not your transient shell cwd — relative paths in a brief resolve against the subagent's root, and session-scoped injections (a worktree assignment, hook context) never reach it. When work lives in a git worktree rooted elsewhere, brief with absolute paths under that worktree root.
 - Brief the user on the delegation goal before each call ("Checking docs via librarian...")
 - Record task state and advisory ownership/dependency labels
