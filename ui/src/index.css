@@ -103,7 +103,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 input, select { font: inherit; color: inherit; }
 svg.ic { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 .mono { font-family: var(--font-mono); }
-.num { font-variant-numeric: tabular-nums; }
 .mut { color: var(--text-3); }
 .link { color: var(--accent); text-decoration: none; cursor: pointer; }
 .link:hover { text-decoration: underline; }
@@ -162,11 +161,10 @@ input, textarea, .edt-ta { user-select: text; }
    the active indicator (the former 3px sidebar edge bar is removed) */
 .nav-item { position: relative; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border-radius: 999px;
   color: var(--text-2); font-size: 13.5px; font-weight: 500; text-align: left; transition: background var(--t-fast), color var(--t-fast); }
-.nav-item .nv-s { font-size: 11px; color: var(--text-3); margin-left: auto; font-weight: 400; }
 .nav-item:hover { background: var(--bg-hover); color: var(--text-1); }
 /* M3 press state layer (tonal controls without filled variants; filled buttons
    press via their own on-color overlay tokens) */
-.nav-item:active, .icon-btn:active, .tb:active, .chip:active, .seg-b:active { background: var(--bg-press); }
+.nav-item:active, .icon-btn:active, .tb:active, .seg-b:active { background: var(--bg-press); }
 .nav-item.is-active { background: var(--bg-raised); color: var(--text-1); }
 .nav-item.is-active .ic { color: var(--accent); }
 .nav-item:focus-visible { box-shadow: none; outline: none; }
@@ -387,24 +385,6 @@ input, textarea, .edt-ta { user-select: text; }
 .seg-b.is-on { background: var(--tonal-container); color: var(--text-1); box-shadow: var(--shadow-1); }
 .scope-opts { margin-top: 10px; border-top: 1px solid var(--border); }
 
-/* filter chips (.chip is shared with the skills toolbar; the deploy plan table
-   no longer renders the chip row — scoped plans are small) */
-.chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border-radius: var(--r-sm); font-size: 12px; color: var(--text-2);
-  border: 1px solid var(--border); background: transparent; transition: all var(--t-fast); }
-.chip b { font-weight: 600; color: var(--text-3); font-variant-numeric: tabular-nums; }
-.chip:hover { border-color: var(--border-strong); color: var(--text-1); }
-.chip.is-on { background: var(--accent-tint); border-color: var(--accent-border); color: var(--accent); }
-.chip.is-on b { color: var(--accent); }
-
-/* badge (skills toolbar states; the deploy plan-table variants bd-create/skip/
-   over/mgd went with the preview pane, 2026-10) */
-.bd { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: var(--r-sm); letter-spacing: .02em; white-space: nowrap; }
-.bd .ic { width: 11px; height: 11px; stroke-width: 2.2; }
-.bd-na { color: var(--text-2); background: transparent; border: 1px solid var(--border-strong); }
-.bd-lat { color: var(--ok); background: var(--ok-tint); border: 1px solid var(--ok-border); }
-.bd-mod { color: var(--warn); background: var(--warn-tint); border: 1px solid var(--warn-border); }
-.bd-upd { color: var(--accent); background: var(--accent-tint); border: 1px solid var(--accent-border); }
-
 /* empty state */
 .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 40px; text-align: center; }
 .empty-ic { width: 44px; height: 44px; border-radius: var(--r-lg); background: var(--bg-raised); border: 1px solid var(--border); display: grid; place-items: center;
@@ -483,46 +463,6 @@ input, textarea, .edt-ta { user-select: text; }
 .bn.err { background: var(--err-tint); border-color: var(--err-border); color: var(--err); }
 .bn.mut { background: var(--bg-raised); border-color: var(--border-strong); color: var(--text-2); }
 
-/* ---------- skills ---------- */
-.schips { display: flex; gap: 8px; flex-wrap: wrap; }
-.schip { display: inline-flex; align-items: center; gap: 8px; padding: 7px 10px 7px 12px; border: 1px solid var(--border); border-radius: var(--r-md);
-  background: var(--bg-surface); cursor: pointer; transition: border-color var(--t-fast), background var(--t-fast); max-width: 320px; }
-.schip:hover { border-color: var(--border-strong); background: var(--bg-hover); }
-.schip.is-on { border-color: var(--accent-border); background: var(--accent-tint); }
-.schip .ic { width: 13px; height: 13px; color: var(--text-3); }
-.schip.is-on .ic { color: var(--accent); }
-.schip-r { font-family: var(--font-mono); font-size: 12px; font-weight: 600; }
-.schip-m { font-size: 11px; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
-.schip-x { display: inline-flex; gap: 2px; margin-left: 2px; }
-.schip-x button { width: 22px; height: 22px; border-radius: var(--r-sm); display: grid; place-items: center; color: var(--text-3); }
-.schip-x button:hover { background: var(--bg-hover); color: var(--text-1); }
-.schip-x .ic { width: 12px; height: 12px; }
-.schip-add { border-style: dashed; color: var(--text-2); background: transparent; }
-.schip-add:hover { color: var(--text-1); border-color: var(--accent-border); }
-.sk-tools { display: flex; gap: 8px; align-items: center; padding: 10px 0; flex-wrap: wrap; }
-.search { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r-md);
-  background: var(--bg-inset); width: 240px; color: var(--text-3); }
-.search input { flex: 1; background: none; border: 0; height: 100%; font-size: 12.5px; color: var(--text-1); }
-.search input:focus { box-shadow: none; outline: none; }
-.search:focus-within { border-color: var(--accent-border); box-shadow: 0 0 0 3px var(--accent-tint); }
-.sk-list { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; background: var(--bg-surface); }
-.sk-row { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-bottom: 1px solid var(--border); transition: background var(--t-fast); }
-.sk-row:last-child { border-bottom: 0; }
-.sk-row:hover { background: var(--bg-hover); }
-.sk-main { flex: 1; min-width: 0; }
-.sk-name { font-size: 13px; font-weight: 600; font-family: var(--font-mono); }
-.sk-desc { font-size: 11.5px; color: var(--text-3); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sk-src { width: 170px; flex: none; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
-.sk-src .ic { width: 12px; height: 12px; color: var(--text-3); }
-.sk-ver { width: 150px; flex: none; font-family: var(--font-mono); font-size: 11.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.sk-ver .na { color: var(--text-3); }
-.sk-st { width: 110px; flex: none; }
-.sk-acts { display: flex; gap: 6px; flex: none; justify-content: flex-end; }
-.sk-head { display: flex; gap: 14px; padding: 7px 14px; border-bottom: 1px solid var(--border); background: var(--bg-inset);
-  font-size: 11px; font-weight: 600; color: var(--text-3); letter-spacing: .05em; }
-.sk-head .h1 { flex: 1; } .sk-head .h2 { width: 170px; } .sk-head .h3 { width: 150px; } .sk-head .h4 { width: 110px; } .sk-head .h5 { flex: 0 0 150px; }
-.sk-empty { padding: 36px; text-align: center; color: var(--text-3); font-size: 12.5px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
-
 /* ---------- settings ---------- */
 .set-wrap { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; padding-bottom: 8px; } /* full-fluid: fills .main with the window (no width cap, same as .dep-wrap) */
 .set-row { display: flex; gap: 20px; padding: 13px 16px; border-bottom: 1px solid var(--border); align-items: flex-start; }
@@ -532,12 +472,6 @@ input, textarea, .edt-ta { user-select: text; }
 .set-ls { font-size: 11.5px; color: var(--text-3); margin-top: 3px; line-height: 1.55; }
 .set-ls .mono { font-size: 11px; }
 .set-c { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
-.set-c .path { max-width: 420px; }
-.patbox { display: flex; align-items: center; gap: 8px; max-width: 420px; }
-.patval { flex: 1; height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--r-md);
-  background: var(--bg-inset); font-family: var(--font-mono); font-size: 12px; color: var(--text-2); position: relative; overflow: hidden; }
-.patval .ic { width: 13px; height: 13px; color: var(--text-3); }
-.patval .mask { letter-spacing: 2px; }
 .about { display: flex; align-items: center; gap: 14px; padding: 4px 0; }
 /* M3 brand constants (theme-independent, per the contract): azure container +
    white glyph — do NOT swap for tokens */
@@ -551,36 +485,12 @@ input, textarea, .edt-ta { user-select: text; }
 select.fsel { height: 30px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--bg-inset); padding: 0 8px; font-size: 12.5px; color: var(--text-1); }
 select.fsel:disabled { opacity: .55; }
 
-/* ---------- M2 additions: skills page (single scrolling column, SPEC §2/§5) ---------- */
-.page-body.sk-body { overflow-y: auto; gap: 0; }
-.sk-wrap { display: flex; flex-direction: column; gap: 12px; } /* full-fluid: fills .main with the window (no width cap, same as .dep-wrap) */
 /* settings column scrolls within the page body */
 .page-body .set-wrap { flex: 1; min-height: 0; }
 
-/* source dialog: two-column optional-field grid (mockup inline grid → product class) */
-.src-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-
-/* toolbar extras */
-.sk-search-ic { width: 13px; height: 13px; }
-.sk-cache { margin-left: auto; font-size: 11.5px; color: var(--text-3); display: inline-flex; align-items: center; gap: 6px; }
-.sk-cache .ic { width: 11px; height: 11px; }
-
-/* per-op progress (skill-progress channel) — reuses .lprog/.lpbar/.lphase/.log */
-.sk-prog { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--bg-surface); overflow: hidden; }
-.sk-prog .lprog { border-bottom: 0; }
-.sk-prog-name { font-size: 12px; font-weight: 600; color: var(--text-1); white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
-.sk-prog .log.sk-prog-log { flex: none; max-height: 150px; border-top: 1px solid var(--border); }
-
-/* skill empty variants */
-.sk-empty .ic.sk-empty-ic { width: 20px; height: 20px; color: var(--text-3); }
-.sk-empty-s { font-size: 11.5px; color: var(--text-3); max-width: 380px; line-height: 1.6; }
-
-/* settings: PAT password input inside .patbox; link-styled buttons; save row */
-.patbox .fld-in { flex: 1; min-width: 0; width: auto; }
+/* link-styled buttons */
 .link-btn { font-size: 12px; display: inline-flex; align-items: center; gap: 5px; }
 .link-ic { width: 13px; height: 13px; }
-.link:disabled, button.link:disabled { opacity: .45; cursor: not-allowed; text-decoration: none; }
-.set-actions { display: flex; justify-content: flex-end; }
 
 /* ---------- dialog ---------- */
 .oback { position: fixed; inset: 0; background: rgba(23, 32, 48, .40); display: none; align-items: center; justify-content: center; z-index: 50;
@@ -602,21 +512,7 @@ html[data-theme="dark"] .oback { background: rgba(5, 9, 15, .55); }
 .dlg-b .mono { font-size: 11.5px; }
 .dlg-b b { color: var(--text-1); }
 .dlg-f { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); }
-.fchk { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-1); cursor: pointer; user-select: none; }
-.fchk input { width: 14px; height: 14px; accent-color: var(--accent); }
-.fld { display: flex; flex-direction: column; gap: 5px; }
 .flab { font-size: 12px; font-weight: 600; color: var(--text-2); }
-.flab .opt-tag { font-weight: 400; color: var(--text-3); }
-.fld-in { height: 32px; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--bg-inset); padding: 0 10px; font-size: 12.5px;
-  color: var(--text-1); width: 100%; }
-.fld-in:focus { border-color: var(--accent-border); box-shadow: 0 0 0 3px var(--accent-tint); }
-.fld-in.mono { font-family: var(--font-mono); font-size: 12px; }
-.modlist { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
-.modlist .ml-h { padding: 7px 12px; background: var(--bg-inset); font-size: 11px; font-weight: 600; color: var(--text-3); letter-spacing: .04em;
-  border-bottom: 1px solid var(--border); }
-.modlist .ml-r { display: flex; gap: 8px; align-items: center; padding: 7px 12px; font-family: var(--font-mono); font-size: 11.5px; border-bottom: 1px solid var(--border); }
-.modlist .ml-r:last-child { border-bottom: 0; }
-.modlist .ml-r .ic { width: 13px; height: 13px; color: var(--warn); }
 
 /* ---------- toast ---------- */
 .toasts { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 80; }
@@ -634,12 +530,6 @@ html[data-theme="dark"] .oback { background: rgba(5, 9, 15, .55); }
   animation: rot .8s linear infinite; flex: none; }
 @keyframes rot { to { transform: rotate(360deg); } }
 
-/* responsive: the old deploy <1080px stacking breakpoint is gone (v2 single
-   fluid column, SPEC §2); the skills column keeps its narrow-width trims */
-@media (max-width: 1080px) {
-  .sk-src, .sk-ver { display: none; }
-  .sk-head .h2, .sk-head .h3 { display: none; }
-}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }

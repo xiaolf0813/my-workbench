@@ -140,19 +140,6 @@ const COMMAND_LABELS: Record<string, string> = {
   cancel_install: "停止安装",
   settings_get: "设置读取",
   settings_set: "设置保存",
-  pat_status: "令牌状态读取",
-  pat_set: "保存令牌",
-  pat_clear: "清除令牌",
-  skills_list_sources: "技能源读取",
-  skills_add_source: "添加技能源",
-  skills_update_source: "更新技能源",
-  skills_remove_source: "移除技能源",
-  skills_list_installed: "技能清单读取",
-  skills_list_remote: "技能列表获取",
-  skills_check_update: "检查更新",
-  skills_install: "技能安装",
-  skills_update: "技能更新",
-  skills_delete: "技能删除",
   deployed_overview: "已部署状态读取",
   deployed_list_agents: "已部署智能体读取",
   deployed_save_agent: "已部署智能体保存",
@@ -267,60 +254,11 @@ export async function pickDirectory(title: string): Promise<string | null> {
 }
 
 /* ------------------------------------------------------------------ */
-/* Skills & settings contract types (SPEC.md §7 — M2 column; shapes    */
-/* verified against src-tauri/src/lib.rs serialization, camelCase)     */
+/* Settings contract type (shape verified against                      */
+/* src-tauri/src/lib.rs serialization, camelCase)                      */
 /* ------------------------------------------------------------------ */
 
-/** One configured skill source. The Rust `ref_` field serializes as `ref`. */
-export interface SkillSourceConfig {
-  repo: string;
-  ref: string | null;
-  subdir: string;
-}
-
-export interface RemoteSkill {
-  name: string;
-  path: string;
-}
-
-export interface RateLimit {
-  remaining: number | null;
-  limit: number | null;
-}
-
-export interface SkillListing {
-  skills: RemoteSkill[];
-  rate: RateLimit;
-  fromIndex: boolean;
-}
-
-/** `skills_list_remote` result: the listing plus when it was fetched (Some for fresh fetch AND cache hit). */
-export interface SkillsListingResult {
-  listing: SkillListing;
-  cachedAtMs: number | null;
-}
-
-export interface InstalledSkill {
-  name: string;
-  repo: string;
-  branch: string | null;
-  commit: string;
-  installedAtMs: number;
-  fileCount: number;
-}
-
-/**
- * Update verdict for one installed skill. Tagged `event` with kebab-case
- * variants (crates/workbench-core/src/skills.rs); `parseSkillChange`
- * additionally accepts a `type` tag defensively.
- */
-export type SkillChange =
-  | { event: "up-to-date" }
-  | { event: "updatable"; newCommit: string }
-  | { event: "local-modified"; newCommit: string; modified: string[] };
-
 export interface AppSettings {
-  skillsRoot: string;
   language: string;
   /** The Deploy page's project directory (`null` = not picked yet). */
   projectDir: string | null;
@@ -328,48 +266,9 @@ export interface AppSettings {
   userLevel: boolean;
 }
 
-/** `pat_status` result — ONLY the boolean; the token never round-trips. */
-export interface PatStatus {
-  configured: boolean;
-}
-
-/** One `skill-progress` channel event (frozen five-key camelCase payload). */
-export interface SkillProgress {
-  skill: string;
-  /** started | skill-install | skill-update | log | log-warn | log-error | finished | cancelled */
-  phase: string;
-  done: number;
-  total: number;
-  text: string;
-}
-
 /* ------------------------------------------------------------------ */
-/* Skills & settings command wrappers                                  */
+/* Settings command wrappers                                           */
 /* ------------------------------------------------------------------ */
-
-export function skillsListSources(): Promise<SkillSourceConfig[]> {
-  return call<SkillSourceConfig[]>("skills_list_sources");
-}
-
-export function skillsAddSource(source: { repo: string; ref: string | null; subdir: string }): Promise<SkillSourceConfig[]> {
-  return call<SkillSourceConfig[]>("skills_add_source", { repo: source.repo, ref: source.ref, subdir: source.subdir });
-}
-
-export function skillsUpdateSource(
-  index: number,
-  source: { repo: string; ref: string | null; subdir: string },
-): Promise<SkillSourceConfig[]> {
-  return call<SkillSourceConfig[]>("skills_update_source", {
-    index,
-    repo: source.repo,
-    ref: source.ref,
-    subdir: source.subdir,
-  });
-}
-
-export function skillsRemoveSource(index: number): Promise<SkillSourceConfig[]> {
-  return call<SkillSourceConfig[]>("skills_remove_source", { index });
-}
 
 export function settingsGet(): Promise<AppSettings> {
   return call<AppSettings>("settings_get");
@@ -377,95 +276,6 @@ export function settingsGet(): Promise<AppSettings> {
 
 export function settingsSet(settings: AppSettings): Promise<AppSettings> {
   return call<AppSettings>("settings_set", { settings });
-}
-
-export function skillsListInstalled(): Promise<InstalledSkill[]> {
-  return call<InstalledSkill[]>("skills_list_installed");
-}
-
-export function skillsListRemote(input: {
-  repo: string;
-  ref: string | null;
-  subdir: string;
-  refresh: boolean;
-}): Promise<SkillsListingResult> {
-  return call<SkillsListingResult>("skills_list_remote", {
-    repo: input.repo,
-    ref: input.ref,
-    subdir: input.subdir,
-    refresh: input.refresh,
-  });
-}
-
-export async function skillsCheckUpdate(input: {
-  repo: string;
-  ref: string | null;
-  subdir: string;
-  name: string;
-}): Promise<SkillChange> {
-  // Normalized defensively (parseSkillChange): the shell serializes the
-  // kebab-case `event` tag, but a `type` tag is accepted too; an
-  // unrecognized shape becomes a typed command error instead of poisoning
-  // the page's status badges.
-  const raw = await call<unknown>("skills_check_update", {
-    repo: input.repo,
-    ref: input.ref,
-    subdir: input.subdir,
-    name: input.name,
-  });
-  const parsed = parseSkillChange(raw);
-  if (parsed === null) {
-    throw new IpcCommandError("skills_check_update", "无法识别的后端响应格式");
-  }
-  return parsed;
-}
-
-export function skillsInstall(input: {
-  repo: string;
-  ref: string | null;
-  subdir: string;
-  name: string;
-}): Promise<InstalledSkill> {
-  return call<InstalledSkill>("skills_install", {
-    repo: input.repo,
-    ref: input.ref,
-    subdir: input.subdir,
-    name: input.name,
-  });
-}
-
-export function skillsUpdate(input: {
-  repo: string;
-  ref: string | null;
-  subdir: string;
-  name: string;
-  force: boolean;
-  backup: boolean;
-}): Promise<InstalledSkill> {
-  return call<InstalledSkill>("skills_update", {
-    repo: input.repo,
-    ref: input.ref,
-    subdir: input.subdir,
-    name: input.name,
-    force: input.force,
-    backup: input.backup,
-  });
-}
-
-export function skillsDelete(name: string, trash: boolean): Promise<void> {
-  return call<void>("skills_delete", { name, trash });
-}
-
-export function patStatus(): Promise<PatStatus> {
-  return call<PatStatus>("pat_status");
-}
-
-export function patSet(token: string): Promise<void> {
-  return call<void>("pat_set", { token });
-}
-
-export function patClear(): Promise<void> {
-  return call<void>("pat_clear");
 }
 
 /* ------------------------------------------------------------------ */
@@ -537,66 +347,6 @@ export function deployedSaveAgent(args: {
     body: args.body,
     settings: args.settings,
   });
-}
-
-/**
- * Defensive SkillChange parse — trusts only the kebab-case `event` tag the
- * shell serializes, but also accepts a `type` tag carrying the same values
- * (payloads from alternative shells must not wedge the page).
- */
-export function parseSkillChange(payload: unknown): SkillChange | null {
-  const r = asRecord(payload);
-  if (!r) return null;
-  const tag = typeof r.event === "string" ? r.event : typeof r.type === "string" ? r.type : null;
-  switch (tag) {
-    case "up-to-date":
-      return { event: "up-to-date" };
-    case "updatable":
-      return typeof r.newCommit === "string" ? { event: "updatable", newCommit: r.newCommit } : null;
-    case "local-modified": {
-      if (typeof r.newCommit !== "string" || !Array.isArray(r.modified)) return null;
-      const modified = r.modified.filter((f): f is string => typeof f === "string");
-      return { event: "local-modified", newCommit: r.newCommit, modified };
-    }
-    default:
-      return null;
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/* Event wiring: skill-progress                                        */
-/* ------------------------------------------------------------------ */
-
-/** Defensive parse of the frozen five-key skill-progress payload. */
-function parseSkillProgress(payload: unknown): SkillProgress | null {
-  const r = asRecord(payload);
-  if (!r) return null;
-  if (typeof r.skill !== "string" || typeof r.phase !== "string") return null;
-  return {
-    skill: r.skill,
-    phase: r.phase,
-    done: typeof r.done === "number" ? r.done : 0,
-    total: typeof r.total === "number" ? r.total : 0,
-    text: typeof r.text === "string" ? r.text : "",
-  };
-}
-
-/** Subscribe to the `skill-progress` channel; never throws (no Tauri → no-op). */
-export async function subscribeSkillProgress(handler: (ev: SkillProgress) => void): Promise<() => void> {
-  if (!isTauriAvailable()) return () => undefined;
-  const unlisteners: Array<() => void> = [];
-  try {
-    const un = await tauriListen("skill-progress", (e: Event<unknown>) => {
-      const parsed = parseSkillProgress(e.payload);
-      if (parsed) handler(parsed);
-    });
-    unlisteners.push(un);
-  } catch {
-    // Channel unavailable — degrade to a no-op subscription.
-  }
-  return () => {
-    for (const un of unlisteners) un();
-  };
 }
 
 /* ------------------------------------------------------------------ */

@@ -4,12 +4,11 @@
 // the whole row surface drags the window (Tauri keeps clicks on buttons/inputs interactive).
 // The invisible .drag-strip covers the window's top edge — the layout padding above the
 // brand row and page headers, the most title-bar-like surface — and drags from there too.
-// 232px sidebar — brand, nav (部署/技能/设置, aria-current), footer environment card +
+// 232px sidebar — brand, nav (部署/设置, aria-current), footer environment card +
 // side-note — and main. Pages stay mounted (mockup behavior) so in-flight install/preview
 // state survives nav. Sidebar footer: a bare version line (no card chrome).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DeployPage, type EnvStatus } from "./pages/DeployPage";
-import { SkillsPage } from "./pages/SkillsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ToastProvider } from "./components/Toast";
 import TitleBar from "./components/TitleBar";
@@ -17,11 +16,10 @@ import { Icon, type IconName } from "./icons";
 import { detectEnvironment, getAppVersion, describeIpcError, type EnvironmentInfo } from "./lib/ipc";
 import { bundledVersionLabel } from "./pages/deploy/logic";
 
-type PageId = "deploy" | "skills" | "settings";
+type PageId = "deploy" | "settings";
 
 const NAV: { id: PageId; label: string; icon: IconName }[] = [
   { id: "deploy", label: "部署", icon: "deploy" },
-  { id: "skills", label: "技能", icon: "skills" },
   { id: "settings", label: "设置", icon: "set" },
 ];
 
@@ -36,11 +34,6 @@ export default function App() {
   const [envStatus, setEnvStatus] = useState<EnvStatus>("loading");
   const [envError, setEnvError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string | null>(null);
-  /** Sidebar 技能 meta: installed-skills count; null = unknown (backend down / not loaded yet). */
-  const [skillsCount, setSkillsCount] = useState<number | null>(null);
-
-  const handleInstalledCount = useCallback((n: number | null) => setSkillsCount(n), []);
-  const goToSettings = useCallback(() => setPage("settings"), []);
 
   const refreshEnv = useCallback(async () => {
     setEnvStatus("loading");
@@ -76,7 +69,7 @@ export default function App() {
             </div>
             <div>
               <div className="brand-name">My Workbench</div>
-              <div className="brand-sub">部署 · 技能 · 设置</div>
+              <div className="brand-sub">部署 · 设置</div>
             </div>
           </div>
           <nav className="nav" aria-label="主导航">
@@ -96,7 +89,6 @@ export default function App() {
               >
                 <Icon name={item.icon} />
                 {item.label}
-                {item.id === "skills" && skillsCount !== null && <span className="nv-s num">{skillsCount}</span>}
               </button>
             ))}
           </nav>
@@ -118,12 +110,8 @@ export default function App() {
               navGuardRef={deployNavGuardRef}
             />
           </section>
-          <section className={`page${page === "skills" ? " is-active" : ""}`}>
-            <SkillsPage goToSettings={goToSettings} onInstalledCount={handleInstalledCount} />
-          </section>
           <section className={`page${page === "settings" ? " is-active" : ""}`}>
             <SettingsPage
-              envHome={env?.home ?? null}
               envSourceVersion={env?.sourceVersion ?? null}
               appVersion={appVersion}
             />

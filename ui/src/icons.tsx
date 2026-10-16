@@ -7,7 +7,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
 export type IconName =
-  | "deploy" | "skills" | "set" | "folder" | "check" | "checkc" | "x" | "xc"
+  | "deploy" | "set" | "folder" | "check" | "checkc" | "x" | "xc"
   | "warn" | "info" | "ref" | "dl" | "up" | "trash" | "plus" | "edit" | "ext"
   | "term" | "search" | "copy" | "lock" | "shield" | "layers"
   | "chevd" | "chevr" | "clock" | "file" | "play" | "git" | "offline" | "arl"
@@ -18,13 +18,6 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M21.3 2.7 10.9 13.1" />
       <path d="M21.3 2.7 14.6 21.2l-3.7-8.1L3 9.4l18.3-6.7z" />
-    </>
-  ),
-  skills: (
-    <>
-      <path d="M20.5 16.2V7.8a1.9 1.9 0 0 0-.95-1.65l-6.6-3.81a1.9 1.9 0 0 0-1.9 0l-6.6 3.8A1.9 1.9 0 0 0 3.5 7.8v8.4a1.9 1.9 0 0 0 .95 1.65l6.6 3.81a1.9 1.9 0 0 0 1.9 0l6.6-3.81a1.9 1.9 0 0 0 .95-1.65z" />
-      <polyline points="3.8 7.2 12 12 20.2 7.2" />
-      <line x1="12" y1="21.5" x2="12" y2="12" />
     </>
   ),
   set: (

@@ -1,5 +1,5 @@
-//! my-workbench core engine — pure Rust port of the Node CLI engine plus the
-//! skill manager, usable by the Tauri shell, tests and any other host.
+//! my-workbench core engine — pure Rust port of the Node CLI engine,
+//! usable by the Tauri shell, tests and any other host.
 //!
 //! This crate must never depend on `tauri`.
 
@@ -16,7 +16,6 @@ pub mod error;
 pub mod preserve;
 pub mod render;
 pub mod roster;
-pub mod skills;
 pub mod types;
 
 pub use error::WorkbenchError;

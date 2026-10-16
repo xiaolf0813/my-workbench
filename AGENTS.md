@@ -29,9 +29,9 @@ Every target downloads nothing and writes nothing inside a project except the ve
 | `agents/prompts/` | Agent prompt bodies — the single source, each opening with the omos attribution notice. |
 | `agents/prompts_cn/` | Chinese reference translations of the prompt bodies — never packaged. |
 | `agents/backends/<name>/` | Backend-specific assets and `slots/` for `{{slot:...}}` text. `dsh/` also has `preset.yml` (preset-picker metadata), `lanes.json` (the single authored DSH lane record), `agent.cordis.yml` (pulls the orchestrator body with `{{prompt:<agent>}}`), `lane-plugin/` (the packaged host half), and `lane-plugin-ui/` (the settings page). |
-| `crates/workbench-core/` | Pure-Rust port of the CLI's assembly/deploy engine plus the skill manager (no Tauri dependency); `tests/golden_end_to_end.rs` is the CLI-parity gate. |
+| `crates/workbench-core/` | Pure-Rust port of the CLI's assembly/deploy engine (no Tauri dependency); `tests/golden_end_to_end.rs` is the CLI-parity gate. |
 | `src-tauri/` | Tauri 2 desktop shell — IPC wiring only; bundles `agents/` as resources. |
-| `ui/` | Desktop frontend **`my-workbench-ui`** (React 19 + Vite 7 + TypeScript): deploy / skills / settings pages, typed IPC in `lib/ipc.ts`. |
+| `ui/` | Desktop frontend **`my-workbench-ui`** (React 19 + Vite 7 + TypeScript): deploy / settings pages, typed IPC in `lib/ipc.ts`. |
 | `Cargo.toml`, `Cargo.lock` | Cargo workspace root for `crates/workbench-core` and `src-tauri`. |
 | `test/dsh-deps.test.js` | `npm test` — DSH dependency resolution, DSH install behavior, `--upgrade`. |
 | `docs/` | Reference only, never shipped: the DSH lane plugin's design record (`docs/dsh-lane-plugin/`), the desktop mockups (`docs/desktop/mockups/`), and the agent-skill notes (`docs/agents/`). |
@@ -44,9 +44,8 @@ Every target downloads nothing and writes nothing inside a project except the ve
 ## Desktop app
 
 - `crates/workbench-core/` is a hand-written Rust parallel of `bin/my-workbench.js` reading the same `agents/` tree — no codegen in either direction. `npm run goldens` (`cargo test -p workbench-core --test golden_end_to_end`) runs the real CLI and the Rust engine into sibling sandboxes across the default, `--user`, `--zcode`, `--dsh`, `--force`, preserve, skip, and tamper-drift scenarios and requires byte-identical output; a divergence is fixed in the engine or the CLI, never weakened in the test.
-- `src-tauri/` is IPC wiring only — all deploy and skill logic lives in workbench-core — and never spawns the JS CLI: its shell capability allowlist is exactly `opencode --version`, `node --version`, `node --check`, and `node -e`. The GUI drives deploy (plan/execute/cancel), drift checks, and skill management.
-- The skill manager is desktop-only: GitHub-repo skills installed into a configurable root (default `~/.agents/skills/`), tracked in a `.workbench-skills.json` manifest with per-file sha256, downloads restricted to `api.github.com`, `codeload.github.com`, and `raw.githubusercontent.com`, the GitHub PAT in the OS keyring and never sent to the frontend. The CLI has no skills surface (plan lock).
-- The desktop app's decision locks — Rust native port, not a Node sidecar; the DSH plugin stays authored JS; GitHub-only skills; React+Vite+TS frontend; the Node CLI stays unchanged; Tier-2 checks via local Node; the bundled `agents/` tree is the only deploy content source engine-wide (no custom-source capability, GUI or backend). (The plan record was deleted; its git history under `docs/desktop/PLAN.md` is the full reference.) `docs/desktop/mockups/` is the UI design contract; `ui/src/index.css` mirrors its tokens.
+- `src-tauri/` is IPC wiring only — all deploy logic lives in workbench-core — and never spawns the JS CLI: its shell capability allowlist is exactly `opencode --version`, `node --version`, `node --check`, and `node -e`. The GUI drives deploy (plan/execute/cancel), drift checks, and the deployed-agent read/edit surface.
+- The desktop app's decision locks — Rust native port, not a Node sidecar; the DSH plugin stays authored JS; React+Vite+TS frontend; the Node CLI stays unchanged; Tier-2 checks via local Node; the bundled `agents/` tree is the only deploy content source engine-wide (no custom-source capability, GUI or backend). (The plan record was deleted; its git history under `docs/desktop/PLAN.md` is the full reference.) `docs/desktop/mockups/` is the UI design contract; `ui/src/index.css` mirrors its tokens.
 - Versions move together — `package.json`, `crates/workbench-core/Cargo.toml`, and `src-tauri/tauri.conf.json` are checked against the tag by `desktop.yml` and against each other by the golden test; keep `ui/package.json` in step manually.
 
 ## Single source & generated files
@@ -79,7 +78,7 @@ The Rust engine is a parallel implementation, not a generated artifact — the g
 - **Bare imports in the lane plugin are forbidden** except through a `{{dep:<alias>}}` placeholder declared in `DSH_LANE_PLUGIN_DEPS` (`bin/my-workbench.js`), which `--dsh` bakes into an absolute `file:` URL at install time — a plugin under `$DSH_HOME/.agent-presets/` cannot resolve a package by name. The settings page declares no dependencies, and its browser half may only `require` the shell's nine seed modules; `assemble --check` enforces both plus the `dsh.client`/`exports["./client"]` pair DSH scans for.
 - **Engine parity** → any change to the CLI's assembly or deploy behavior must land in both `bin/my-workbench.js` and `crates/workbench-core/`, proven by `npm run goldens`.
 - **Desktop UI** → visual changes follow `docs/desktop/mockups/SPEC.md`; design tokens live once in `ui/src/index.css`.
-- **No downloads**: my-workbench never pins a `"plugin"` entry and never downloads or executes anything. (The desktop skill manager's GitHub downloads are its own locked scope.)
+- **No downloads**: my-workbench never pins a `"plugin"` entry and never downloads or executes anything.
 
 ## Target projects
 

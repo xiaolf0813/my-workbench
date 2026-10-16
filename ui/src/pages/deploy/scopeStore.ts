@@ -80,7 +80,6 @@ function persistToBackend(scope: ScopeState): Promise<unknown> {
     try {
       const current = await settingsGet();
       await settingsSet({
-        skillsRoot: current.skillsRoot,
         language: current.language,
         projectDir: scope.projectDir,
         userLevel: scope.userLevel,

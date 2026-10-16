@@ -1,6 +1,6 @@
 //! Tauri 2 shell for the my-workbench desktop GUI.
 //!
-//! IPC wiring only — all deployment/skill business logic lives in
+//! IPC wiring only — all deployment business logic lives in
 //! `workbench-core`. This file implements the
 //! M1 command surface over the ported engine:
 //!
@@ -16,29 +16,13 @@
 //! - `check_drift` — engine Tier 1 plus the Tier 2 execution-state checks run
 //!   through the local Node (lock 6: absent Node → explicit skip, never a
 //!   block). The bundled `agents/` tree is the only content source.
-//!
-//! M2 adds the skill-management surface, all over
-//! `workbench_core::skills`:
-//!
-//! - `skills_list_sources` / `skills_add_source` / `skills_update_source` /
-//!   `skills_remove_source` — the configured `owner/repo` source list,
-//!   persisted together with the settings in
-//!   `<app_config_dir>/settings.json` (atomic tmp+rename writes).
-//! - `settings_get` / `settings_set` — `AppSettings` (skill root, default
-//!   `<home>/.agents/skills`, and the UI language).
-//! - `skills_list_installed` / `skills_list_remote` — the offline manifest
-//!   listing and the cached remote listing
-//!   (`<app_cache_dir>/skills-listings.json`, one entry per source key;
-//!   `refresh=true` re-fetches and overwrites; errors are never masked with
-//!   stale cache data).
-//! - `skills_check_update` / `skills_install` / `skills_update` /
-//!   `skills_delete` — the network/mutating surface; install/update run on
-//!   `spawn_blocking` with the core's events bridged to the `skill-progress`
-//!   channel and a shared `SkillsState` guard rejecting concurrent
-//!   operations.
-//! - `pat_status` / `pat_set` / `pat_clear` — GitHub PAT in the OS keyring
-//!   (`my-workbench` / `github-pat`); the token never round-trips to the
-//!   frontend, never appears in logs or errors, and is never written to disk.
+//! - `deployed_overview` / `deployed_list_agents` /
+//!   `deployed_save_agent` — the deployed-agent read/edit surface.
+//! - `settings_get` / `settings_set` — `AppSettings` (the UI language and
+//!   the Deploy page's context: project directory + `--user` toggle),
+//!   persisted in `<app_config_dir>/settings.json` (atomic tmp+rename
+//!   writes). Unknown keys in an existing file (e.g. the removed
+//!   `skillsRoot`/`sources`) are ignored by serde.
 //!
 //! Error surfacing: every command rejects with a single-line message string;
 //! the frontend's `describeIpcError` renders it directly.
@@ -58,12 +42,9 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use workbench_core::deployed::{self, DeployedAgent, DeployedParams, DeployedTargetState};
-use workbench_core::skills::{
-    self, InstalledSkill, SkillChange, SkillListing, SkillSource, UreqGitHubClient,
-};
 use workbench_core::types::{
-    DriftReport, EngineContext, EnvironmentInfo, EventSink, InstallEvent, InstallReport, LogLevel,
-    Plan, Selection, Target, Tier2Report, Tier2Status,
+    DriftReport, EngineContext, EnvironmentInfo, EventSink, InstallEvent, InstallReport, Plan,
+    Selection, Target, Tier2Report, Tier2Status,
 };
 use workbench_core::{dsh, engine, render, WorkbenchError};
 
@@ -811,42 +792,21 @@ fn deployed_save_agent(
         .map_err(error_message)
 }
 
-// -------------------------------------------------- skills management (M2)
+// ------------------------------------------------------------- settings
 
-/// Default subdirectory inside a skill repo ("default skill
-/// subdirectory `skills/`"), used when a command receives no subdir. An
-/// explicit empty subdir is kept — it means the repo root (the core's
-/// documented semantics).
-const DEFAULT_SKILL_SUBDIR: &str = "skills";
-
-/// Settings + skill sources live in one file under the app config dir.
+/// Settings live in one file under the app config dir.
 const SETTINGS_FILE: &str = "settings.json";
 
-/// Remote-listing cache under the app cache dir ("results cached
-/// locally" — the unauthenticated GitHub rate limit is 60 req/h).
-const LISTINGS_CACHE_FILE: &str = "skills-listings.json";
-const LISTINGS_CACHE_VERSION: u32 = 1;
-
-/// Frontend event channel for skill install/update progress (M1 bridge
-/// style, one unified payload per event).
-const SKILL_PROGRESS_CHANNEL: &str = "skill-progress";
-
-/// OS-keyring identity of the GitHub PAT (SPEC.md §6.2: never on disk in
-/// plaintext).
-const KEYRING_SERVICE: &str = "my-workbench";
-const KEYRING_USER: &str = "github-pat";
-
-/// User settings: the skill root (default
-/// `<home>/.agents/skills`), the UI language, and the Deploy page's context
-/// (the picked project directory and the `--user` toggle, persisted so the
-/// page restores and the deployed-agent commands receive the same values).
-/// Serialized camelCase (`skillsRoot`, `projectDir`, `userLevel`); missing
-/// fields fall back to the defaults, so existing settings files load
-/// unchanged.
+/// User settings: the UI language and the Deploy page's context (the picked
+/// project directory and the `--user` toggle, persisted so the page restores
+/// and the deployed-agent commands receive the same values). Serialized
+/// camelCase (`language`, `projectDir`, `userLevel`); missing fields fall
+/// back to the defaults, so existing settings files load unchanged. Unknown
+/// keys in an existing file (e.g. the removed `skillsRoot`/`sources`) are
+/// ignored by serde.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 struct AppSettings {
-    skills_root: String,
     language: String,
     /// The Deploy page's project directory (`None` = not picked yet).
     #[serde(default)]
@@ -859,7 +819,6 @@ struct AppSettings {
 impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            skills_root: default_skills_root(),
             language: "zh".to_string(),
             project_dir: None,
             user_level: false,
@@ -867,160 +826,13 @@ impl Default for AppSettings {
     }
 }
 
-/// One configured skill source. The JSON key of `ref_` is `ref` (explicit
-/// serde rename — `ref` alone is a Rust keyword).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SkillSourceConfig {
-    repo: String,
-    #[serde(rename = "ref")]
-    ref_: Option<String>,
-    subdir: String,
-}
-
-/// `settings.json` on disk: settings and skill sources in one place. A
-/// missing file means defaults; a corrupt one means defaults WITH a warning
-/// (never a panic, never silent) — mirroring the core's manifest handling.
+/// `settings.json` on disk. A missing file means defaults; a corrupt one
+/// means defaults WITH a warning (never a panic, never silent) — mirroring
+/// the core's manifest handling.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 struct SettingsFile {
     settings: AppSettings,
-    sources: Vec<SkillSourceConfig>,
-}
-
-/// One cached remote listing (`<repo>@<ref|HEAD>:<subdir>` → listing + time).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CachedListing {
-    listing: SkillListing,
-    cached_at_ms: u64,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-struct ListingsCacheFile {
-    version: u32,
-    listings: BTreeMap<String, CachedListing>,
-}
-
-/// `skills_list_remote` result: the listing plus the moment it was fetched
-/// (Some for both a fresh fetch and a cache hit — the UI renders the
-/// 上次更新 timestamp from it).
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct SkillsListingResult {
-    listing: SkillListing,
-    cached_at_ms: Option<u64>,
-}
-
-/// `pat_status` result — deliberately carries ONLY the boolean; the token
-/// value never round-trips to the frontend.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct PatStatus {
-    configured: bool,
-}
-
-/// Shared skills-mutation state: `running` rejects a second concurrent
-/// install/update/delete (mirrors [`InstallState`]). Read-only operations
-/// (`skills_list_remote`, `skills_check_update`, `skills_list_installed`)
-/// deliberately do not take the guard — they must stay usable while an
-/// install runs.
-#[derive(Default)]
-struct SkillsState {
-    running: Arc<AtomicBool>,
-}
-
-/// RAII guard over [`SkillsState::running`]: acquired at the start of a
-/// mutating skills command and released on drop, so every early-return path
-/// (bad source, keyring failure, worker crash) clears the flag.
-struct SkillsGuard(Arc<AtomicBool>);
-
-impl SkillsGuard {
-    fn acquire(state: &SkillsState) -> Result<Self, String> {
-        if state.running.swap(true, Ordering::SeqCst) {
-            return Err(single_line(
-                "another skills operation (install/update/delete) is already running; \
-                 wait for it to finish first",
-            ));
-        }
-        Ok(Self(state.running.clone()))
-    }
-}
-
-impl Drop for SkillsGuard {
-    fn drop(&mut self) {
-        self.0.store(false, Ordering::SeqCst);
-    }
-}
-
-/// Bridges the skills engine's [`EventSink`] events to the `skill-progress`
-/// channel. Every event becomes the SAME five-key camelCase payload
-/// `{ skill, phase, done, total, text }` — the frozen shape the Skills page
-/// parses — so the [`InstallEvent`] variants are pattern-matched here, never
-/// serialized raw. Phase vocabulary:
-///
-/// - `started` — [`InstallEvent::Started`], `total` = file count
-/// - `skill-install` / `skill-update` — [`InstallEvent::Progress`] (the
-///   core's phase strings), `done`/`total` = extraction progress
-/// - `log` / `log-warn` / `log-error` — [`InstallEvent::Log`], the line in
-///   `text` (the level is folded into the phase; the frozen payload has no
-///   separate level key)
-/// - `finished` / `cancelled` — [`InstallEvent::Finished`]
-struct SkillsSink {
-    app: AppHandle,
-    skill: String,
-}
-
-impl EventSink for SkillsSink {
-    fn emit(&self, event: InstallEvent) {
-        let (phase, done, total, text) = match &event {
-            InstallEvent::Started { total_files } => ("started", 0, *total_files, String::new()),
-            InstallEvent::Log { level, text, .. } => (
-                match level {
-                    LogLevel::Info => "log",
-                    LogLevel::Warn => "log-warn",
-                    LogLevel::Error => "log-error",
-                },
-                0,
-                0,
-                text.clone(),
-            ),
-            InstallEvent::Progress { phase, done, total } => {
-                (phase.as_str(), *done, *total, String::new())
-            }
-            InstallEvent::Finished { cancelled } => (
-                if *cancelled { "cancelled" } else { "finished" },
-                0,
-                0,
-                String::new(),
-            ),
-        };
-        let payload = json!({
-            "skill": self.skill,
-            "phase": phase,
-            "done": done,
-            "total": total,
-            "text": text,
-        });
-        if let Err(err) = self.app.emit(SKILL_PROGRESS_CHANNEL, payload) {
-            eprintln!("failed to emit {SKILL_PROGRESS_CHANNEL}: {err}");
-        }
-    }
-}
-
-// ------------------------------------------------------------ skills paths
-
-fn default_skills_root() -> String {
-    match home_dir() {
-        Ok(home) => home
-            .join(".agents")
-            .join("skills")
-            .to_string_lossy()
-            .into_owned(),
-        // Practically unreachable (USERPROFILE/HOME always exist on the
-        // supported platforms); the core surfaces an honest error later.
-        Err(_) => ".agents/skills".to_string(),
-    }
 }
 
 fn app_config_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -1029,27 +841,8 @@ fn app_config_dir(app: &AppHandle) -> Result<PathBuf, String> {
         .map_err(|e| single_line(&format!("cannot resolve the app config directory: {e}")))
 }
 
-fn app_cache_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    app.path()
-        .app_cache_dir()
-        .map_err(|e| single_line(&format!("cannot resolve the app cache directory: {e}")))
-}
-
 fn settings_path(app: &AppHandle) -> Result<PathBuf, String> {
     Ok(app_config_dir(app)?.join(SETTINGS_FILE))
-}
-
-fn listings_cache_path(app: &AppHandle) -> Result<PathBuf, String> {
-    Ok(app_cache_dir(app)?.join(LISTINGS_CACHE_FILE))
-}
-
-/// The configured skill root, or the default when unset/empty.
-fn skills_root_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let root = read_settings_file(&settings_path(app)?).settings.skills_root;
-    if root.trim().is_empty() {
-        return Ok(PathBuf::from(default_skills_root()));
-    }
-    Ok(PathBuf::from(root))
 }
 
 // ------------------------------------------------------- JSON file helpers
@@ -1099,116 +892,17 @@ fn read_settings_file(path: &Path) -> SettingsFile {
     }
 }
 
-fn read_listings_cache(path: &Path) -> ListingsCacheFile {
-    let bytes = match fs::read(path) {
-        Ok(bytes) => bytes,
-        Err(_) => return ListingsCacheFile::default(), // missing = empty cache
-    };
-    match serde_json::from_slice::<ListingsCacheFile>(&bytes) {
-        Ok(file) if file.version == LISTINGS_CACHE_VERSION => file,
-        Ok(_) => {
-            eprintln!(
-                "my-workbench: skills listing cache at {} has an unsupported version; ignoring it",
-                path.display()
-            );
-            ListingsCacheFile::default()
-        }
-        Err(e) => {
-            eprintln!(
-                "my-workbench: skills listing cache at {} is corrupt ({e}); ignoring it",
-                path.display()
-            );
-            ListingsCacheFile::default()
-        }
-    }
-}
+// ---------------------------------------------------------------- settings
 
-// -------------------------------------------------------- small M2 helpers
-
-fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
-        .unwrap_or(0)
-}
-
-/// Build the core's [`SkillSource`] from the command args: strings are
-/// trimmed, an empty ref becomes `None` (→ the core's `HEAD` pseudo-ref), a
-/// missing subdir becomes the default `skills`.
-fn skill_source(repo: String, ref_: Option<String>, subdir: Option<String>) -> SkillSource {
-    let repo = repo.trim().to_string();
-    let ref_ = ref_.map(|r| r.trim().to_string()).filter(|r| !r.is_empty());
-    let subdir = match subdir {
-        Some(s) => s.trim().to_string(),
-        None => DEFAULT_SKILL_SUBDIR.to_string(),
-    };
-    SkillSource {
-        repo,
-        r#ref: ref_,
-        subdir,
-    }
-}
-
-/// [`SkillSource`] → the persisted [`SkillSourceConfig`] shape.
-fn source_config(repo: String, ref_: Option<String>, subdir: Option<String>) -> SkillSourceConfig {
-    let source = skill_source(repo, ref_, subdir);
-    SkillSourceConfig {
-        repo: source.repo,
-        ref_: source.r#ref,
-        subdir: source.subdir,
-    }
-}
-
-/// Light shell-side shape check for the source-mutation commands: the repo
-/// must be `owner/repo` with non-empty parts. The authoritative validation
-/// (charset, ref and subdir rules) lives in the core and runs again on every
-/// use — this only keeps obvious garbage out of settings.json.
-fn check_repo_shape(repo: &str) -> Result<(), String> {
-    let parts: Vec<&str> = repo.split('/').collect();
-    if parts.len() != 2 || parts.iter().any(|part| part.is_empty()) {
-        return Err(single_line(&format!(
-            "invalid skill source repository '{repo}': expected 'owner/repo'"
-        )));
-    }
-    Ok(())
-}
-
-/// Cache key of one source: `<repo>@<ref|HEAD>:<subdir>`.
-fn cache_key(source: &SkillSource) -> String {
-    format!("{}@{}:{}", source.repo, source.effective_ref(), source.subdir)
-}
-
-/// Expand a leading `~` to the user home and reject an empty skills root.
-fn normalize_skills_root(raw: &str) -> Result<String, String> {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return Err(single_line("skillsRoot must not be empty"));
-    }
-    let expanded = match trimmed.strip_prefix('~') {
-        Some("") => home_dir()?.to_string_lossy().into_owned(),
-        Some(rest) if rest.starts_with('/') || rest.starts_with('\\') => {
-            let home = home_dir()?;
-            home.join(rest.trim_start_matches(['/', '\\']))
-                .to_string_lossy()
-                .into_owned()
-        }
-        _ => trimmed.to_string(),
-    };
-    Ok(expanded)
-}
-
-// -------------------------------------------------- settings & sources (M2)
-
-/// The user settings (skill root + UI language).
+/// The user settings (UI language + Deploy page context).
 #[tauri::command]
 fn settings_get(app: AppHandle) -> Result<AppSettings, String> {
     Ok(read_settings_file(&settings_path(&app)?).settings)
 }
 
-/// Persist the settings part; the source list is preserved. Returns the
-/// normalized settings actually stored (trimmed skills root with `~`
-/// expanded, non-empty language defaulting to "zh", trimmed project
-/// directory defaulting to absent, user-level toggle as given).
+/// Persist the settings. Returns the normalized settings actually stored
+/// (non-empty language defaulting to "zh", trimmed project directory
+/// defaulting to absent, user-level toggle as given).
 #[tauri::command]
 fn settings_set(app: AppHandle, settings: AppSettings) -> Result<AppSettings, String> {
     let path = settings_path(&app)?;
@@ -1226,7 +920,6 @@ fn settings_set(app: AppHandle, settings: AppSettings) -> Result<AppSettings, St
         .map(|dir| dir.trim().to_string())
         .filter(|dir| !dir.is_empty());
     file.settings = AppSettings {
-        skills_root: normalize_skills_root(&settings.skills_root)?,
         language,
         project_dir,
         user_level: settings.user_level,
@@ -1235,310 +928,14 @@ fn settings_set(app: AppHandle, settings: AppSettings) -> Result<AppSettings, St
     Ok(file.settings)
 }
 
-#[tauri::command]
-fn skills_list_sources(app: AppHandle) -> Result<Vec<SkillSourceConfig>, String> {
-    Ok(read_settings_file(&settings_path(&app)?).sources)
-}
-
-/// Append one source and return the updated list.
-#[tauri::command]
-fn skills_add_source(
-    app: AppHandle,
-    repo: String,
-    ref_: Option<String>,
-    subdir: Option<String>,
-) -> Result<Vec<SkillSourceConfig>, String> {
-    let path = settings_path(&app)?;
-    let mut file = read_settings_file(&path);
-    let config = source_config(repo, ref_, subdir);
-    check_repo_shape(&config.repo)?;
-    file.sources.push(config);
-    write_json_atomic(&path, &file)?;
-    Ok(file.sources)
-}
-
-/// Replace the source at `index` and return the updated list.
-#[tauri::command]
-fn skills_update_source(
-    app: AppHandle,
-    index: usize,
-    repo: String,
-    ref_: Option<String>,
-    subdir: Option<String>,
-) -> Result<Vec<SkillSourceConfig>, String> {
-    let path = settings_path(&app)?;
-    let mut file = read_settings_file(&path);
-    if index >= file.sources.len() {
-        return Err(single_line(&format!(
-            "source index {index} is out of range (0..{})",
-            file.sources.len()
-        )));
-    }
-    let config = source_config(repo, ref_, subdir);
-    check_repo_shape(&config.repo)?;
-    file.sources[index] = config;
-    write_json_atomic(&path, &file)?;
-    Ok(file.sources)
-}
-
-/// Remove the source at `index` and return the updated list.
-#[tauri::command]
-fn skills_remove_source(app: AppHandle, index: usize) -> Result<Vec<SkillSourceConfig>, String> {
-    let path = settings_path(&app)?;
-    let mut file = read_settings_file(&path);
-    if index >= file.sources.len() {
-        return Err(single_line(&format!(
-            "source index {index} is out of range (0..{})",
-            file.sources.len()
-        )));
-    }
-    file.sources.remove(index);
-    write_json_atomic(&path, &file)?;
-    Ok(file.sources)
-}
-
-// ------------------------------------------------------------ skills ops (M2)
-
-/// Installed skills from `<skills_root>/.workbench-skills.json` —
-/// offline-safe (the manifest is the only thing read; "list/delete
-/// still work").
-#[tauri::command]
-fn skills_list_installed(app: AppHandle) -> Result<Vec<InstalledSkill>, String> {
-    let root = skills_root_path(&app)?;
-    skills::list_installed(&root).map_err(error_message)
-}
-
-/// Remote listing of one source. `refresh=false` serves the per-source cache
-/// when present; anything else — no cache yet, or `refresh=true` — goes to
-/// the network and overwrites the cache entry. Errors are NEVER masked with
-/// stale cache data: the UI renders its offline state from the rejection and
-/// retries with `refresh=false`.
-#[tauri::command]
-async fn skills_list_remote(
-    app: AppHandle,
-    repo: String,
-    ref_: Option<String>,
-    subdir: Option<String>,
-    refresh: bool,
-) -> Result<SkillsListingResult, String> {
-    let source = skill_source(repo, ref_, subdir);
-    let key = cache_key(&source);
-    let cache_path = listings_cache_path(&app)?;
-    if !refresh {
-        let cache = read_listings_cache(&cache_path);
-        if let Some(hit) = cache.listings.get(&key) {
-            return Ok(SkillsListingResult {
-                listing: hit.listing.clone(),
-                cached_at_ms: Some(hit.cached_at_ms),
-            });
-        }
-    }
-    let token = load_pat()?;
-    let client = UreqGitHubClient::new();
-    let listing = tauri::async_runtime::spawn_blocking(move || {
-        skills::list_remote(&client, &source, token.as_deref())
-    })
-    .await
-    .map_err(|e| single_line(&format!("skills listing worker failed: {e}")))?
-    .map_err(error_message)?;
-    let cached_at_ms = now_ms();
-    // A cache write failure is non-fatal: the fresh listing still reaches the
-    // UI; only the NEXT offline attempt loses its fallback. (An error here
-    // must not look like a network error — that is the UI's 离线 signal.)
-    let mut cache = read_listings_cache(&cache_path);
-    cache.version = LISTINGS_CACHE_VERSION;
-    cache
-        .listings
-        .insert(key, CachedListing { listing: listing.clone(), cached_at_ms });
-    if let Err(err) = write_json_atomic(&cache_path, &cache) {
-        eprintln!("my-workbench: could not update the skills listing cache: {err}");
-    }
-    Ok(SkillsListingResult {
-        listing,
-        cached_at_ms: Some(cached_at_ms),
-    })
-}
-
-/// Update verdict for one installed skill (up-to-date / updatable /
-/// locally-modified). Read-only; deliberately no operation guard.
-#[tauri::command]
-async fn skills_check_update(
-    app: AppHandle,
-    repo: String,
-    ref_: Option<String>,
-    subdir: Option<String>,
-    name: String,
-) -> Result<SkillChange, String> {
-    let source = skill_source(repo, ref_, subdir);
-    let root = skills_root_path(&app)?;
-    let token = load_pat()?;
-    let client = UreqGitHubClient::new();
-    tauri::async_runtime::spawn_blocking(move || {
-        skills::check_update(&client, &root, &source, &name, token.as_deref())
-    })
-    .await
-    .map_err(|e| single_line(&format!("skills update-check worker failed: {e}")))?
-    .map_err(error_message)
-}
-
-/// Install one skill into the configured skill root, streaming progress to
-/// `skill-progress`. Guarded: a second concurrent mutating skills operation
-/// is rejected with a clear message.
-#[tauri::command]
-async fn skills_install(
-    app: AppHandle,
-    state: State<'_, SkillsState>,
-    repo: String,
-    ref_: Option<String>,
-    subdir: Option<String>,
-    name: String,
-) -> Result<InstalledSkill, String> {
-    let _guard = SkillsGuard::acquire(&state)?;
-    let source = skill_source(repo, ref_, subdir);
-    let root = skills_root_path(&app)?;
-    let token = load_pat()?;
-    let sink = SkillsSink {
-        app,
-        skill: name.clone(),
-    };
-    let client = UreqGitHubClient::new();
-    tauri::async_runtime::spawn_blocking(move || {
-        skills::install(&client, &root, &source, &name, token.as_deref(), &sink)
-    })
-    .await
-    .map_err(|e| single_line(&format!("skills install worker failed: {e}")))?
-    .map_err(error_message)
-}
-
-/// Update (or reinstall) one skill; `force` discards local modifications,
-/// `backup` copies the current directory into `<root>/.backups/` first.
-#[tauri::command]
-async fn skills_update(
-    app: AppHandle,
-    state: State<'_, SkillsState>,
-    repo: String,
-    ref_: Option<String>,
-    subdir: Option<String>,
-    name: String,
-    force: bool,
-    backup: bool,
-) -> Result<InstalledSkill, String> {
-    let _guard = SkillsGuard::acquire(&state)?;
-    let source = skill_source(repo, ref_, subdir);
-    let root = skills_root_path(&app)?;
-    let token = load_pat()?;
-    let sink = SkillsSink {
-        app,
-        skill: name.clone(),
-    };
-    let client = UreqGitHubClient::new();
-    tauri::async_runtime::spawn_blocking(move || {
-        skills::update(
-            &client, &root, &source, &name, force, backup, token.as_deref(), &sink,
-        )
-    })
-    .await
-    .map_err(|e| single_line(&format!("skills update worker failed: {e}")))?
-    .map_err(error_message)
-}
-
-/// Delete one skill: remove (or trash) the directory and drop the manifest
-/// entry. Idempotent in the core.
-#[tauri::command]
-async fn skills_delete(
-    app: AppHandle,
-    state: State<'_, SkillsState>,
-    name: String,
-    trash: bool,
-) -> Result<(), String> {
-    let _guard = SkillsGuard::acquire(&state)?;
-    let root = skills_root_path(&app)?;
-    tauri::async_runtime::spawn_blocking(move || skills::delete_skill(&root, &name, trash))
-        .await
-        .map_err(|e| single_line(&format!("skills delete worker failed: {e}")))?
-        .map_err(error_message)
-}
-
-// ---------------------------------------------------------------- PAT (M2)
-
-fn keyring_entry() -> Result<keyring::Entry, String> {
-    keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)
-        .map_err(|e| single_line(&format!("cannot access the OS keyring: {e}")))
-}
-
-/// Read the PAT from the OS keyring. No entry (or an empty one) → `None`;
-/// any real keyring failure surfaces as an error — never a plaintext-on-disk
-/// fallback. The value only ever flows into the core's `token` parameter,
-/// which the core redacts from every error it produces.
-fn load_pat() -> Result<Option<String>, String> {
-    match keyring_entry()?.get_password() {
-        Ok(token) if token.trim().is_empty() => Ok(None),
-        Ok(token) => Ok(Some(token)),
-        Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(single_line(&format!(
-            "cannot read the GitHub PAT from the OS keyring: {e}"
-        ))),
-    }
-}
-
-/// Whether a PAT is configured — the ONLY information about the token that
-/// ever reaches the frontend.
-#[tauri::command]
-fn pat_status() -> Result<PatStatus, String> {
-    Ok(PatStatus {
-        configured: load_pat()?.is_some(),
-    })
-}
-
-/// Store the PAT in the OS keyring (service `my-workbench`, user
-/// `github-pat`). Validation is deliberately loose: any non-empty token is
-/// accepted; one matching neither the `gh[pousr]_` prefix nor the 40-hex
-/// classic shape only produces a stderr note. The value is never echoed,
-/// logged or written anywhere else.
-#[tauri::command]
-fn pat_set(token: String) -> Result<(), String> {
-    let trimmed = token.trim();
-    if trimmed.is_empty() {
-        return Err(single_line("the GitHub PAT must not be empty"));
-    }
-    let looks_like_github_pat = trimmed.starts_with("ghp_")
-        || trimmed.starts_with("gho_")
-        || trimmed.starts_with("ghu_")
-        || trimmed.starts_with("ghs_")
-        || trimmed.starts_with("ghr_")
-        || (trimmed.len() == 40 && trimmed.chars().all(|c| c.is_ascii_hexdigit()));
-    if !looks_like_github_pat {
-        eprintln!(
-            "my-workbench: the GitHub PAT matches neither the gh[pousr]_ prefix nor the 40-hex classic shape; storing it anyway"
-        );
-    }
-    keyring_entry()?
-        .set_password(trimmed)
-        .map_err(|e| single_line(&format!("cannot store the GitHub PAT in the OS keyring: {e}")))
-}
-
-/// Remove the PAT. Idempotent: clearing a missing entry is `Ok`.
-#[tauri::command]
-fn pat_clear() -> Result<(), String> {
-    match keyring_entry()?.delete_credential() {
-        Ok(()) => Ok(()),
-        Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(single_line(&format!(
-            "cannot remove the GitHub PAT from the OS keyring: {e}"
-        ))),
-    }
-}
-
 // --------------------------------------------------------------------- run
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_shell::init())
         .manage(InstallState::default())
-        .manage(SkillsState::default())
         .invoke_handler(tauri::generate_handler![
             detect_environment,
             plan_install,
@@ -1548,22 +945,10 @@ pub fn run() {
             deployed_overview,
             deployed_list_agents,
             deployed_save_agent,
-            skills_list_sources,
-            skills_add_source,
-            skills_update_source,
-            skills_remove_source,
             settings_get,
-            settings_set,
-            skills_list_installed,
-            skills_list_remote,
-            skills_check_update,
-            skills_install,
-            skills_update,
-            skills_delete,
-            pat_status,
-            pat_set,
-            pat_clear
+            settings_set
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
