@@ -101,6 +101,8 @@ Evaluate approach by: quality, speed, cost, and reliability; choose the path tha
 
 **Active task amendments:** for an additive request to a running lane, message it (the message queues; never claim the agent saw or acted on it until it reports), record the amendment in the conversation, and tell the user it is queued. The turn stays open until the lane reports. Never create-and-cancel speculative duplicate agents.
 
+**Message labeling:** the client renders a messaged lane's recipient as a bare `agent_<uuid>` handle with no name, so the message summary is the only readable label — lead every summary sent to a lane with the specialist's name (e.g. "explorer: report recon results").
+
 **Session reuse:**
 - Continue a finished specialist in its existing session rather than respawning — its context is intact, which saves time and tokens. If several fit, prefer the most recently used matching agent.
 - Remediation is the default reuse case: defects in a specialist's delivered work go back to that specialist's session (see Remediation routing).
