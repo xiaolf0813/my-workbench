@@ -4,6 +4,10 @@ node_modules/
 .claude/
 .zcode/
 .codegraph/
+
+# Local tool state (Mimosa security-scan, video2code)
+.mimosa/
+.v2c/
 *.Identifier
 
 # Windows NTFS download-zone artifacts
