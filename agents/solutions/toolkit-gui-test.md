@@ -27,11 +27,11 @@ acquisition, identity keys, and action channel.
   signature: [login/username_input, login/submit_button]
   controls:
     - alias: submit_button
-      locate: { id: "com.example.app:login/submit_button" }
+      locate: { id: "login/submit_button" }   # raw Compose testTag
       fallback: { text: "@string/login_submit" }
     - alias: order_row
       scope: order_list
-      locate: { id: "com.example.app:order_row/{biz_id}" }   # runtime parameter
+      locate: { id: "order_row/{biz_id}" }   # runtime parameter in a Compose testTag
   ```
 
 - **`gui` CLI** — thin, text-in/text-out:

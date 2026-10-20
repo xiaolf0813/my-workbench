@@ -24,11 +24,11 @@ controls:
   - alias: pay_button
     locate: { id: "com.app:id/btn_pay" }        # View world
   - alias: pay_button_cmp                       # Compose world (tag surfaces as resource-id)
-    locate: { id: "com.app:order_detail/pay_button" }
+    locate: { id: "order_detail/pay_button" }
     fallback: { text: "@string/pay_now" }
   - alias: order_row
     scope: order_list                           # container scope for dynamic lists
-    locate: { id: "com.app:order_row/{biz_id}" }  # runtime parameter
+    locate: { id: "order_row/{biz_id}" }  # runtime parameter in a Compose testTag
 ```
 
 ## Toolkit shape

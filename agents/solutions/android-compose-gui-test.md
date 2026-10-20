@@ -11,7 +11,7 @@ execution modes: **live** (resolve and act through the tree — the backends
 below) and **scripted** (instrumentation tests — deterministic,
 fast, the regression layer; see the instrumentation section).
 
-## Tree acquisition — by efficiency, in this order
+## Live tree acquisition — in this order
 
 1. **In-app semantics dump hook** (debug build) — the app walks its own
    semantics tree on a broadcast/deep-link trigger and writes JSON (tag, text,
@@ -19,33 +19,8 @@ fast, the regression layer; see the instrumentation section).
    dialogs included. Milliseconds per call, never stale, and it reads
    `SemanticsProperties.TestTag` directly — the bridge flag in step 4 is not
    required on this path.
-2. **Semantics tree via `printToLog`** (debug build) — add a tiny
-   debug-only instrumentation test during bootstrap:
-
-   ```kotlin
-   class DumpTreeTest {
-       @get:Rule val composeTestRule = createAndroidComposeRule<MainActivity>()
-
-       @Test
-       fun dump() {
-           composeTestRule.onRoot(useUnmergedTree = true)
-               .printToLog("COMPOSE_TREE")
-       }
-   }
-   ```
-
-   and the tree is then two commands away:
-   `adb shell am instrument -e class com.example.DumpTreeTest -w <test runner>`
-   followed by `adb logcat -d -s COMPOSE_TREE`. What comes back is the true
-   semantics tree — testTag, text, positions, unmerged view — with no
-   dependency on the bridge flag and no staleness. Note that `onRoot()` handles
-   a single root: with multiple roots (Dialog/Popup) it fails, so use the
-   in-app dump hook for multi-window screens. The one-time cost is the test
-   class plus the installed test APK; per call it cold-starts the app under
-   instrumentation, so it is slower than the hook but far more faithful than
-   uiautomator.
-3. **`adb shell uiautomator dump`** — zero-intrusion fallback when neither the
-   hook nor the test APK exists. Identity surfaces as `resource-id` (Views
+2. **`adb shell uiautomator dump`** — zero-intrusion fallback when the
+   hook is unavailable. Identity surfaces as `resource-id` (Views
    always; Compose testTag needs the bridge flag from step 4). May return a
    stale or empty tree on Compose: retry once. Only on-screen nodes exist in
    the dump: scroll first, then locate.
@@ -110,7 +85,9 @@ what the registry's row locators expect.
 ## Step 3 — instrumentation conventions
 
 - Name tags `screen/component` (`login/submit_button`) — the tag becomes the
-  registry's identity key and shows up in dumps as `resource-id = "<package>:<tag>"`.
+  registry's identity key and, with the bridge enabled, shows up in dumps as
+  `resource-id="login/submit_button"`, exactly as authored, without an added
+  package prefix. View resource IDs still use their normal `package:id/name` form.
 - Tag what tests touch: navigation, primary actions, inputs, and row
   containers (rows by business id, never by index).
 - **Merged semantics for compound widgets**: a card or list row whose
@@ -167,15 +144,16 @@ setContent {
 ```
 
 After this, `adb shell uiautomator dump` carries each tag as
-`resource-id="com.example.app:login/submit_button"` — the registry's locator
-chain works unchanged.
+`resource-id="login/submit_button"` — the registry matches the raw tag.
+This is the [Compose UiAutomator mapping](https://developer.android.com/develop/ui/compose/testing/interoperability#uiautomator):
+`By.res("login/submit_button")`, without adding a package prefix.
 
 ## Step 5 — verify & troubleshoot (live channel)
 
 - **Build variant**: tests only see tags on the debug build type
   (`BuildConfig.DEBUG == true`); a release-variant run finds nothing (see
   step 2).
-- **uiautomator channel**: grep the dump for the tag (`:login/submit_button"`),
+- **uiautomator channel**: grep the dump for `resource-id="login/submit_button"`,
   parse `bounds`, tap the center. Stale/empty dump → re-run once before
   concluding.
 - **Inside merged nodes**: merging hides descendants from the default
@@ -216,11 +194,18 @@ class LoginFlowTest {
 
 **Tree inspection inside a test**:
 `composeTestRule.onRoot(useUnmergedTree = true).printToLog("COMPOSE_TREE")`
-prints the true semantics tree to Logcat — testTag, text, and node positions,
-merged or unmerged, with no dependency on the bridge flag. Inside an
-instrumentation run this beats `uiautomator dump` on every axis (speed,
-fidelity, staleness); it is the first stop when locating is unclear during
-test development.
+prints the semantics tree at that point in the test to Logcat — testTag, text,
+and node positions, merged or unmerged, with no dependency on the bridge flag.
+Place it after the scenario's actions inside the same test. `onRoot()` expects
+a single root; with Dialog/Popup roots, inspect the specific roots or use the
+multi-window dump hook.
+
+Each separate `am instrument` invocation using `createAndroidComposeRule`
+[launches a new Activity and tears it down after the test](https://developer.android.com/guide/components/activities/testing).
+It cannot inspect and preserve a live driver's current navigation, form input,
+or scroll state. Keep instrumentation dumps inside the scripted scenario;
+live `gui dump` / `locate` / `assert-screen` use the hook or uiautomator above,
+even when a test APK is installed.
 
 **Running from the command line** (agent-runnable): build once with
 `./gradlew assembleDebug assembleDebugAndroidTest`, install both APKs, then
@@ -242,11 +227,11 @@ screen: Login
 signature: [login/username_input, login/submit_button]
 controls:
   - alias: submit_button
-    locate: { id: "com.example.app:login/submit_button" }
+    locate: { id: "login/submit_button" }
     fallback: { text: "@string/login_submit" }
   - alias: item_card
     scope: cart_list
-    locate: { id: "com.example.app:cart/item_card/{biz_id}" }
+    locate: { id: "cart/item_card/{biz_id}" }
 ```
 
 The screen signature is the expected tag set on entry — verify it before the

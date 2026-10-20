@@ -19,11 +19,11 @@
   signature: [login/username_input, login/submit_button]
   controls:
     - alias: submit_button
-      locate: { id: "com.example.app:login/submit_button" }
+      locate: { id: "login/submit_button" }   # 原始 Compose testTag
       fallback: { text: "@string/login_submit" }
     - alias: order_row
       scope: order_list
-      locate: { id: "com.example.app:order_row/{biz_id}" }   # 运行时参数
+      locate: { id: "order_row/{biz_id}" }   # Compose testTag 中的运行时参数
   ```
 
 - **`gui` CLI**——薄脚本，文本进出：`locate <screen> <alias> [--scope k=v]` 现算并打印 bounds + 中心；`assert-screen <screen>` 离屏非零、在屏为零退出；`dump` 打印文本树（每节点身份 + bounds）。
