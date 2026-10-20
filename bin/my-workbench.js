@@ -68,6 +68,12 @@ const DSH_LANE_UI_SRC = join(PKG_ROOT, "agents", "backends", "dsh", "lane-plugin
 /** Directory the lane settings page occupies inside the installed preset. */
 const DSH_LANE_UI_DIR = "lane-plugin-ui";
 
+/** Source root of the platform solution guides (one *-gui-test.md per platform/framework). */
+const SOLUTIONS_SRC = join(PKG_ROOT, "agents", "solutions");
+
+/** Directory the solution guides occupy inside a deployment realm. */
+const SOLUTIONS_DEST_DIR = "my-workbench-solutions";
+
 /**
  * Package names of the two lane artifacts. They are the SINGLE authored source of
  * these strings: the same name is the browser module id the page registers under,
@@ -279,6 +285,11 @@ Notes
   active plugin package. A live DSH is reported before anything is written: the
   desktop app makes DSH refuse profile changes, and a running process keeps the
   composition it booted with.
+
+  Platform solution guides (agents/solutions/, one *-gui-test.md per
+  platform/framework) deploy as my-workbench-solutions/ beside each target's
+  agents and refresh on every run — pure reference content the agents point
+  at; nothing in them is user-editable state.
 
   Every install and assemble also stamps my-workbench.version (the running
   version, refreshed unconditionally) once per deployment realm — the project
@@ -865,6 +876,27 @@ function copyEntries(set, entries, targetRoot, dest, opts, counts) {
       copyOne(src, join(targetRoot, dest, entry), opts, counts);
     }
   }
+}
+
+/**
+ * Deploy the platform solution guides into <configRoot>/my-workbench-solutions/.
+ * Pure reference content the CLI owns entirely: like the lane manifests it
+ * refreshes on every run (skip-if-exists would freeze the first deploy), and
+ * model-setting preservation never matches these destinations.
+ */
+function installSolutions(configRoot, opts, counts) {
+  if (!existsSync(SOLUTIONS_SRC)) {
+    console.warn("warn: agents/solutions/ is missing in this installation, skipped");
+    return;
+  }
+  walk(SOLUTIONS_SRC, SOLUTIONS_SRC, (file) =>
+    writeAgent(
+      join(configRoot, SOLUTIONS_DEST_DIR, relative(SOLUTIONS_SRC, file)),
+      readFileSync(file, "utf8"),
+      { ...opts, regenerate: true },
+      counts,
+    ),
+  );
 }
 
 /** True when the OpenCode app is installed (an `opencode` binary on PATH). */
@@ -1665,6 +1697,7 @@ function applyOpencode(scope, opts, counts) {
   copyEntries(set, set.entries, scope.root, scope.dest, opts, counts);
   console.log(`  agents     ${scope.display}agents/  (native OpenCode agents)`);
   assembleBackend("opencode", join(scope.root, scope.dest, "agents"), opts, counts);
+  installSolutions(join(scope.root, scope.dest), opts, counts);
 }
 
 /**
@@ -1685,9 +1718,10 @@ function applyZcode(opts, counts) {
   const zRoot = join(homedir(), ".zcode");
   const display = { ...opts, displayRoot: homedir(), displayPrefix: "~/" };
   const usedSlots = new Set(); // shared by the subagent loop and the AGENTS.md render
-  console.log(`\n~/.zcode/  (user-level: AGENTS.md, agents/*.md)`);
+  console.log(`\n~/.zcode/  (user-level: AGENTS.md, agents/*.md, my-workbench-solutions/)`);
   assembleBackend("zcode", join(zRoot, "agents"), display, counts, usedSlots);
   writeAgent(join(zRoot, "AGENTS.md"), composeZcodeAgentsMd(usedSlots), display, counts);
+  installSolutions(zRoot, display, counts);
   warnUnusedSlots("zcode", usedSlots);
   console.log(`  note       ZCode reads user-level subagents only; restart ZCode sessions to pick up changes`);
 }
@@ -1741,7 +1775,7 @@ function applyDsh(opts, counts) {
   // home that cannot supply them must fail with nothing half-installed.
   const specifiers = resolveLaneDependencies(home, DSH_LANE_PLUGIN_DEPS);
   const usedSlots = new Set();
-  console.log(`\n${shown}/  (user-level: preset.yml, agent.cordis.yml, lane-plugin/, lane-plugin-ui/)`);
+  console.log(`\n${shown}/  (user-level: preset.yml, agent.cordis.yml, lane-plugin/, lane-plugin-ui/, my-workbench-solutions/)`);
   // Warn before the first write, not after: a profile row written while DSH runs
   // lands on disk but cannot reach the composition the running process already
   // booted, so the symptom is a page that never appears rather than an error.
@@ -1757,6 +1791,7 @@ function applyDsh(opts, counts) {
   installLanePlugin(presetRoot, display, opts, counts, specifiers, usedSlots);
   console.log(`  ${DSH_LANE_UI_DIR}/  (profile-mounted: the settings page)`);
   installLaneUiPlugin(presetRoot, display, opts, counts);
+  installSolutions(presetRoot, display, counts);
   warnUnusedSlots("dsh", usedSlots);
 
   // The settings page is a CLIENT plugin, and dsh-client-modules only scans the
@@ -1818,7 +1853,9 @@ function syncOpencodeAssets({ check }) {
   for (const backendName of ["opencode"]) {
     const srcRoot = join(PKG_ROOT, "agents", "backends", backendName);
     walk(srcRoot, srcRoot, (fileAbs) => {
-      const rel = relative(srcRoot, fileAbs);
+      const rel = relative(srcRoot, fileAbs)
+        .split(sep)
+        .join("/");
       if (rel.startsWith("slots/")) return; // {{slot:...}} texts, not runtime assets
       const dest = join(destRoot, rel);
       const content = readFileSync(fileAbs, "utf8");
@@ -1831,6 +1868,33 @@ function syncOpencodeAssets({ check }) {
         console.log(`synced: .opencode/${rel}`);
       } else {
         console.log(`outdated: .opencode/${rel}`);
+      }
+    });
+  }
+  return drifted;
+}
+
+/**
+ * Sync the platform solution guides from agents/solutions/ into this
+ * repository's live .opencode/ and .claude/ trees. In check mode, only
+ * reports drift.
+ */
+function syncSolutions({ check }) {
+  if (!existsSync(SOLUTIONS_SRC)) return 0;
+  let drifted = 0;
+  for (const destRoot of [join(PKG_ROOT, ".opencode"), join(PKG_ROOT, ".claude")]) {
+    walk(SOLUTIONS_SRC, SOLUTIONS_SRC, (fileAbs) => {
+      const dest = join(destRoot, SOLUTIONS_DEST_DIR, relative(SOLUTIONS_SRC, fileAbs));
+      const content = readFileSync(fileAbs, "utf8");
+      const current = existsSync(dest) ? readFileSync(dest, "utf8") : null;
+      if (current === content) return;
+      drifted++;
+      if (!check) {
+        mkdirSync(dirname(dest), { recursive: true });
+        writeFileSync(dest, content);
+        console.log(`synced: ${relative(PKG_ROOT, dest)}`);
+      } else {
+        console.log(`outdated: ${relative(PKG_ROOT, dest)}`);
       }
     });
   }
@@ -1917,6 +1981,7 @@ async function assembleCommand({ check }) {
   warnUnusedSlots("claude", usedSlots);
 
   outdated += syncOpencodeAssets({ check });
+  outdated += syncSolutions({ check });
 
   // The stamp names the version that generated these trees; --check compares
   // it too, so a version bump alone still shows up as drift.
@@ -2242,6 +2307,7 @@ async function main() {
     console.log(`\n${scopes.claude.display}  (agents/*.md, settings.json)`);
     copyEntries(SETS.claude, SETS.claude.entries, scopes.claude.root, scopes.claude.dest, displayOpts, counts);
     assembleBackend("claude", join(scopes.claude.root, scopes.claude.dest, "agents"), displayOpts, counts);
+    installSolutions(join(scopes.claude.root, scopes.claude.dest), displayOpts, counts);
   }
   if (installOpts.targets.has("zcode")) applyZcode(installOpts, counts);
   if (installOpts.targets.has("dsh")) applyDsh(installOpts, counts);

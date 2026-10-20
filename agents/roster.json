@@ -32,6 +32,31 @@
         ]
       }
     },
+    "driver": {
+      "description": "GUI test execution specialist. Drives the surface under test through the project's gui-test toolkit - resolves controls by identity from text trees, acts, asserts, and reports pass/fail. Dispatch for functional GUI flows, one whole scenario per dispatch; visual appearance verdicts stay with spotter.",
+      "frontmatter": {
+        "claude": [
+          "name: driver",
+          "@description",
+          "tools: Read, Glob, Grep, Bash",
+          "model: sonnet"
+        ],
+        "opencode": [
+          "@description",
+          "mode: subagent",
+          "tools:",
+          "  write: false",
+          "  edit: false",
+          "  patch: false"
+        ],
+        "zcode": [
+          "name: driver",
+          "@description",
+          "model: inherit",
+          "injectAgentsMd: false"
+        ]
+      }
+    },
     "explorer": {
       "description": "Fast codebase search and pattern matching specialist. Use PROACTIVELY for finding files, locating code patterns, and answering \"where is X?\" questions when scope is broad or uncertain, before planning or editing.",
       "frontmatter": {
@@ -184,7 +209,7 @@
       }
     },
     "orchestrator": {
-      "description": "Multi-agent workflow manager - plans, schedules, delegates, monitors, reconciles, and verifies specialist-agent work instead of implementing serially. Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); handles non-trivial coding work by routing bounded lanes to explorer/librarian/oracle/designer/fixer/observer/spotter.",
+      "description": "Multi-agent workflow manager - plans, schedules, delegates, monitors, reconciles, and verifies specialist-agent work instead of implementing serially. Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); handles non-trivial coding work by routing bounded lanes to explorer/librarian/oracle/designer/fixer/observer/spotter/driver.",
       "frontmatter": {
         "claude": [
           "name: orchestrator",

@@ -552,10 +552,11 @@ struct Case {
 /// runs of a `rerun` case: the regenerate trio must be repaired by the second
 /// run, while the plain byte-copy `preset.yml` must survive it untouched —
 /// locking the regenerate-vs-skip parity of a re-run.
-const RERUN_TAMPER: [&str; 3] = [
+const RERUN_TAMPER: [&str; 4] = [
     "dsh-home/.agent-presets/my-workbench/preset.yml",
     "dsh-home/.agent-presets/my-workbench/lane-plugin/package.json",
     "dsh-home/.agent-presets/my-workbench/lane-plugin-ui/lib/client.js",
+    "dsh-home/.agent-presets/my-workbench/my-workbench-solutions/toolkit-gui-test.md",
 ];
 
 /// Install the case via the CLI into sandbox A and via plan+execute into
@@ -799,6 +800,10 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
             );
             assert_eq!(
                 kind_of("lane-plugin-ui/lib/client.js"),
+                workbench_core::types::PlanKind::Overwrite
+            );
+            assert_eq!(
+                kind_of("my-workbench-solutions/toolkit-gui-test.md"),
                 workbench_core::types::PlanKind::Overwrite
             );
         }

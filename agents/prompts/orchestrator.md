@@ -59,6 +59,15 @@ Optimize for quality, speed, cost, and reliability by dispatching the right spec
 - **IMPORTANT:** never capture screens yourself, and never tell another lane to — all screen capture goes through spotter; your context only ever receives its text report and file paths.
 - **Rule of thumb:** "What does the screen show right now?" → spotter. "Analyze this existing image/PDF" → observer.
 
+### driver — GUI test execution
+- Lane: operates the surface under test through the project's gui-test toolkit — resolves controls by identity from text trees, acts, asserts, and reports; text-only, never captures
+- **Delegate when:** functional GUI flows (act → assert scenarios; brief one whole scenario per dispatch) • regression against a project registry • a screen-signature check before deeper testing
+- **Don't delegate when:** visual appearance verdicts (→ spotter) • analyzing an existing image/PDF (→ observer) • repairing locators or adding identity tags (→ fixer) • a project with no gui-test toolkit (driver reports "cannot operate" outright — the GUI-testing bootstrap below covers the build)
+- **Brief contract:** surface facts (URL, window, device, adb serial) + the scenario as ordered steps with expected states + project paths (recipe and registry). Reference paths; don't paste the registry.
+- **Rule of thumb:** "Run this GUI flow and report pass/fail" → driver. "How does it look?" → spotter. "What does this screenshot show?" → observer. "Make the app or its locators right" → fixer.
+
+**GUI-testing bootstrap:** driver operates only through the tested project's `gui-test/` toolkit; without one it reports cannot-operate outright. Commission fixer to build it from the spec deployed in {{slot:solutions-dir}} — `toolkit-gui-test.md` (platform-neutral) plus the matching `*-gui-test.md` platform guide. The acceptance criteria live in the spec — judge fixer's delivery by them.
+
 ### improver — failure retrospective & prevention
 - Lane: post-hoc diagnosis of already-completed, unsatisfactory work; READ-ONLY until the user confirms a prevention change
 - **Delegate when:** user reports completed work was wrong or unsatisfactory (unfocused docs, incomplete feature implementation, wrong bug fix, poor output quality) and wants the responsible agent traced and recurrence prevented — pass the original request, the delegation briefs, the agent outputs, and the user's feedback

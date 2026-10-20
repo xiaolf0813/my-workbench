@@ -66,6 +66,9 @@ struct Action {
     /// Source-relative origin, for display (forward slashes).
     source_rel: String,
     content: ActionContent,
+    /// `writeAgent` with `regenerate: true` — written on every run, never
+    /// skip-gated (`collect_solutions`; reference content the CLI owns).
+    regenerate: bool,
 }
 
 enum ActionContent {
@@ -196,7 +199,7 @@ fn is_skipped(name: &str) -> bool {
 
 /// Deterministic recursive walk collecting files (CLI :374-381; entries are
 /// visited in sorted order where the CLI uses `readdirSync` order).
-fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+pub(crate) fn walk_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
     let mut entries: Vec<PathBuf> = fs::read_dir(dir)?
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
@@ -282,6 +285,7 @@ fn push_copy_action(
         dest,
         source_rel,
         content,
+        regenerate: false,
     });
     Ok(())
 }
@@ -314,6 +318,40 @@ fn collect_backend_agents(
             dest: out_dir.join(format!("{}.md", agent.name)),
             source_rel: format!("{}.md", agent.name),
             content: ActionContent::Text(content),
+            regenerate: false,
+        });
+    }
+    Ok(())
+}
+
+/// Deploy the platform solution guides (`agents/solutions/`) as
+/// `my-workbench-solutions/` in a deployment realm's config root (CLI
+/// `installSolutions`): reference content the CLI owns entirely, refreshed on
+/// every run — skip-if-exists would freeze the first deploy.
+fn collect_solutions(
+    target: Target,
+    config_root: &Path,
+    source_root: &Path,
+    t: &mut Traversal,
+) -> Result<(), WorkbenchError> {
+    let src = source_root.join("agents").join("solutions");
+    if !src.is_dir() {
+        t.push_warning("warn: agents/solutions/ is missing in this installation, skipped".to_string());
+        return Ok(());
+    }
+    let mut files = Vec::new();
+    walk_files(&src, &mut files)?;
+    for file in files {
+        let rel = file
+            .strip_prefix(&src)
+            .expect("walked file lives under agents/solutions");
+        let dest_rel = Path::new("my-workbench-solutions").join(rel);
+        t.actions.push(Action {
+            target,
+            dest: config_root.join(&dest_rel),
+            source_rel: path_to_posix(&dest_rel),
+            content: ActionContent::Bytes(fs::read(&file)?),
+            regenerate: true,
         });
     }
     Ok(())
@@ -356,6 +394,7 @@ fn collect_before_dsh(
             &mut slots,
         )?;
         push_slot_warnings(t, "opencode", &slots);
+        collect_solutions(Target::Opencode, &scope_root_path(&scope), source_root, t)?;
     }
 
     if sel.targets.contains(&Target::Claude) {
@@ -371,6 +410,7 @@ fn collect_before_dsh(
             &mut slots,
         )?;
         push_slot_warnings(t, "claude", &slots);
+        collect_solutions(Target::Claude, &scope_root_path(&scope), source_root, t)?;
     }
 
     if sel.targets.contains(&Target::Zcode) {
@@ -394,7 +434,9 @@ fn collect_before_dsh(
             dest: zroot.join("AGENTS.md"),
             source_rel: "AGENTS.md".to_string(),
             content: ActionContent::Text(agents_md),
+            regenerate: false,
         });
+        collect_solutions(Target::Zcode, &zroot, source_root, t)?;
         push_slot_warnings(t, "zcode", &slots);
         t.notes.push(
             "ZCode reads user-level subagents only; restart ZCode sessions to pick up changes"
@@ -595,24 +637,24 @@ fn append_next_notes(sel: &Selection, items: &[PlanItem], notes: &mut Vec<String
 
 // -------------------------------------------------------------- plan kind
 
-fn plan_kind(dest: &Path, force: bool) -> PlanKind {
-    if dest.exists() {
-        if force {
+fn plan_item(action: &Action, force: bool) -> PlanItem {
+    // writeAgent's gate: `exists && !force && !regenerate` skips. A regenerate
+    // action is therefore NEVER a skip — it is written on every run; force
+    // only decides whether the plain actions may overwrite.
+    let kind = if action.dest.exists() {
+        if force || action.regenerate {
             PlanKind::Overwrite
         } else {
             PlanKind::Skip
         }
     } else {
         PlanKind::Create
-    }
-}
-
-fn plan_item(action: &Action, force: bool) -> PlanItem {
+    };
     PlanItem {
         target: action.target,
         path: action.dest.clone(),
         source_rel: action.source_rel.clone(),
-        kind: plan_kind(&action.dest, force),
+        kind,
     }
 }
 
@@ -1342,10 +1384,25 @@ mod tests {
 
         let p2 = plan(&s, &sb.ctx).unwrap();
         assert_eq!(p2.items.len(), p.items.len());
+        // Solution guides refresh on every run (regenerate semantics) — the
+        // only legitimate Overwrites in a replan; everything else skips.
+        for item in p2.items.iter().filter(|i| i.kind == PlanKind::Overwrite) {
+            assert!(
+                item.path
+                    .components()
+                    .any(|c| c.as_os_str() == "my-workbench-solutions"),
+                "unexpected replan overwrite: {}",
+                item.path.display()
+            );
+        }
         assert!(p2
             .items
             .iter()
-            .all(|i| i.kind == PlanKind::Skip || i.kind == PlanKind::ManagedBlock));
+            .all(|i| i.kind == PlanKind::Skip
+                || i.kind == PlanKind::ManagedBlock
+                || i.path
+                    .components()
+                    .any(|c| c.as_os_str() == "my-workbench-solutions")));
         // Stamps are never skip-gated.
         assert_eq!(p2.stamps.len(), 1);
     }

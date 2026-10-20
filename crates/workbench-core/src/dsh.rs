@@ -502,7 +502,7 @@ fn sorted_readdir(dir: &Path) -> Vec<String> {
 enum DshOutput {
     /// Byte copy from a path relative to the source root.
     Copy {
-        dest_rel: &'static str,
+        dest_rel: String,
         source_rel: String,
         from: PathBuf,
         /// `writeAgent` with `regenerate: true` — see [`Self::regenerates`].
@@ -510,7 +510,7 @@ enum DshOutput {
     },
     /// Rendered text.
     Rendered {
-        dest_rel: &'static str,
+        dest_rel: String,
         source_rel: String,
         text: String,
         /// `writeAgent` with `regenerate: true` — see [`Self::regenerates`].
@@ -519,7 +519,7 @@ enum DshOutput {
 }
 
 impl DshOutput {
-    fn dest_rel(&self) -> &'static str {
+    fn dest_rel(&self) -> &str {
         match self {
             DshOutput::Copy { dest_rel, .. } | DshOutput::Rendered { dest_rel, .. } => dest_rel,
         }
@@ -563,6 +563,9 @@ impl DshOutput {
     }
 }
 
+/// Deterministic recursive walk collecting files (engine's `walk_files`):
+/// dot-entries and dependency roots never carry solution guides.
+
 /// The full preset file set, rendered (`installLanePlugin` + `installLaneUiPlugin`
 /// + the two top files of `applyDsh`). Rendering runs here even in plan mode so
 /// a broken source fails before any write, exactly like the CLI flow.
@@ -583,17 +586,17 @@ fn dsh_outputs(
     }
 
     let dsh_src = source_root.join("agents").join("backends").join("dsh");
-    Ok(vec![
+    let mut outputs = vec![
         // applyDsh: copyOne — plain skip-if-exists.
         DshOutput::Copy {
-            dest_rel: "preset.yml",
+            dest_rel: "preset.yml".to_owned(),
             source_rel: source_rel("agents/backends/dsh/preset.yml"),
             from: dsh_src.join("preset.yml"),
             regenerate: false,
         },
         // applyDsh: writeAgent, plain.
         DshOutput::Rendered {
-            dest_rel: "agent.cordis.yml",
+            dest_rel: "agent.cordis.yml".to_owned(),
             source_rel: source_rel("agents/backends/dsh/agent.cordis.yml"),
             text: render::render_dsh_composition(source_root)?,
             regenerate: false,
@@ -601,7 +604,7 @@ fn dsh_outputs(
         // installLanePlugin: writeAgent with regenerate — the host manifest
         // names the running release.
         DshOutput::Copy {
-            dest_rel: "lane-plugin/package.json",
+            dest_rel: "lane-plugin/package.json".to_owned(),
             source_rel: source_rel("agents/backends/dsh/lane-plugin/host-package/package.json"),
             from: dsh_src
                 .join("lane-plugin")
@@ -610,33 +613,33 @@ fn dsh_outputs(
             regenerate: true,
         },
         DshOutput::Rendered {
-            dest_rel: "lane-plugin/src/index.js",
+            dest_rel: "lane-plugin/src/index.js".to_owned(),
             source_rel: source_rel("agents/backends/dsh/lane-plugin/host-package/src/index.js"),
             text: render::render_lane_host(source_root, resolved_deps)?,
             regenerate: false,
         },
         DshOutput::Rendered {
-            dest_rel: "lane-plugin/src/roster.generated.js",
+            dest_rel: "lane-plugin/src/roster.generated.js".to_owned(),
             source_rel: source_rel("agents/backends/dsh/lane-plugin/src/roster.generated.js"),
             text: render::lane_roster_source(lanes),
             regenerate: false,
         },
         DshOutput::Rendered {
-            dest_rel: "lane-plugin/src/prompts.generated.js",
+            dest_rel: "lane-plugin/src/prompts.generated.js".to_owned(),
             source_rel: source_rel("agents/backends/dsh/lane-plugin/src/prompts.generated.js"),
             text: render::render_lane_prompts(source_root, lanes)?,
             regenerate: false,
         },
         // installLaneUiPlugin: writeAgent with regenerate — the UI manifest.
         DshOutput::Copy {
-            dest_rel: "lane-plugin-ui/package.json",
+            dest_rel: "lane-plugin-ui/package.json".to_owned(),
             source_rel: source_rel("agents/backends/dsh/lane-plugin-ui/package.json"),
             from: dsh_src.join("lane-plugin-ui").join("package.json"),
             regenerate: true,
         },
         // installLaneUiPlugin: copyOne — plain.
         DshOutput::Copy {
-            dest_rel: "lane-plugin-ui/src/index.js",
+            dest_rel: "lane-plugin-ui/src/index.js".to_owned(),
             source_rel: source_rel("agents/backends/dsh/lane-plugin-ui/src/index.js"),
             from: dsh_src.join("lane-plugin-ui").join("src").join("index.js"),
             regenerate: false,
@@ -644,12 +647,32 @@ fn dsh_outputs(
         // installLaneUiPlugin: writeAgent with regenerate — the browser
         // bundle's provenance banner is the only place its version can live.
         DshOutput::Rendered {
-            dest_rel: "lane-plugin-ui/lib/client.js",
+            dest_rel: "lane-plugin-ui/lib/client.js".to_owned(),
             source_rel: source_rel("agents/backends/dsh/lane-plugin-ui/lib/client.js"),
             text: render::lane_ui_client_source(source_root, lanes, crate::VERSION)?,
             regenerate: true,
         },
-    ])
+    ];
+    // applyDsh: installSolutions — the platform solution guides refresh on
+    // every run (writeAgent with regenerate), like the two manifests.
+    let solutions_src = source_root.join("agents").join("solutions");
+    if solutions_src.is_dir() {
+        let mut files = Vec::new();
+        crate::engine::walk_files(&solutions_src, &mut files)?;
+        for file in files {
+            let rel = file
+                .strip_prefix(&solutions_src)
+                .expect("walked file lives under agents/solutions");
+            let rel_posix = rel.to_string_lossy().replace('\\', "/");
+            outputs.push(DshOutput::Copy {
+                dest_rel: format!("my-workbench-solutions/{rel_posix}"),
+                source_rel: format!("agents/solutions/{rel_posix}"),
+                from: file,
+                regenerate: true,
+            });
+        }
+    }
+    Ok(outputs)
 }
 
 /// The `file:` URL naming the installed lane UI host half — the profile row's
@@ -721,6 +744,12 @@ pub fn plan_dsh_in(
     let preset = preset_root(home);
 
     let mut outcome = ModuleOutcome::default();
+    if !source_root.join("agents").join("solutions").is_dir() {
+        // Same warning the CLI's installSolutions prints for the other targets.
+        outcome
+            .notes
+            .push("warn: agents/solutions/ is missing in this installation, skipped".to_owned());
+    }
     for output in &outputs {
         let dest = preset.join(output.dest_rel());
         let exists = dest.exists();
@@ -1064,7 +1093,8 @@ pub fn execute_dsh_in(
 const MANAGED_PATCH_DRIFT_REL: &str = "cordis.patch.yml (managed block)";
 
 /// Byte-compare what a DSH install WOULD write against what is on disk: the
-/// nine preset files through the same render/copy set [`plan_dsh_in`] and
+/// nine fixed preset files plus the solution guides, through the same
+/// render/copy set [`plan_dsh_in`] and
 /// [`execute_dsh_in`] install, plus the managed row of every profile found
 /// (drift reports on the full set — it has no `--dsh-profile` to narrow by).
 /// See [`drift_dsh_with_compared`] for the exact semantics.
@@ -1142,6 +1172,17 @@ mod tests {
     use serde_json::json;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Mutex;
+
+    /// Solution-guide file count under the real `agents/solutions/` tree, so
+    /// deploy-count assertions stay guide-agnostic instead of hardcoding a
+    /// contract the next guide would break.
+    fn solution_guide_count(source_root: &Path) -> usize {
+        std::fs::read_dir(source_root.join("agents").join("solutions"))
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.path().is_file())
+            .count()
+    }
 
     fn repo_root() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1738,11 +1779,15 @@ mod tests {
 
         let outcome =
             plan_dsh_in(&source_root, &selection(false), &specifiers, &home).unwrap();
-        assert_eq!(outcome.created, 9, "nine preset files: {outcome:?}");
+        assert_eq!(
+            outcome.created,
+            9 + solution_guide_count(&source_root),
+            "nine fixed preset files plus the solution guides: {outcome:?}"
+        );
         assert_eq!(outcome.skipped, 0);
         assert_eq!(outcome.overwritten, 0);
         assert_eq!(outcome.managed_blocks, 2, "web and editor are both profiles");
-        assert_eq!(outcome.items.len(), 11);
+        assert_eq!(outcome.items.len(), 11 + solution_guide_count(&source_root));
         assert!(outcome.items.iter().all(|item| item.target == Target::Dsh));
         assert_eq!(outcome.items[0].kind, PlanKind::Create);
         assert_eq!(outcome.items[0].source_rel, "agents/backends/dsh/preset.yml");
@@ -1773,7 +1818,7 @@ mod tests {
             std::fs::write(&dest, "stale").unwrap();
         }
         let second = plan_dsh_in(&source_root, &selection(false), &specifiers, &home).unwrap();
-        assert_eq!(second.created, 5);
+        assert_eq!(second.created, 5 + solution_guide_count(&source_root));
         assert_eq!(second.skipped, 1, "preset.yml exists and force is off");
         assert_eq!(
             second.overwritten, 3,
@@ -1792,8 +1837,10 @@ mod tests {
 
         // With force, the plain existing file plans as an overwrite too.
         let forced = plan_dsh_in(&source_root, &selection(true), &specifiers, &home).unwrap();
+        // Force overwrites exactly the four seeded files; the solution guides
+        // do not exist in this plan-only test, so they stay Creates.
         assert_eq!(forced.overwritten, 4);
-        assert_eq!(forced.created, 5);
+        assert_eq!(forced.created, 5 + solution_guide_count(&source_root));
         assert_eq!(forced.skipped, 0);
 
         // A current block plans as a note instead of a managed item.
@@ -1824,7 +1871,7 @@ mod tests {
 
         let outcome =
             execute_dsh_in(&source_root, &ctx, &selection(false), &sink, &home, "", None).unwrap();
-        assert_eq!(outcome.created, 9);
+        assert_eq!(outcome.created, 9 + solution_guide_count(&source_root));
         assert_eq!(outcome.skipped, 0);
         assert_eq!(outcome.overwritten, 0);
         assert_eq!(outcome.managed_blocks, 2, "web and editor both get the row");
@@ -1918,7 +1965,11 @@ mod tests {
         .unwrap();
         assert_eq!(second.created, 0);
         assert_eq!(second.skipped, 6);
-        assert_eq!(second.overwritten, 3, "the release-stamped trio refreshes");
+        assert_eq!(
+            second.overwritten,
+            3 + solution_guide_count(&source_root),
+            "the release-stamped trio and the solution guides refresh"
+        );
         assert_eq!(second.managed_blocks, 0);
 
         // Tampering with a regenerate artifact is repaired by the rerun.
@@ -1959,7 +2010,7 @@ mod tests {
             None,
         )
         .unwrap();
-        assert_eq!(outcome.created, 9);
+        assert_eq!(outcome.created, 9 + solution_guide_count(&source_root));
         assert_eq!(outcome.managed_blocks, 1);
         assert!(home.join("profiles/editor/cordis.patch.yml").exists());
         assert_eq!(
@@ -2006,7 +2057,7 @@ mod tests {
         let sink = VecSink::default();
         let outcome =
             execute_dsh_in(&source_root, &ctx, &selection(false), &sink, &home, "", None).unwrap();
-        assert_eq!(outcome.created, 9);
+        assert_eq!(outcome.created, 9 + solution_guide_count(&source_root));
         assert_eq!(outcome.managed_blocks, 0);
 
         let texts = sink.log_texts();
@@ -2122,7 +2173,8 @@ mod tests {
         )
         .unwrap();
 
-        // Untouched install: all nine preset files and the current managed
+        // Untouched install: the nine fixed preset files, the solution guides,
+        // and the current managed
         // block match — no drift, and everything was examined.
         let (clean, compared) = drift_dsh_with_compared(&source_root, &home, false).unwrap();
         assert!(clean.is_empty(), "{clean:?}");

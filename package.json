@@ -19,7 +19,8 @@
     "agents/roster.json",
     "agents/prompts/",
     "agents/disciplines.md",
-    "agents/backends/"
+    "agents/backends/",
+    "agents/solutions/"
   ],
   "engines": {
     "node": ">=18"
