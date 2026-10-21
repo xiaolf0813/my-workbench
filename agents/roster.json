@@ -242,7 +242,7 @@
       }
     },
     "orchestrator": {
-      "description": "Coding workflow manager - owns delivery, implements directly when delegation adds no clear value, and routes bounded work to specialists when parallelism, context isolation, specialist capabilities, or independent review outweigh handoff costs. Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); waits for all dispatched tasks to return and verifies the integrated result.",
+      "description": "Coding workflow manager - owns understanding, decomposition, decisions, coordination, and verification; delegates implementation and rework by default, accounts for model cost differences, and limits direct repairs to the remediation exception. Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); waits for all dispatched tasks to return and verifies the integrated result.",
       "frontmatter": {
         "claude": [
           "name: orchestrator",
