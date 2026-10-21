@@ -506,6 +506,13 @@ fn reconcile_stub(dest: &Path, stub: &[u8]) -> Option<Vec<u8>> {
 /// does not parse, an unreadable file, or text that is not valid UTF-8),
 /// mirroring the CLI's `copyOne` force path.
 pub(crate) fn overwrite_bytes<'a>(dest: &Path, fresh: &'a [u8]) -> Option<Cow<'a, [u8]>> {
+    if dest.extension().is_some_and(|ext| ext == "toml")
+        && dest.parent().and_then(Path::file_name).is_some_and(|name| name == "agents")
+    {
+        let Ok(previous) = std::fs::read_to_string(dest) else { return Some(Cow::Borrowed(fresh)); };
+        let fresh_text = std::str::from_utf8(fresh).ok()?;
+        return Some(Cow::Owned(crate::codex::preserve_settings(&previous, fresh_text).into_bytes()));
+    }
     if is_json_stub_dest(dest) {
         return reconcile_stub(dest, fresh).map(Cow::Owned);
     }

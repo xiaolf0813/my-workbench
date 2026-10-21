@@ -319,7 +319,7 @@ impl UsedSlots {
 
 /// Replace `{{slot:<name>}}` placeholders with the backend's slot texts
 /// (`fillSlots`, :614-623). A referenced-but-missing slot is a hard error.
-fn fill_slots(
+pub(crate) fn fill_slots(
     source_root: &Path,
     backend: &str,
     body: &str,

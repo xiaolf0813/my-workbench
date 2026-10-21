@@ -9,22 +9,24 @@ use std::path::PathBuf;
 
 // ---------------------------------------------------------------- targets
 
-/// The four install targets.
+/// The install targets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Target {
     Opencode,
     Claude,
     Zcode,
+    Codex,
     Dsh,
 }
 
 /// Fixed apply order, identical to the CLI:
-/// opencode → claude → zcode → dsh.
-pub const APPLY_ORDER: [Target; 4] = [
+/// opencode → claude → zcode → codex → dsh.
+pub const APPLY_ORDER: [Target; 5] = [
     Target::Opencode,
     Target::Claude,
     Target::Zcode,
+    Target::Codex,
     Target::Dsh,
 ];
 

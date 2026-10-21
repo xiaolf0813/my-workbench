@@ -2,7 +2,7 @@
 
 English | [简体中文](README_CN.md)
 
-Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + DeepSeek Harness agent setup, installed into your project (or at user level with `--user`; ZCode and DSH are always user-level) with one command.
+Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex + DeepSeek Harness agent setup, installed into your project (or at user level with `--user`; ZCode, Codex and DSH are always user-level) with one command.
 
 ```bash
 npx my-workbench
@@ -10,9 +10,10 @@ npx my-workbench
 
 `my-workbench` copies a curated multi-agent configuration into the current project:
 
-- **`.opencode/`** — OpenCode core config and native `.opencode/agents/` subagents: eight specialized agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `fixer`, `observer`, `improver`.
+- **`.opencode/`** — OpenCode core config and native `.opencode/agents/` subagents: ten agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `fixer`, `observer`, `spotter`, `driver`, `improver`.
 - **`.claude/`** — the same specialists as native Claude Code subagents (`.claude/agents/*.md`). Installed identically in every target.
 - **`~/.zcode/`** — opt-in ZCode support (`--zcode`): user-level global instructions plus the specialist subagents as ZCode user agents (`~/.zcode/agents/*.md`). Nothing is written inside the project.
+- **`~/.codex/`** — opt-in local ChatGPT / Codex support (`--chatgpt` or `--codex`): a short global entrypoint, the orchestration policy, nine native TOML custom agents, and solution guides; honors `CODEX_HOME`.
 - **`~/.dsh/`** — opt-in DeepSeek Harness support (`--dsh`): one agent preset under `<DSH_HOME>/.agent-presets/my-workbench/` — the orchestrator prompt as the preset persona, plus a packaged **lane plugin** that owns the seven named specialist tools and a settings page for pinning each lane's model and reasoning effort. The tools are preset-scoped; the settings page needs one inert row in every DSH profile (`web` for `dsh web`, `desktop` for DSH Desktop), the entire profile-level footprint. Nothing is written inside the project.
 
 ## OpenCode target
@@ -57,6 +58,20 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 - The global file is `agents/prompts/orchestrator.md` — the orchestrator prompt drives the main agent, with the ZCode dispatch convention substituted from `agents/backends/zcode/slots/dispatch.md`.
 - Subagents run with `injectAgentsMd: false`: the global file is not injected into them, so every delegation brief must carry full context.
 - Opt-in only (`--zcode` or `zcode`) — the default targets remain `.opencode/` + `.claude/`. Nothing is downloaded. Existing files are skipped unless `--force`. Restart ZCode sessions to pick up changes.
+
+## ChatGPT / Codex target
+
+`npx my-workbench --chatgpt` (alias: `--codex`) installs native local custom agents into **CODEX_HOME**, defaulting to `~/.codex/`. This targets the current ChatGPT desktop app's local Codex runtime and Codex CLI; hosted chats and custom GPTs do not read these local files.
+
+- `AGENTS.md` — a short primary-agent entrypoint that loads `my-workbench-orchestrator.md`; the full policy stays outside the automatic AGENTS.md size budget. Spawned specialists follow their own roles.
+- `agents/*.toml` — nine specialists, each with native `name`, `description`, and `developer_instructions`, assembled from the same roster, prompts and disciplines. Models inherit from the current session unless you tune them in the deployed TOML or the desktop editor.
+- `my-workbench-solutions/` — the platform guides, refreshed on every install.
+
+User-level only, opt-in, with no downloads or project writes. Existing files skip unless `--force`; force preserves the agents' top-level `model`, `model_reasoning_effort`, `model_reasoning_summary`, and `model_verbosity` settings. `config.toml`, authentication files, and `AGENTS.override.md` are never modified. An existing `AGENTS.md` that was skipped, a higher-priority `AGENTS.override.md`, or disabled subagents in your own settings may prevent the policy from loading or dispatching; reconcile those intentionally, then start a new session. Role instructions do not grant tools or create a separate sandbox.
+
+The desktop deployment page includes **ChatGPT / Codex**, native agent cards, and model/reasoning settings. Dispatch uses the host's actual tools: select a custom role when supported; otherwise supply that role's instructions to a generic subagent. Wait for every dispatched task to return before proceeding.
+
+Schema and discovery follow official OpenAI documentation: [custom agents](https://learn.chatgpt.com/docs/agent-configuration/subagents), [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 
 ## DSH target
 
@@ -120,7 +135,7 @@ No profile **name** is assumed, because none of them is fixed: DSH Desktop compo
 
 **Delegation and per-lane routing**
 
-- Delegation is native. The model calls `subagent_explorer`, `subagent_librarian`, `subagent_oracle`, `subagent_designer`, `subagent_fixer`, `subagent_observer`, or `subagent_improver` instead of naming a subagent type in a Task tool. Lanes run in the background by default and answer with a durable child id, which `send_message` continues — that is the session handle the orchestrator prompt talks about.
+- Delegation is native. The model calls `subagent_explorer`, `subagent_librarian`, `subagent_oracle`, `subagent_designer`, `subagent_fixer`, `subagent_observer`, or `subagent_improver` instead of naming a subagent type in a Task tool. The tool API supports background runs, but the orchestrator explicitly sets `run_in_background: false` and waits for every dispatched task to return. A continuable child id, when available, is the session handle for `send_message`; an id alone is not a final report.
 - Each tool carries that specialist's prompt, rendered from `agents/prompts/*.md`, and restricts the child the way the prompt does: read-only lanes lose `write`/`edit`, `observer` and `improver` also lose the shell, and every lane loses the delegation tools, so lanes cannot spawn lanes.
 - **Per-lane model and reasoning effort.** Open the DSH web GUI's settings and pick **MyWorkbench 赛道模型**: one row per lane with a model select and a reasoning-effort select, plus 应用 / 全部改回继承 / 刷新模型目录. Writes go to the plugin's own settings namespace and persist to `<DSH_HOME>/settings.yaml`, so they survive a DSH restart. A fresh install is seeded from a recommended mapping shipped as the namespace's composition base layer; leave a lane on 继承会话模型 to inherit the session's route.
 - Opt-in only (`--dsh` or `dsh`) — the default targets remain `.opencode/` + `.claude/`. It requires an existing DSH home, downloads nothing, and skips existing files unless `--force`. Open a new DSH session to pick the preset up.

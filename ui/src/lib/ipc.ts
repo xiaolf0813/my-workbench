@@ -11,7 +11,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 /* Contract types (exactly the Rust serde shapes, camelCase)           */
 /* ------------------------------------------------------------------ */
 
-export type Target = "opencode" | "claude" | "zcode" | "dsh";
+export type Target = "opencode" | "claude" | "zcode" | "codex" | "dsh";
 
 export interface Selection {
   /** Authoritative project directory; still sent when userLevel is on (backend ignores it for user-level targets). */
@@ -113,11 +113,12 @@ export interface EnvironmentInfo {
   targets: { target: Target; detail: string }[];
 }
 
-/** Fixed apply order: opencode → claude → zcode → dsh. */
+/** Fixed apply order: opencode → claude → zcode → codex → dsh. */
 export const TARGET_ORDER: readonly Target[] = [
   "opencode",
   "claude",
   "zcode",
+  "codex",
   "dsh",
 ] as const;
 

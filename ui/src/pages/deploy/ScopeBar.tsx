@@ -18,7 +18,7 @@ interface ScopeBarProps {
 }
 
 export function ScopeBar({ target, userLevel, projectDir, onUserLevel, onProjectDir, onBrowse }: ScopeBarProps) {
-  if (target === "zcode" || target === "dsh") return null;
+  if (target === "zcode" || target === "codex" || target === "dsh") return null;
 
   return (
     <div className="dep-scopebar">

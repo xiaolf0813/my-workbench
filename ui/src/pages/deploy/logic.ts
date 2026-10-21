@@ -116,7 +116,7 @@ export function targetDetail(env: EnvironmentInfo, t: Target): string | null {
 /* ------------------------------------------------------------------ */
 
 /** The per-backend reasoning-level frontmatter key (`deployed.rs`/`preserve.rs`). */
-export type ReasoningKey = "variant" | "effort" | "thoughtLevel";
+export type ReasoningKey = "variant" | "effort" | "thoughtLevel" | "model_reasoning_effort";
 
 /** zh chip/field label per backend: opencode 变体 · claude 推理强度 · zcode 思考等级; dsh has none. */
 export function reasoningLabel(target: Target): string | null {
@@ -127,6 +127,8 @@ export function reasoningLabel(target: Target): string | null {
       return "推理强度";
     case "zcode":
       return "思考等级";
+    case "codex":
+      return "推理强度";
     case "dsh":
       return null;
   }
@@ -141,6 +143,8 @@ export function reasoningKeyOf(target: Target): ReasoningKey | null {
       return "effort";
     case "zcode":
       return "thoughtLevel";
+    case "codex":
+      return "model_reasoning_effort";
     case "dsh":
       return null;
   }
@@ -171,6 +175,7 @@ export function agentFilePath(scopeLabel: string, fileName: string): string {
 /** Short install-location word for the not-deployed empty state (mockup locShort). */
 export function locationShort(target: Target, userLevel: boolean): string {
   if (target === "zcode") return "~\\.zcode";
+  if (target === "codex") return "CODEX_HOME / ~\\.codex";
   if (target === "dsh") return "DSH_HOME";
   return userLevel ? "用户配置目录" : "项目目录";
 }

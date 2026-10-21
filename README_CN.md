@@ -2,7 +2,7 @@
 
 # my-workbench
 
-可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode + DeepSeek Harness 智能体配置，一条命令安装到你的项目（或用 `--user` 安装到用户级；ZCode 与 DSH 恒为用户级）。
+可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex + DeepSeek Harness 智能体配置，一条命令安装到你的项目（或用 `--user` 安装到用户级；ZCode、Codex 与 DSH 恒为用户级）。
 
 > 本文件为参考翻译，以[英文版](README.md)为准。
 
@@ -12,9 +12,10 @@ npx my-workbench
 
 `my-workbench` 将一套精心整理的多智能体配置复制到当前项目：
 
-- **`.opencode/`** — OpenCode 核心配置与原生 `.opencode/agents/` 子智能体：八个专职智能体 — `orchestrator`、`explorer`、`librarian`、`oracle`、`designer`、`fixer`、`observer`、`improver`。
+- **`.opencode/`** — OpenCode 核心配置与原生 `.opencode/agents/` 子智能体：十个智能体 — `orchestrator`、`explorer`、`librarian`、`oracle`、`designer`、`fixer`、`observer`、`spotter`、`driver`、`improver`。
 - **`.claude/`** — 同一批专家智能体的 Claude Code 原生子智能体形态（`.claude/agents/*.md`）。所有目标中安装内容完全一致。
 - **`~/.zcode/`** — 可选的 ZCode 支持（`--zcode`）：用户级全局指令，外加各专家子智能体作为 ZCode 用户级 agents（`~/.zcode/agents/*.md`）。不在项目内写入任何内容。
+- **`~/.codex/`** — 可选的本地 ChatGPT / Codex 支持（`--chatgpt` 或 `--codex`）：全局短入口、编排策略、九个原生 TOML 子智能体及方案指南；支持 `CODEX_HOME`。
 - **`~/.dsh/`** — 可选的 DeepSeek Harness 支持（`--dsh`）：在 `<DSH_HOME>/.agent-presets/my-workbench/` 安装一个 agent preset — orchestrator 提示词作为该 preset 的 persona，外加拥有七个具名专家工具与「MyWorkbench 赛道模型」设置页的打包 **lane 插件**。工具在 preset 作用域内；设置页需要在每个 DSH profile（Web GUI 的 `web`、桌面版的 `desktop`）各写一行惰性行，那是 profile 层的全部足迹。不在项目内写入任何内容。
 
 ## OpenCode 目标
@@ -50,7 +51,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 ## 用户级安装
 
-`npx my-workbench --user` 将同样的资产安装到用户级而非当前项目：OpenCode 资产进入 `~/.config/opencode/`（其 XDG 配置目录；全局 agents 从 `~/.config/opencode/agents/` 读取），Claude Code 资产进入 `~/.claude/`（`settings.json` + `agents/*.md`）。用户级文件对所有项目生效，不用于版本控制；命名冲突时项目级 agents 优先于用户级。ZCode 与 DSH 恒为用户级，忽略 `--user`。
+`npx my-workbench --user` 将同样的资产安装到用户级而非当前项目：OpenCode 资产进入 `~/.config/opencode/`（其 XDG 配置目录；全局 agents 从 `~/.config/opencode/agents/` 读取），Claude Code 资产进入 `~/.claude/`（`settings.json` + `agents/*.md`）。用户级文件对所有项目生效，不用于版本控制；命名冲突时项目级 agents 优先于用户级。ZCode、Codex 与 DSH 恒为用户级，忽略 `--user`。
 
 ## ZCode 目标
 
@@ -59,6 +60,20 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 - 全局文件就是 `agents/prompts/orchestrator.md` — orchestrator 提示词驱动主智能体，其中 ZCode 的派发约定由 `agents/backends/zcode/slots/dispatch.md` 填入。
 - 子智能体以 `injectAgentsMd: false` 运行：全局文件不会注入它们，因此每个委派简报必须自带完整上下文。
 - 仅按需启用（`--zcode` 或 `zcode`）— 默认目标仍是 `.opencode/` + `.claude/`。不下载任何东西。已存在的文件除非 `--force` 否则跳过。重启 ZCode 会话以生效。
+
+## ChatGPT / Codex 目标
+
+`npx my-workbench --chatgpt`（别名 `--codex`）把原生本地子智能体安装到 **CODEX_HOME**，默认 `~/.codex/`。适用于当前 ChatGPT 桌面程序的本地 Codex 运行时及 Codex CLI；云端聊天和自定义 GPT 不读取这些本地文件。
+
+- `AGENTS.md`：主智能体的短入口，加载 `my-workbench-orchestrator.md` 完整策略，避免挤占 AGENTS.md 自动发现的大小预算；派生专家遵循各自的职责。
+- `agents/*.toml`：九个原生专家子智能体，使用 `name`、`description`、`developer_instructions`，从同一 roster、提示词和通用纪律组装。默认继承当前会话模型，也可通过已部署 TOML 或桌面编辑器调整。
+- `my-workbench-solutions/`：每次安装刷新的平台指南。
+
+仅用户级，按需启用，不下载、不写项目文件。已有文件默认跳过；`--force` 保留子智能体顶层的 `model`、`model_reasoning_effort`、`model_reasoning_summary`、`model_verbosity` 设置。不修改 `config.toml`、鉴权文件或 `AGENTS.override.md`。若已有 `AGENTS.md` 被跳过、存在更高优先级的 `AGENTS.override.md`，或用户设置禁用了子智能体，策略可能未加载或无法委派；请按需协调这些配置，再启动新会话。职责指令不会授予工具权限，也不会建立独立沙箱。
+
+桌面部署页提供 **ChatGPT / Codex** 标签、原生智能体卡片及模型/推理强度编辑。派发遵循宿主实际工具：支持角色选择时使用自定义角色，否则给通用子智能体提供相应角色指令；必须等待全部已派发任务返回后再继续。
+
+格式及发现规则依据 OpenAI 官方文档：[自定义智能体](https://learn.chatgpt.com/docs/agent-configuration/subagents)、[AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)。
 
 ## DSH 目标
 
@@ -122,7 +137,7 @@ DSH 发现浏览器（client）插件半的方式是扫描 **profile loader 自�
 
 **委派与按赛道路由**
 
-- 委派是原生机制。模型调用 `subagent_explorer`、`subagent_librarian`、`subagent_oracle`、`subagent_designer`、`subagent_fixer`、`subagent_observer`、`subagent_improver`，而不是在 Task 工具里填写子智能体类型。赛道默认在后台运行并返回可续用的子 agent id，用 `send_message` 继续它 —— 这正是 orchestrator 提示词中所说的会话句柄。
+- 委派是原生机制。模型调用 `subagent_explorer`、`subagent_librarian`、`subagent_oracle`、`subagent_designer`、`subagent_fixer`、`subagent_observer`、`subagent_improver`，而不是在 Task 工具里填写子智能体类型。工具 API 支持后台运行，但 orchestrator 显式设置 `run_in_background: false` 并等待全部已派发任务返回。若提供可续用的子 agent id，可用 `send_message` 续用；id 本身不算最终报告。
 - 每个工具携带该专家的提示词（由 `agents/prompts/*.md` 渲染），并按其提示词的约束收紧子 agent 的工具：只读赛道失去 `write`/`edit`，`observer` 与 `improver` 还失去 shell，所有赛道都失去委派工具，因此赛道无法再派生子赛道。
 - **按赛道固定模型与推理等级。** 打开 DSH Web GUI 的设置页 **MyWorkbench 赛道模型**：每条赛道一行，左侧选模型、右侧选思考级别，另有 应用 / 全部改回继承 / 刷新模型目录。写入落在插件自己的设置命名空间并持久化到 `<DSH_HOME>/settings.yaml`，重启 DSH 后依然有效。全新安装由作为命名空间 `base` 层的推荐映射初始化；把某条赛道留作「继承会话模型」即可沿用当前会话的路由。
 - 仅按需启用（`--dsh` 或 `dsh`）— 默认目标仍是 `.opencode/` + `.claude/`。要求已存在 DSH home，不下载任何东西，已存在的文件除非 `--force` 否则跳过。新开一个 DSH 会话即可选用该 preset。

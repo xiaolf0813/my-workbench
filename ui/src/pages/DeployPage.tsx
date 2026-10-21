@@ -95,6 +95,7 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
     opencode: undefined,
     claude: undefined,
     zcode: undefined,
+    codex: undefined,
     dsh: undefined,
   });
   /** Which agent's detail page is open, per target (survives tab switches, like the mockup).
@@ -103,6 +104,7 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
     opencode: null,
     claude: null,
     zcode: null,
+    codex: null,
     dsh: null,
   });
   /** `${target}/${agent}` → unsaved flag (guard input). */
@@ -199,6 +201,7 @@ export function DeployPage({ env, appVersion, navGuardRef }: DeployPageProps) {
     opencode: [],
     claude: [],
     zcode: [],
+    codex: [],
     dsh: [],
   });
 

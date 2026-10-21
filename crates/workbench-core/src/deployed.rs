@@ -120,6 +120,10 @@ fn scope_for(params: &DeployedParams<'_>, target: Target) -> Option<Scope> {
             root: zcode_root(params.home),
             dest: "",
         }),
+        Target::Codex => Some(Scope {
+            root: crate::codex::root(params.home),
+            dest: "",
+        }),
         Target::Dsh => None,
     }
 }
@@ -156,7 +160,7 @@ fn stamp_version_for(params: &DeployedParams<'_>, target: Target) -> Option<Stri
             params.home.join(HOME_VERSION_FILE)
         }
         Target::Opencode | Target::Claude => params.project_dir?.join(VERSION_FILE),
-        Target::Zcode | Target::Dsh => params.home.join(HOME_VERSION_FILE),
+        Target::Zcode | Target::Codex | Target::Dsh => params.home.join(HOME_VERSION_FILE),
     };
     std::fs::read_to_string(path)
         .ok()
@@ -171,6 +175,7 @@ fn model_keys(target: Target) -> &'static [&'static str] {
         Target::Opencode => OPENCODE_AGENT_KEYS,
         Target::Claude => CLAUDE_AGENT_KEYS,
         Target::Zcode => ZCODE_AGENT_KEYS,
+        Target::Codex => crate::codex::MODEL_KEYS,
         Target::Dsh => &[],
     }
 }
@@ -318,8 +323,8 @@ fn value_of_line(line: &str) -> String {
 
 // --------------------------------------------------------------- public API
 
-/// Per-target deployed state for ALL four targets, in APPLY_ORDER
-/// (opencode → claude → zcode → dsh). Zero writes, read-only. The preset
+/// Per-target deployed state for all targets, in APPLY_ORDER
+/// (opencode → claude → zcode → codex → dsh). Zero writes, read-only. The preset
 /// file count / deployment time ride on the dsh row only; the other targets
 /// report `None`. Every row carries its realm's version stamp (see
 /// [`stamp_version_for`]).
@@ -354,14 +359,14 @@ pub fn target_deployed(params: &DeployedParams<'_>, target: Target) -> bool {
     match target {
         Target::Dsh => crate::dsh::preset_root(params.dsh_home).is_dir(),
         _ => match agents_dir_for(params, target) {
-            Some(dir) => has_agent_file(&dir),
+            Some(dir) => has_agent_file(&dir, target),
             None => false,
         },
     }
 }
 
 /// At least one direct `.md` file in `dir` other than [`AGENTS_MD`].
-fn has_agent_file(dir: &Path) -> bool {
+fn has_agent_file(dir: &Path, target: Target) -> bool {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return false;
     };
@@ -370,7 +375,7 @@ fn has_agent_file(dir: &Path) -> bool {
         path.is_file()
             && path
                 .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+                .is_some_and(|ext| ext.eq_ignore_ascii_case(if target == Target::Codex { "toml" } else { "md" }))
             && entry.file_name().to_str() != Some(AGENTS_MD)
     })
 }
@@ -395,7 +400,7 @@ pub fn list_deployed_agents(
                 path.is_file()
                     && path
                         .extension()
-                        .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+                        .is_some_and(|ext| ext.eq_ignore_ascii_case(if target == Target::Codex { "toml" } else { "md" }))
                     && entry.file_name().to_str() != Some(AGENTS_MD)
             })
             .filter_map(|entry| entry.file_name().to_str().map(str::to_owned))
@@ -413,7 +418,11 @@ pub fn list_deployed_agents(
             .file_stem()
             .map(|s| s.to_string_lossy().into_owned())
             .unwrap_or_else(|| file_name.clone());
-        agents.push(parse_deployed_agent(&text, &stem, &file_name, keys));
+        if target == Target::Codex {
+            agents.push(crate::codex::read_agent(&text, &stem, &file_name)?);
+        } else {
+            agents.push(parse_deployed_agent(&text, &stem, &file_name, keys));
+        }
     }
     Ok(agents)
 }
@@ -446,14 +455,22 @@ pub fn save_deployed_agent(
                 .to_string(),
         )
     })?;
-    let path = resolve_agent_file(&dir, file_name)?;
+    let path = resolve_agent_file(&dir, file_name, target)?;
     let text = std::fs::read_to_string(&path).map_err(|err| {
         WorkbenchError::Message(format!("cannot read {}: {err}", path.display()))
     })?;
-    let final_text = splice_agent_file(&text, keys, new_body, settings);
+    let final_text = if target == Target::Codex {
+        crate::codex::edit_agent(&text, new_body, settings)?
+    } else {
+        splice_agent_file(&text, keys, new_body, settings)
+    };
     write_bytes(&path, final_text.as_bytes())?;
     let fallback_name = file_stem_of(file_name);
-    Ok(parse_deployed_agent(&final_text, &fallback_name, file_name, keys))
+    if target == Target::Codex {
+        crate::codex::read_agent(&final_text, &fallback_name, file_name)
+    } else {
+        Ok(parse_deployed_agent(&final_text, &fallback_name, file_name, keys))
+    }
 }
 
 /// The stem of an already-validated `.md` file name.
@@ -468,7 +485,7 @@ fn file_stem_of(file_name: &str) -> String {
 /// a single normal path component naming an existing `.md` file whose
 /// canonical location stays inside the canonical directory (symlink escape
 /// refused). Anything else is a hard error — unknown names included.
-fn resolve_agent_file(dir: &Path, file_name: &str) -> Result<PathBuf, WorkbenchError> {
+fn resolve_agent_file(dir: &Path, file_name: &str, target: Target) -> Result<PathBuf, WorkbenchError> {
     let invalid = |why: &str| {
         Err(WorkbenchError::Message(format!(
             "invalid agent file name '{file_name}': {why}"
@@ -485,8 +502,9 @@ fn resolve_agent_file(dir: &Path, file_name: &str) -> Result<PathBuf, WorkbenchE
         [Component::Normal(_)] => {}
         _ => return invalid("not a plain file name"),
     }
-    if !file_name.to_ascii_lowercase().ends_with(".md") {
-        return invalid("only .md agent files can be saved");
+    let extension = if target == Target::Codex { ".toml" } else { ".md" };
+    if !file_name.to_ascii_lowercase().ends_with(extension) {
+        return invalid(if target == Target::Codex { "only .toml agent files can be saved" } else { "only .md agent files can be saved" });
     }
     let path = dir.join(rel);
     if !path.starts_with(dir) {

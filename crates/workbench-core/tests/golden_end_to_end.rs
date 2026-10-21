@@ -288,6 +288,7 @@ fn set_ambient_env(sandbox: &Sandbox, dsh: bool) {
         std::env::remove_var("DSH_HOME");
         std::env::remove_var("MY_WORKBENCH_DSH_NODE_MODULES");
     }
+    std::env::remove_var("CODEX_HOME");
     std::env::set_var("APPDATA", sandbox.home.join("AppData"));
     std::env::set_var("XDG_CONFIG_HOME", sandbox.home.join(".config"));
 }
@@ -337,6 +338,8 @@ fn cli_env(sandbox: &Sandbox, dsh: bool) -> (Vec<(String, String)>, Vec<&'static
     } else {
         vec!["DSH_HOME", "MY_WORKBENCH_DSH_NODE_MODULES"]
     };
+    let mut remove = remove;
+    remove.push("CODEX_HOME");
     (set, remove)
 }
 
@@ -588,7 +591,22 @@ fn run_install_case(
 
     set_ambient_env(&core, case.dsh);
 
-    let (env_set, env_remove) = cli_env(&cli, case.dsh);
+    let (mut env_set, mut env_remove) = cli_env(&cli, case.dsh);
+    if case.name == "codex_home" {
+        std::env::set_var("CODEX_HOME", core.root.join("custom codex home"));
+        env_remove.retain(|name| *name != "CODEX_HOME");
+        env_set.push(("CODEX_HOME".into(), cli.root.join("custom codex home").to_string_lossy().into_owned()));
+    }
+    if case.name == "preserve_codex" || case.name == "skip_codex" {
+        for side in [&cli, &core] {
+            let root = side.home.join(".codex");
+            fs::create_dir_all(root.join("agents")).unwrap();
+            fs::write(root.join("config.toml"), "# user-owned\n[agents]\nenabled = true\n").unwrap();
+            fs::write(root.join("AGENTS.override.md"), "user override\n").unwrap();
+            fs::write(root.join("AGENTS.md"), "user instructions\n").unwrap();
+            fs::write(root.join("agents/observer.toml"), "model = \"custom/model\" # pin\nmodel_reasoning_effort = 'high'\nmodel_verbosity = \"low\"\nname = \"old\"\ndeveloper_instructions = \"old body\"\n").unwrap();
+        }
+    }
     let run = run_cli(repo, case.cli_flags, &cli.project, &env_set, &env_remove, &fixtures.bin)
         .unwrap_or_else(|e| panic!("case {}: {e}", case.name));
     assert_eq!(
@@ -711,6 +729,61 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
         );
     };
     match case.name {
+        "codex" | "codex_alias" | "codex_home" | "codex_user" | "preserve_codex" | "skip_codex" => {
+            for side in [cli, core] {
+                let root = if case.name == "codex_home" { side.root.join("custom codex home") } else { side.home.join(".codex") };
+                assert!(!side.project.join("my-workbench.version").exists());
+                let mut files: Vec<_> = fs::read_dir(root.join("agents")).unwrap().map(|e| e.unwrap().path()).collect();
+                files.sort();
+                assert_eq!(files.len(), 9);
+                for file in &files {
+                    let text = fs::read_to_string(file).unwrap();
+                    let parsed: toml_edit::DocumentMut = text.parse().unwrap();
+                    assert!(parsed.get("name").and_then(|v| v.as_str()).is_some());
+                    assert!(parsed.get("developer_instructions").and_then(|v| v.as_str()).is_some());
+                }
+                if case.name == "preserve_codex" || case.name == "skip_codex" {
+                    let observer = fs::read_to_string(root.join("agents/observer.toml")).unwrap();
+                    assert!(observer.contains("model = \"custom/model\" # pin"));
+                    assert!(observer.contains("model_reasoning_effort = 'high'"));
+                    assert_eq!(fs::read_to_string(root.join("config.toml")).unwrap(), "# user-owned\n[agents]\nenabled = true\n");
+                    assert_eq!(fs::read_to_string(root.join("AGENTS.override.md")).unwrap(), "user override\n");
+                    if case.name == "preserve_codex" {
+                        assert!(observer.contains("features.shell_tool = false"));
+                        assert!(!observer.contains("old body"));
+                    } else {
+                        assert!(observer.contains("old body"));
+                        assert_eq!(fs::read_to_string(root.join("AGENTS.md")).unwrap(), "user instructions\n");
+                    }
+                }
+            }
+            let params = workbench_core::deployed::DeployedParams {
+                project_dir: None, user_level: false, home: &core.home, dsh_home: &core.dsh_home,
+            };
+            let agents = workbench_core::deployed::list_deployed_agents(&params, Target::Codex).unwrap();
+            assert_eq!(agents.len(), 9);
+            let agent = agents.iter().find(|a| a.name == "oracle").unwrap();
+            let root = if case.name == "codex_home" { core.root.join("custom codex home") } else { core.home.join(".codex") };
+            let path = root.join("agents").join(&agent.file_name);
+            let original = fs::read(&path).unwrap();
+            workbench_core::deployed::save_deployed_agent(&params, Target::Codex, &agent.file_name, &agent.body, &BTreeMap::new()).unwrap();
+            assert_eq!(fs::read(&path).unwrap(), original, "native editor no-op must preserve bytes");
+            for invalid in ["../config.toml", "..\\config.toml", "oracle.md", "unknown.toml"] {
+                assert!(workbench_core::deployed::save_deployed_agent(&params, Target::Codex, invalid, "", &BTreeMap::new()).is_err());
+            }
+            if case.name == "codex" {
+                let sel = Selection { project_dir: core.project.clone(), targets: vec![Target::Codex], user_level: false, force: false, dsh_profile: None };
+                let ctx = EngineContext { project_dir: core.project.clone(), home: core.home.clone(), bundled_root: repo.to_path_buf(), version: workbench_core::VERSION.into() };
+                assert!(check_drift(&sel, &ctx).unwrap().tier1.drifted.is_empty());
+                let guide = root.join("my-workbench-solutions/toolkit-gui-test.md");
+                let original = fs::read(&guide).unwrap();
+                fs::write(&guide, "stale").unwrap();
+                let drift = check_drift(&sel, &ctx).unwrap();
+                assert_eq!(drift.tier1.drifted.len(), 1);
+                assert_eq!(drift.tier1.drifted[0].path, guide);
+                fs::write(guide, original).unwrap();
+            }
+        }
         "default" => {
             assert_eq!(
                 planned.stamps.len(),
@@ -934,6 +1007,7 @@ fn golden_end_to_end_cli_vs_workbench_core() {
         "PATH",
         "APPDATA",
         "XDG_CONFIG_HOME",
+        "CODEX_HOME",
         "DSH_HOME",
         "MY_WORKBENCH_DSH_NODE_MODULES",
     ]);
@@ -967,6 +1041,36 @@ fn golden_end_to_end_cli_vs_workbench_core() {
     std::env::set_var("PATH", std::env::join_paths(&path_parts).unwrap());
 
     let cases: &[Case] = &[
+        Case {
+            name: "codex", cli_flags: &["--codex"], targets: &[Target::Codex],
+            user_level: false, force: false, dsh: false, preseed: None,
+            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+        },
+        Case {
+            name: "codex_alias", cli_flags: &["--chatgpt"], targets: &[Target::Codex],
+            user_level: false, force: false, dsh: false, preseed: None,
+            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+        },
+        Case {
+            name: "codex_home", cli_flags: &["--codex"], targets: &[Target::Codex],
+            user_level: false, force: false, dsh: false, preseed: None,
+            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+        },
+        Case {
+            name: "codex_user", cli_flags: &["--codex", "--user"], targets: &[Target::Codex],
+            user_level: true, force: false, dsh: false, preseed: None,
+            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+        },
+        Case {
+            name: "preserve_codex", cli_flags: &["--codex", "--force"], targets: &[Target::Codex],
+            user_level: false, force: true, dsh: false, preseed: None,
+            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+        },
+        Case {
+            name: "skip_codex", cli_flags: &["--codex"], targets: &[Target::Codex],
+            user_level: false, force: false, dsh: false, preseed: None,
+            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+        },
         Case { // 1
             name: "default",
             cli_flags: &[],

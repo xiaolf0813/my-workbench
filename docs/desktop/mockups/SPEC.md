@@ -193,6 +193,7 @@ No bar, no strip: `.win-ctl` is `position: fixed; top: 0; right: 0; height: 40px
 Real `<button>`s: `aria-label` 最小化 / 最大化 / 还原 (swaps with state) / 关闭； §1.6 focus ring. **Browser degradation:** without Tauri IPC the cluster is **not rendered at all** (no dead controls, clean tab order).
 
 ### 3.19 Backend tab bar (deploy page, v2)
+Targets follow engine order: `opencode`, `claude`, `zcode`, `codex`, `dsh`. The `codex` tab is labeled **ChatGPT / Codex**, is always user-level (`CODEX_HOME`, otherwise `~/.codex`), and reuses the agent cards/detail page for native TOML files; its reasoning field is 推理强度 (`model_reasoning_effort`). It has no project/user scope control.
 Pill tabs, mono 12.5px (machine names), 32px tall, radius 999, gap 8. Rest: transparent bg + `--border-strong` border + `--text-2`; hover = `--bg-hover` state-layer fill + `--text-1` **[变更 2026-10 M3 刷新：原 raised fill]**; **selected = accent fill + `--accent-text`, weight 600** (accent = active, §0.2; selected-pill hover = `--accent-hover` on-color overlay). `role="tablist"/"tab"`, `aria-selected`, `aria-controls`, Left/Right arrow navigation; each tab's `aria-label`/`title` carries deployment status — `{target}（已部署）` / `{target}（未部署）`. No status dot inside the pills: the selected target's state is spelled out as **dot + word** at the bar's right end (`未部署` hollow · `已部署 · {n} 个智能体` · `已部署 · 预设 {name}`), per §0.4. Tabs switch the whole main view.
 
 ### 3.20 Agent card

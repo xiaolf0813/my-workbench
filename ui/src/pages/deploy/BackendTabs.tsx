@@ -17,9 +17,10 @@ interface BackendTabsProps {
 }
 
 function tabLabel(t: Target, status: TabDeploymentStatus): string {
-  if (status === "deployed") return `${t}（已部署）`;
-  if (status === "notDeployed") return `${t}（未部署）`;
-  return t; // unknown yet (loading / read failure) — no status claim
+  const name = t === "codex" ? "ChatGPT / Codex" : t;
+  if (status === "deployed") return `${name}（已部署）`;
+  if (status === "notDeployed") return `${name}（未部署）`;
+  return name; // unknown yet (loading / read failure) — no status claim
 }
 
 export function BackendTabs({ value, statusOf, onSelect }: BackendTabsProps) {
@@ -58,7 +59,7 @@ export function BackendTabs({ value, statusOf, onSelect }: BackendTabsProps) {
             tabIndex={on ? 0 : -1}
             onClick={() => onSelect(t)}
           >
-            {t}
+            {t === "codex" ? "ChatGPT / Codex" : t}
           </button>
         );
       })}

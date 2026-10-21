@@ -7,6 +7,7 @@
 
 import { spawnSync } from "node:child_process";
 import { resolveLaneDependencies } from "./dsh-deps.js";
+import { preserveCodexSettings, renderCodexAgent } from "./codex-agent.js";
 import {
   copyFileSync,
   existsSync,
@@ -174,8 +175,8 @@ const SLOT_RE = /\{\{slot:([\w-]+)\}\}/g;
 const PROMPT_RE = /\{\{prompt:([\w-]+)\}\}/g;
 
 const HELP = `my-workbench — scaffold the OpenCode / Claude Code agent setup into the current
-project (or at user level with --user), plus opt-in user-level ZCode support
-and DSH agent presets
+project (or at user level with --user), plus opt-in user-level ZCode,
+ChatGPT / Codex and DSH support
 
 Usage
   npx my-workbench [targets...] [options]
@@ -193,6 +194,10 @@ ZCode target (opt-in only; user-level, writes to your home directory)
   --zcode                 install ~/.zcode/AGENTS.md + ~/.zcode/agents/*.md
                           (takes effect in new ZCode sessions)
 
+ChatGPT / Codex target (opt-in only; local runtime, always user-level)
+  --codex, --chatgpt       install native agents and the orchestration policy
+                          (CODEX_HOME, otherwise ~/.codex); config.toml is untouched
+
 DSH target (opt-in only; user-level, writes to your DSH home)
   --dsh                   install the agent preset ~/.dsh/.agent-presets/
                           my-workbench/ (orchestrator + the lane plugin that
@@ -209,7 +214,7 @@ DSH target (opt-in only; user-level, writes to your DSH home)
 Options
   --user                  install at user level instead of the current project:
                           OpenCode assets go to ~/.config/opencode/,
-                          Claude Code assets to ~/.claude/ (ZCode and DSH are
+                          Claude Code assets to ~/.claude/ (ZCode, Codex and DSH are
                           always user-level and ignore this flag)
   --force                 overwrite files that already exist (default: skip them)
   --dry-run               print what would be copied without writing anything
@@ -303,6 +308,7 @@ Examples
   npx my-workbench claude --force     # positional target form, overwrite existing files
   npx my-workbench --user             # user-level: ~/.config/opencode/ + ~/.claude/
   npx my-workbench --zcode            # ZCode user-level setup only (~/.zcode)
+  npx my-workbench --chatgpt          # local ChatGPT / Codex native agents (~/.codex)
   npx my-workbench --dsh              # DSH agent preset only (~/.dsh)
   npx my-workbench --dsh --dsh-profile desktop
                                       # DSH preset + the desktop profile's page row only
@@ -345,6 +351,12 @@ function parseArgs(argv) {
       case "--dsh":
       case "dsh":
         targets.add("dsh");
+        break;
+      case "--codex":
+      case "codex":
+      case "--chatgpt":
+      case "chatgpt":
+        targets.add("codex");
         break;
       case "--user":
         user = true;
@@ -828,7 +840,11 @@ function writeAgent(dest, content, { force, dryRun, preserve = false, regenerate
     // An overwrite of a preserve-rule destination first snapshots the user's
     // model settings from the file on disk and writes them back into the fresh
     // render (null: nothing preserved — the render as-is).
-    const preserved = exists && preserve ? preserveModelSettings(dest, readUtf8(dest), content) : null;
+    const preserved = exists && preserve
+      ? dirname(dest).endsWith(`${sep}agents`) && dest.endsWith(".toml")
+        ? preserveCodexSettings(readUtf8(dest), content)
+        : preserveModelSettings(dest, readUtf8(dest), content)
+      : null;
     writeFileSync(dest, preserved !== null ? preserved : content);
   }
   counts[exists ? "overwritten" : "created"]++;
@@ -935,9 +951,9 @@ function agentSourceProblems() {
   const names = new Set(Object.keys(roster));
   for (const [name, record] of Object.entries(roster)) {
     if (typeof record.description !== "string" || !record.description.trim()) problems.push(`agent '${name}' has no description`);
-    for (const backend of ["claude", "opencode", "zcode"]) {
+    for (const backend of ["claude", "opencode", "zcode", "codex"]) {
       const lines = record.frontmatter?.[backend];
-      if (name === "orchestrator" && backend === "zcode" && lines === undefined) continue; // ZCode uses AGENTS.md as its main agent.
+      if (name === "orchestrator" && ["zcode", "codex"].includes(backend) && lines === undefined) continue; // ZCode uses AGENTS.md as its main agent.
       if (!Array.isArray(lines) || lines.filter((line) => line === "@description").length !== 1) problems.push(`agent '${name}' has invalid ${backend} frontmatter`);
     }
   }
@@ -1726,6 +1742,39 @@ function applyZcode(opts, counts) {
   console.log(`  note       ZCode reads user-level subagents only; restart ZCode sessions to pick up changes`);
 }
 
+/** Native custom agents, user-level only; never rewrite the user's config.toml. */
+function codexRoot() {
+  return resolve(process.env.CODEX_HOME || join(homedir(), ".codex"));
+}
+
+function codexOutputs(root, usedSlots) {
+  const backend = join(PKG_ROOT, "agents", "backends", "codex");
+  const leaf = readFileSync(join(backend, "leaf.md"), "utf8");
+  const outputs = Object.entries(agentRoster())
+    .filter(([, record]) => record.frontmatter.codex !== undefined)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, record]) => [
+      `agents/${name}.toml`,
+      renderCodexAgent(name, record.description, record.frontmatter.codex,
+        fillSlots(stripAttribution(promptBody(name)).trim(), "codex", usedSlots), leaf, disciplinesBlock()),
+    ]);
+  outputs.push(["my-workbench-orchestrator.md", fillSlots(agentPromptBody("orchestrator"), "codex", usedSlots)]);
+  outputs.push(["AGENTS.md", readFileSync(join(backend, "AGENTS.md"), "utf8")
+    .replace("{{policy-path}}", join(root, "my-workbench-orchestrator.md").split(sep).join("/"))]);
+  return outputs;
+}
+
+function applyCodex(opts, counts) {
+  const root = codexRoot();
+  const usedSlots = new Set();
+  const display = { ...opts, displayRoot: homedir(), displayPrefix: "~/" };
+  console.log(`\n${root}/  (ChatGPT / Codex: AGENTS.md, agents/*.toml, my-workbench-solutions/)`);
+  for (const [rel, text] of codexOutputs(root, usedSlots)) writeAgent(join(root, rel), text, display, counts);
+  installSolutions(root, display, counts);
+  warnUnusedSlots("codex", usedSlots);
+  console.log("  note       restart ChatGPT / Codex sessions; existing AGENTS.md files skip unless --force, and AGENTS.override.md takes precedence");
+}
+
 /**
  * How a profile's managed block ended up is the same sentence every time, and
  * the verb is the whole message: `create` (the patch layer did not exist),
@@ -1957,6 +2006,14 @@ async function assembleCommand({ check }) {
   const backend = loadBackend("claude");
   let outdated = 0;
   const usedSlots = new Set();
+  const codexSlots = new Set();
+  try {
+    codexOutputs(codexRoot(), codexSlots);
+    warnUnusedSlots("codex", codexSlots);
+  } catch (err) {
+    console.log(`${check ? "check FAILED" : "error"}: codex: ${err.message}`);
+    outdated++;
+  }
 
   for (const problem of agentSourceProblems()) {
     console.log(`${check ? "check FAILED" : "error"}: ${problem}`);
@@ -2105,7 +2162,7 @@ async function upgradeCommand(opts) {
   // project-level targets, the home directory for --user and the
   // user-level-only targets (zcode/dsh). A mixed selection checks both.
   const projectTargets = ["opencode", "claude"].filter((name) => opts.targets.has(name));
-  const userLevelOnly = ["zcode", "dsh"].filter((name) => opts.targets.has(name));
+  const userLevelOnly = ["zcode", "codex", "dsh"].filter((name) => opts.targets.has(name));
   const roots = [];
   if (projectTargets.length > 0 && !opts.user) {
     roots.push({ file: join(process.cwd(), VERSION_FILE), label: VERSION_FILE, was: null });
@@ -2288,10 +2345,10 @@ async function main() {
   const displayOpts = installOpts.user ? { ...installOpts, displayRoot: homedir(), displayPrefix: "~/" } : installOpts;
 
   const counts = { created: 0, overwritten: 0, skipped: 0 };
-  // ZCode and DSH are user-level-only targets with no project footprint; a run
+  // ZCode, Codex and DSH are user-level-only targets with no project footprint; a run
   // that selects only those reports itself as a user-level install.
   const projectTargets = ["opencode", "claude"].filter((name) => opts.targets.has(name));
-  const userLevelLabels = { zcode: "ZCode", dsh: "DSH" };
+  const userLevelLabels = { zcode: "ZCode", codex: "ChatGPT / Codex", dsh: "DSH" };
   const userLevelOnly = Object.keys(userLevelLabels).filter((name) => opts.targets.has(name));
   const dry = opts.dryRun ? "  (dry-run)" : "";
   console.log(
@@ -2310,6 +2367,7 @@ async function main() {
     installSolutions(join(scopes.claude.root, scopes.claude.dest), displayOpts, counts);
   }
   if (installOpts.targets.has("zcode")) applyZcode(installOpts, counts);
+  if (installOpts.targets.has("codex")) applyCodex(installOpts, counts);
   if (installOpts.targets.has("dsh")) applyDsh(installOpts, counts);
 
   // One stamp per deployment realm records what deployed there: the project

@@ -50,10 +50,11 @@ pub fn agent_source_problems(source_root: &Path) -> Vec<String> {
         if js_trim(&entry.description).is_empty() {
             problems.push(format!("agent '{}' has no description", entry.name));
         }
-        for backend in ["claude", "opencode", "zcode"] {
+        for backend in ["claude", "opencode", "zcode", "codex"] {
+            if backend == "codex" && !source_root.join("agents/backends/codex").is_dir() { continue; }
             let lines = entry.record.get("frontmatter").and_then(|f| f.get(backend));
             // ZCode uses AGENTS.md as its main agent.
-            if entry.name == "orchestrator" && backend == "zcode" && lines.is_none() {
+            if entry.name == "orchestrator" && (backend == "zcode" || backend == "codex") && lines.is_none() {
                 continue;
             }
             let description_lines = lines

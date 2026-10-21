@@ -114,7 +114,7 @@ fn is_project_target(t: &Target) -> bool {
 }
 
 fn is_user_level_only_target(t: &Target) -> bool {
-    matches!(t, Target::Zcode | Target::Dsh)
+    matches!(t, Target::Zcode | Target::Codex | Target::Dsh)
 }
 
 /// The opencode scope from plain inputs — the shared derivation for the
@@ -442,6 +442,22 @@ fn collect_before_dsh(
             "ZCode reads user-level subagents only; restart ZCode sessions to pick up changes"
                 .to_string(),
         );
+    }
+    if sel.targets.contains(&Target::Codex) {
+        let root = crate::codex::root(&ctx.home);
+        let mut slots = render::UsedSlots::new();
+        for (rel, text) in crate::codex::outputs(source_root, &root, &mut slots)? {
+            t.actions.push(Action {
+                target: Target::Codex,
+                dest: root.join(&rel),
+                source_rel: rel,
+                content: ActionContent::Text(text),
+                regenerate: false,
+            });
+        }
+        collect_solutions(Target::Codex, &root, source_root, t)?;
+        push_slot_warnings(t, "codex", &slots);
+        t.notes.push("restart ChatGPT / Codex sessions; existing AGENTS.md files skip unless --force, and AGENTS.override.md takes precedence".into());
     }
     Ok(())
 }
@@ -1057,7 +1073,7 @@ fn target_status_detail(target: Target, dsh: &DshInfo, opencode_present: bool) -
             }
         }
         Target::Claude => "无前置要求".to_string(),
-        Target::Zcode => "无前置要求".to_string(),
+        Target::Zcode | Target::Codex => "无前置要求".to_string(),
         Target::Dsh => {
             if dsh.exists {
                 "已找到 DSH 主目录".to_string()

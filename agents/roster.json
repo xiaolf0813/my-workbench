@@ -29,6 +29,10 @@
           "  - Grep",
           "  - Bash",
           "  - Skill"
+        ],
+        "codex": [
+          "name = \"designer\"",
+          "@description"
         ]
       }
     },
@@ -54,6 +58,10 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
+        ],
+        "codex": [
+          "name = \"driver\"",
+          "@description"
         ]
       }
     },
@@ -80,6 +88,10 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
+        ],
+        "codex": [
+          "name = \"explorer\"",
+          "@description"
         ]
       }
     },
@@ -102,6 +114,10 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
+        ],
+        "codex": [
+          "name = \"fixer\"",
+          "@description"
         ]
       }
     },
@@ -128,6 +144,10 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
+        ],
+        "codex": [
+          "name = \"librarian\"",
+          "@description"
         ]
       }
     },
@@ -154,6 +174,11 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
+        ],
+        "codex": [
+          "name = \"observer\"",
+          "@description",
+          "features.shell_tool = false"
         ]
       }
     },
@@ -179,6 +204,10 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
+        ],
+        "codex": [
+          "name = \"spotter\"",
+          "@description"
         ]
       }
     },
@@ -205,11 +234,15 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
+        ],
+        "codex": [
+          "name = \"oracle\"",
+          "@description"
         ]
       }
     },
     "orchestrator": {
-      "description": "Multi-agent workflow manager - plans, schedules, delegates, monitors, reconciles, and verifies specialist-agent work instead of implementing serially. Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); handles non-trivial coding work by routing bounded lanes to explorer/librarian/oracle/designer/fixer/observer/spotter/driver.",
+      "description": "Coding workflow manager - owns delivery, implements directly when delegation adds no clear value, and routes bounded work to specialists when parallelism, context isolation, specialist capabilities, or independent review outweigh handoff costs. Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); waits for all dispatched tasks to return and verifies the integrated result.",
       "frontmatter": {
         "claude": [
           "name: orchestrator",
@@ -247,6 +280,11 @@
           "@description",
           "model: inherit",
           "injectAgentsMd: false"
+        ],
+        "codex": [
+          "name = \"improver\"",
+          "@description",
+          "features.shell_tool = false"
         ]
       }
     }

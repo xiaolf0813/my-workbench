@@ -47,7 +47,7 @@ export function AgentDetailPage({ target, agent, onSave, onBack }: AgentDetailPa
   const [level, setLevel] = useState(baseLevel);
   const [saving, setSaving] = useState(false);
 
-  const modelOpts = useMemo(() => optionsWithCurrent(MODEL_OPTIONS, model), [model]);
+  const modelOpts = useMemo(() => optionsWithCurrent(target === "codex" ? ["gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna"] : MODEL_OPTIONS, model), [target, model]);
   const levelOpts = useMemo(() => optionsWithCurrent(REASONING_LEVELS, level), [level]);
 
   // Immediate save on select change. The full managed key set is always sent:
