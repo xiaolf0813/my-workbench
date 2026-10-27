@@ -54,7 +54,7 @@ test('a --force reinstall preserves the agents frontmatter and reconciles the JS
   assert.equal(first.status, 0, first.stderr + first.stdout)
   // A fresh create preserves nothing: the installed files ARE the renders/stubs.
   const oracle = file('.claude', 'agents', 'oracle.md')
-  assert.match(readFileSync(oracle, 'utf8'), /^model: opus$/m)
+  assert.match(readFileSync(oracle, 'utf8'), /^model: inherit$/m)
 
   // The user retunes one destination per rule:
   // - the claude agent's `model:` line (with the description mangled, to prove
@@ -69,7 +69,7 @@ test('a --force reinstall preserves the agents frontmatter and reconciles the JS
   // - the opencode observer agent, whose render carries neither `model:` nor
   //   `variant:`, gaining both lines.
   writeFileSync(oracle, readFileSync(oracle, 'utf8')
-    .replace('model: opus', 'model: custom/pinned-claude\neffort: high')
+    .replace('model: inherit', 'model: custom/pinned-claude\neffort: high')
     .replace('Strategic technical advisor', 'MANGLED description'))
   writeFileSync(file('.claude', 'settings.json'), `{
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
@@ -171,7 +171,7 @@ test('a rerun without --force leaves edited files untouched (skip)', t => {
   const { run, file } = projectFixture(t)
   assert.equal(run([]).status, 0)
   const oracle = file('.claude', 'agents', 'oracle.md')
-  const edited = readFileSync(oracle, 'utf8').replace('model: opus', 'model: custom/pinned-claude') + '\nHAND-EDIT\n'
+  const edited = readFileSync(oracle, 'utf8').replace('model: inherit', 'model: custom/pinned-claude') + '\nHAND-EDIT\n'
   writeFileSync(oracle, edited)
   const rerun = run([])
   assert.equal(rerun.status, 0, rerun.stderr + rerun.stdout)
@@ -185,7 +185,7 @@ test('--force twice in a row is idempotent', t => {
   // Retuned values on disk, then two force overwrites: the second reconcile
   // sees the first's output, so the two trees must be byte-identical.
   const oracle = file('.claude', 'agents', 'oracle.md')
-  writeFileSync(oracle, readFileSync(oracle, 'utf8').replace('model: opus', 'model: custom/pinned-claude\neffort: high'))
+  writeFileSync(oracle, readFileSync(oracle, 'utf8').replace('model: inherit', 'model: custom/pinned-claude\neffort: high'))
   writeFileSync(file('.claude', 'settings.json'), '{\n  "agent": "user-pinned",\n  "model": "sonnet"\n}\n')
   writeFileSync(file('.opencode', 'opencode.jsonc'), '{\n  // mine\n  "model": "custom/pinned-oc"\n}\n')
   const targets = [

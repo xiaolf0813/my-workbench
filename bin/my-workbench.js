@@ -132,7 +132,7 @@ function dshLanes() {
   for (const lane of lanes) {
     if (!lane || !/^[\w-]+$/.test(lane.key) || !/^subagent_[\w_]+$/.test(lane.tool) || typeof lane.zh !== "string" || !lane.zh.trim()) throw new Error("invalid DSH lane record");
     if (keys.has(lane.key) || tools.has(lane.tool)) throw new Error("duplicate DSH lane key or tool: " + lane.key);
-    if (typeof lane.denyWrites !== "boolean" || typeof lane.denyShell !== "boolean" || !lane.recommended || !["provider", "model", "reasoningEffort"].every((key) => typeof lane.recommended[key] === "string")) throw new Error("incomplete DSH lane: " + lane.key);
+    if (typeof lane.denyWrites !== "boolean" || typeof lane.denyShell !== "boolean") throw new Error("incomplete DSH lane: " + lane.key);
     keys.add(lane.key);
     tools.add(lane.tool);
   }
@@ -1245,7 +1245,7 @@ function renderLanePrompts(usedSlots) {
 
 /** The host-only fields; the UI gets key and zh from the same record. */
 function laneRosterSource() {
-  const lanes = dshLanes().map(({ key, tool, denyWrites, denyShell, recommended }) => ({ key, tool, denyWrites, denyShell, recommended }));
+  const lanes = dshLanes().map(({ key, tool, denyWrites, denyShell }) => ({ key, tool, denyWrites, denyShell }));
   return `export const LANES = ${JSON.stringify(lanes, null, 2)}\n`;
 }
 

@@ -166,9 +166,9 @@
 #   * read-only lanes lose `write`/`edit` (observer and improver also lose the
 #     shell), so "READ-ONLY" is enforced, not merely requested;
 #   * every lane loses all seven delegation tools, so a lane cannot spawn lanes.
-# Model routing now lives in the plugin's settings namespace (settings →
-# MyWorkbench 赛道模型), seeded from the plugin's recommended mapping; see
-# docs/dsh-lane-plugin/PLAN.md and lane-plugin/host-package/src/index.js.
+# Model routing lives in the plugin's settings namespace (settings →
+# MyWorkbench 赛道模型); every lane starts on 继承会话模型 and can be pinned
+# per lane there; see lane-plugin/host-package/src/index.js.
 #
 # The universal disciplines reach each lane the same way a lane's persona does:
 # assembly appends them (agents/disciplines.md) to every agent prompt the plugin

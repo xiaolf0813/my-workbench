@@ -14,7 +14,7 @@
 //!   `{{slot:…}}` / `{{prompt:…}}` / `{{dep:…}}` alike.
 
 use crate::roster::load_roster;
-use crate::types::{LaneRecord, RecommendedRoute};
+use crate::types::LaneRecord;
 use crate::WorkbenchError;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -527,7 +527,7 @@ pub fn render_lane_prompts(
 
 /// The host-only lane fields as a generated JS module (`laneRosterSource`,
 /// :774-777). Struct serialization pins the field order (`key, tool,
-/// denyWrites, denyShell, recommended`) against serde_json's sorted maps.
+/// denyWrites, denyShell`) against serde_json's sorted maps.
 pub fn lane_roster_source(lanes: &[LaneRecord]) -> String {
     #[derive(serde::Serialize)]
     #[serde(rename_all = "camelCase")]
@@ -536,7 +536,6 @@ pub fn lane_roster_source(lanes: &[LaneRecord]) -> String {
         tool: &'a str,
         deny_writes: bool,
         deny_shell: bool,
-        recommended: &'a RecommendedRoute,
     }
     let host_lanes: Vec<HostLane<'_>> = lanes
         .iter()
@@ -545,7 +544,6 @@ pub fn lane_roster_source(lanes: &[LaneRecord]) -> String {
             tool: &lane.tool,
             deny_writes: lane.deny_writes,
             deny_shell: lane.deny_shell,
-            recommended: &lane.recommended,
         })
         .collect();
     format!(
@@ -1072,10 +1070,8 @@ mod tests {
 
     fn lanes_fixture_json() -> &'static str {
         r#"[
-  { "key": "explorer", "tool": "subagent_explorer", "zh": "代码库导航", "denyWrites": true, "denyShell": false,
-    "recommended": { "provider": "deepseek-official", "model": "deepseek-v4-flash", "reasoningEffort": "low" } },
-  { "key": "observer", "tool": "subagent_observer", "zh": "视觉 \"分析\" 🚀", "denyWrites": true, "denyShell": true,
-    "recommended": { "provider": "deepseek-official", "model": "deepseek-v4-flash-vision-exp", "reasoningEffort": "low" } }
+  { "key": "explorer", "tool": "subagent_explorer", "zh": "代码库导航", "denyWrites": true, "denyShell": false },
+  { "key": "observer", "tool": "subagent_observer", "zh": "视觉 \"分析\" 🚀", "denyWrites": true, "denyShell": true }
 ]"#
     }
 
@@ -1135,23 +1131,13 @@ mod tests {
             "    \"key\": \"explorer\",\n",
             "    \"tool\": \"subagent_explorer\",\n",
             "    \"denyWrites\": true,\n",
-            "    \"denyShell\": false,\n",
-            "    \"recommended\": {\n",
-            "      \"provider\": \"deepseek-official\",\n",
-            "      \"model\": \"deepseek-v4-flash\",\n",
-            "      \"reasoningEffort\": \"low\"\n",
-            "    }\n",
+            "    \"denyShell\": false\n",
             "  },\n",
             "  {\n",
             "    \"key\": \"observer\",\n",
             "    \"tool\": \"subagent_observer\",\n",
             "    \"denyWrites\": true,\n",
-            "    \"denyShell\": true,\n",
-            "    \"recommended\": {\n",
-            "      \"provider\": \"deepseek-official\",\n",
-            "      \"model\": \"deepseek-v4-flash-vision-exp\",\n",
-            "      \"reasoningEffort\": \"low\"\n",
-            "    }\n",
+            "    \"denyShell\": true\n",
             "  }\n",
             "]\n",
         );

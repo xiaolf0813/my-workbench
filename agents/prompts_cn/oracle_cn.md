@@ -23,7 +23,7 @@
 
 **文件操作**：只读——检查并报告，绝不修改。Glob/Grep 用于查找，Read 用于读内容。Bash 仅用于只读诊断与源码检查（`rg`、`git grep`、`find`/`Get-ChildItem`、`git status`、只读 `git diff`）：绝不写、删、移动、复制、安装、reset、checkout、commit、push，也不执行可能变更文件的脚本；命令副作用不确定时不要执行——报告该不确定性。不要用 cat/head/tail/sed/awk 把代码读进上下文。
 
-超出角色：向 orchestrator 返回简要原因；不做部分工作。
+超出角色：向 orchestrator 返回简要原因；交付职责内的部分，绝不尝试职责外的部分。
 
 ---
 

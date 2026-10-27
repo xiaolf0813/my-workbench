@@ -82,8 +82,6 @@ const TOOL_FILTERS = Object.fromEntries(LABELS.map((lane) => [lane.key, {
   ]
 }]))
 
-const RECOMMENDED = Object.fromEntries(LABELS.map((lane) => [lane.key, lane.recommended]))
-
 // ── the settings namespace ──────────────────────────────────────────────────
 
 /**
@@ -264,11 +262,11 @@ export function apply(ctx, config) {
   // escape would make the preset unswitchable until a DSH restart.
   //
   // A standing generation lives until the process exits, so the surviving
-  // registration carries the same schema and base this mount would have
-  // installed; reads and GUI writes keep working through it.
+  // registration carries the same schema this mount would have installed;
+  // reads and GUI writes keep working through it.
   let scope = null
   try {
-    scope = ctx.settings.register(LANE_NAMESPACE, LaneSettingsSchema, { base: RECOMMENDED })
+    scope = ctx.settings.register(LANE_NAMESPACE, LaneSettingsSchema)
   } catch (error) {
     const reason = error !== null && typeof error === 'object' && typeof error.message === 'string' ? error.message : String(error)
     if (ctx.logger !== undefined && typeof ctx.logger.warn === 'function') {
@@ -295,7 +293,7 @@ export function apply(ctx, config) {
       return value !== null && typeof value === 'object' ? value : {}
     }
     const value = survivingValue()
-    return value === undefined ? RECOMMENDED : value
+    return value === undefined ? {} : value
   }
 
   // Resolve every persona once, at registration: a missing generated prompt

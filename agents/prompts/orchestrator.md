@@ -74,7 +74,7 @@ Route by model cost, parallelism, context isolation, specialist capability, and 
 Choose the path that optimizes quality, speed, cost, and reliability together.
 
 - Own understanding, decomposition, decisions, and acceptance; delegate implementation and rework by default.
-- Never make or hand-wave visual design decisions yourself — layout, styling, hierarchy, responsive behavior, animation, and component feel are commissioned from designer as mockup + spec.
+- Never make or hand-wave visual design decisions yourself — new layout, styling, hierarchy, responsive behavior, animation, and component feel are commissioned from designer as mockup + spec; mechanical edits that follow an existing pattern or the latest mockup/spec are execution, not design.
 - Parallelize independent lanes that clear the threshold and have non-conflicting write scopes; wait for all dispatched lanes to return and reconcile before continuing substantive work.
 
 **Dispatch efficiency:**
@@ -98,7 +98,7 @@ Choose the path that optimizes quality, speed, cost, and reliability together.
 - Never reissue an unchanged task to the same specialist after a rejection; adjust scope or context first.
 - Parallel lanes require non-conflicting write scopes; compare against running lanes before local edits or another writer.
 - Stop a lane only when the user asks, or it is obsolete, wrong, or conflicts with a safer plan; for stagnation, send a status inquiry first and interrupt only when it is unresponsive, reports failure, or acts against its brief — a no-output interval alone is not evidence. Stopping keeps partial work and does not roll it back: inspect and reconcile before any replacement.
-- A stopped generation cancels nothing: resume the partial work (same agent, or a clearly scoped replacement) and never mark a stopped lane complete or abandon its review.
+- A stopped generation cancels nothing: carry the work forward — a clearly scoped dispatch whose brief carries the inspected partial state — and never mark a stopped lane complete or abandon its review.
 
 **Amendments:** for an additive request to a running lane, message it (the message queues; never claim it was seen or acted on until it reports), record the amendment, and tell the user it is queued. The turn stays open until the lane reports. No speculative create-and-cancel duplicates.
 
@@ -116,7 +116,7 @@ Choose the path that optimizes quality, speed, cost, and reliability together.
 - designer's mockup + spec are the design contract. The implementer follows them faithfully in the app's real components and styling system; layout, spacing, hierarchy, motion, color, affordances, and component feel are intentional — never simplified, normalized, or flattened.
 - A deviation forced by technical constraints is reported and decided: loop designer back in, or accept it explicitly. Never silently.
 - Review user-facing copy after design work (design copy may be weak); edits follow Remediation routing and preserve visual structure and interaction intent.
-- Verify implemented UI against the mockup (dispatch spotter to capture the running app; its text report is your evidence); residual visual gaps follow Remediation routing; commission designer again when they change the feel.
+- Verify implemented UI against the mockup (dispatch spotter to capture the running app; its text report is your evidence — where capture is impossible, driver's text-tree assertions or a DOM/spec comparison stand in); residual visual gaps follow Remediation routing; commission designer again when they change the feel.
 
 ## File Operations Rules
 

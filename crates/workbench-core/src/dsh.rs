@@ -155,15 +155,8 @@ pub fn lanes(source_root: &Path) -> Result<Vec<LaneRecord>, WorkbenchError> {
                 "duplicate DSH lane key or tool: {key}"
             )));
         }
-        let recommended = lane.get("recommended");
         let complete = lane.get("denyWrites").is_some_and(serde_json::Value::is_boolean)
-            && lane.get("denyShell").is_some_and(serde_json::Value::is_boolean)
-            && recommended.is_some_and(serde_json::Value::is_object)
-            && ["provider", "model", "reasoningEffort"].iter().all(|field| {
-                recommended
-                    .and_then(|r| r.get(*field))
-                    .is_some_and(serde_json::Value::is_string)
-            });
+            && lane.get("denyShell").is_some_and(serde_json::Value::is_boolean);
         if !complete {
             return Err(WorkbenchError::Message(format!("incomplete DSH lane: {key}")));
         }
@@ -179,9 +172,6 @@ pub fn lanes(source_root: &Path) -> Result<Vec<LaneRecord>, WorkbenchError> {
                 .get("denyShell")
                 .and_then(serde_json::Value::as_bool)
                 .expect("checked above"),
-            recommended: serde_json::from_value(
-                recommended.expect("checked above").clone(),
-            )?,
         });
     }
     Ok(lanes)
@@ -1198,12 +1188,7 @@ mod tests {
             "tool": tool,
             "zh": "测试",
             "denyWrites": true,
-            "denyShell": false,
-            "recommended": {
-                "provider": "deepseek-official",
-                "model": "deepseek-v4-pro",
-                "reasoningEffort": "high"
-            }
+            "denyShell": false
         })
     }
 
@@ -1350,12 +1335,7 @@ mod tests {
                 "tool": "subagent_librarian",
                 "zh": "外部文档研究",
                 "denyWrites": true,
-                "denyShell": true,
-                "recommended": {
-                    "provider": "deepseek-official",
-                    "model": "deepseek-v4-flash",
-                    "reasoningEffort": "low"
-                }
+                "denyShell": true
             }]),
         );
         let lanes = lanes(dir.path()).unwrap();
@@ -1364,7 +1344,7 @@ mod tests {
         assert_eq!(lanes[0].tool, "subagent_explorer");
         assert!(lanes[0].deny_writes);
         assert!(!lanes[0].deny_shell);
-        assert_eq!(lanes[1].recommended.reasoning_effort, "low");
+        assert!(lanes[1].deny_shell);
     }
 
     #[test]
@@ -1438,21 +1418,6 @@ mod tests {
             {
                 let mut lane = lane_record("k", "subagent_x");
                 lane.as_object_mut().unwrap().remove("denyShell");
-                json!([lane])
-            },
-            {
-                let mut lane = lane_record("k", "subagent_x");
-                lane.as_object_mut().unwrap().remove("recommended");
-                json!([lane])
-            },
-            {
-                let mut lane = lane_record("k", "subagent_x");
-                lane["recommended"] = json!(null);
-                json!([lane])
-            },
-            {
-                let mut lane = lane_record("k", "subagent_x");
-                lane["recommended"]["model"] = json!(7);
                 json!([lane])
             },
         ];

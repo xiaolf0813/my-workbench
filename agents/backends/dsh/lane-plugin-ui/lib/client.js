@@ -186,15 +186,13 @@ window.__ModuleLoader__.load({
         const groups = groupsOf(catalogResult !== undefined && failureOf(catalogResult) === undefined ? catalogResult.value : undefined)
         const catalogError = catalogResult === undefined ? undefined : failureOf(catalogResult)
         const resolved = section.value
-        const user = section.user !== null && typeof section.user === 'object' ? section.user : {}
         setView({
           status: 'ok',
           revision: typeof section.revision === 'number' ? section.revision : 0,
           writable: value.writable === true,
           groups,
           catalogError,
-          resolved,
-          overridden: user
+          resolved
         })
         setDraft(LANES.map((lane) => Object.assign({ key: lane.key }, pinOf(resolved, lane.key))))
       }
@@ -233,7 +231,6 @@ window.__ModuleLoader__.load({
       }
 
       const groups = view.groups
-      const overridden = view.overridden
 
       function catalogHas(provider, model) {
         for (const group of groups) {
@@ -329,7 +326,7 @@ window.__ModuleLoader__.load({
       const rows = LANES.map((lane) => {
         const pin = draft.filter((entry) => entry.key === lane.key)[0] || { key: lane.key, provider: '', model: '', reasoningEffort: '' }
         const value = routeKeyOf(pin) === null ? '' : pin.provider + '|' + pin.model
-        const tag = Object.prototype.hasOwnProperty.call(overridden, lane.key) ? '已自定义' : '内置推荐'
+        const tag = routeKeyOf(pin) === null ? '继承会话' : '已自定义'
         const toolName = 'subagent_' + lane.key.replace(/-/g, '_')
         const summary = lane.key + ' · ' + lane.zh
         return h('div', { className: 'mwl-row', key: lane.key },
@@ -368,7 +365,7 @@ window.__ModuleLoader__.load({
           h('button', { className: 'mwl-button', disabled: busy, onClick: load }, '刷新模型目录'),
           message === null ? null : h('span', { className: 'mwl-status' }, message)
         ),
-        h('p', { className: 'mwl-note' }, '初始路由来自插件内置的推荐映射（settings base 层）；「全部改回继承」会在用户层写入空值以覆盖它。'),
+        h('p', { className: 'mwl-note' }, '没有内置的模型映射：未固定的赛道直接继承当前会话模型的路由；「全部改回继承」把全部固定值改回空值，恢复继承。'),
         view.catalogError === undefined && groups.length > 0
           ? null
           : h('p', { className: 'mwl-note' }, '模型目录不可用' + (view.catalogError === undefined ? '' : '：' + view.catalogError) + '；仍可查看与清空已有固定值。')

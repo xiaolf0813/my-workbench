@@ -496,7 +496,7 @@ mod tests {
         write(
             dir.path(),
             "agents/backends/dsh/lanes.json",
-            r#"[{ "key": "explorer", "tool": "subagent_explorer", "zh": "探索", "denyWrites": true, "denyShell": false, "recommended": { "provider": "p", "model": "m", "reasoningEffort": "low" } }]"#,
+            r#"[{ "key": "explorer", "tool": "subagent_explorer", "zh": "探索", "denyWrites": true, "denyShell": false }]"#,
         );
         write(
             dir.path(),
@@ -651,7 +651,7 @@ mod tests {
         write(
             dir.path(),
             "agents/backends/dsh/lanes.json",
-            r#"[{ "key": "ghost", "tool": "subagent_ghost", "zh": "x", "denyWrites": true, "denyShell": false, "recommended": { "provider": "p", "model": "m", "reasoningEffort": "low" } }]"#,
+            r#"[{ "key": "ghost", "tool": "subagent_ghost", "zh": "x", "denyWrites": true, "denyShell": false }]"#,
         );
         // roster import missing
         write(

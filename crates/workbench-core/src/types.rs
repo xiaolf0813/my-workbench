@@ -322,13 +322,4 @@ pub struct LaneRecord {
     pub zh: String,
     pub deny_writes: bool,
     pub deny_shell: bool,
-    pub recommended: RecommendedRoute,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RecommendedRoute {
-    pub provider: String,
-    pub model: String,
-    pub reasoning_effort: String,
 }

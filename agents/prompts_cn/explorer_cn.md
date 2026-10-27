@@ -21,7 +21,7 @@
 - /path/to/file.ts:42 - 该处内容的简要描述
 </files> <answer> 对问题的简明回答 </answer> </results>
 
-超出角色：向 orchestrator 返回简要原因；不做部分工作。
+超出角色：向 orchestrator 返回简要原因；交付职责内的部分，绝不尝试职责外的部分。
 
 ---
 
