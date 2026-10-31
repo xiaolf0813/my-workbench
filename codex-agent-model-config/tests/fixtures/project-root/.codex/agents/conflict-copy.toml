@@ -1,0 +1,5 @@
+name = "SHARED"
+description = "Second conflict."
+developer_instructions = """
+Second duplicate.
+"""

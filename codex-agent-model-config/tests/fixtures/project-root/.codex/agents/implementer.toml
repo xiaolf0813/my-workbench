@@ -1,0 +1,5 @@
+name = "implementer"
+description = "Implements reviewed work."
+developer_instructions = """
+Implement the requested code changes.
+"""

@@ -1,0 +1,12 @@
+name = "planner"
+description = "Plans implementation work."
+model = "gpt-6.1-sol"
+model_reasoning_effort = "medium"
+
+developer_instructions = """
+Create an implementation plan before coding.
+"""
+
+# preserve this comment
+[metadata]
+source = "fixture"

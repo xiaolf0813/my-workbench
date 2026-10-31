@@ -1,0 +1,11 @@
+node_modules/
+dist/
+web/node_modules/
+web/dist/
+web/dist-app/
+*.tsbuildinfo
+tests/tools-sandbox-*/
+tests/fixtures/codex-home/*
+!tests/fixtures/codex-home/agents/
+tests/fixtures/codex-home/agents/*
+!tests/fixtures/codex-home/agents/*.toml

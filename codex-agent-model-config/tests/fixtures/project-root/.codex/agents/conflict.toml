@@ -1,0 +1,5 @@
+name = "shared"
+description = "First conflict."
+developer_instructions = """
+First duplicate.
+"""
