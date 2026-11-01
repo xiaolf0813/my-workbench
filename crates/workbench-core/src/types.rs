@@ -162,9 +162,15 @@ pub enum LogLevel {
 /// Events streamed during `execute`; the Tauri shell forwards them to the
 /// frontend as `install-log` / `install-progress`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "event", rename_all = "kebab-case", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "event",
+    rename_all = "kebab-case",
+    rename_all_fields = "camelCase"
+)]
 pub enum InstallEvent {
-    Started { total_files: usize },
+    Started {
+        total_files: usize,
+    },
     Log {
         time_ms: u64,
         target: Option<Target>,
@@ -176,7 +182,9 @@ pub enum InstallEvent {
         done: usize,
         total: usize,
     },
-    Finished { cancelled: bool },
+    Finished {
+        cancelled: bool,
+    },
 }
 
 /// Event outlet + cooperative cancellation, implemented by the host. The

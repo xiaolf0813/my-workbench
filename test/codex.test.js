@@ -15,15 +15,28 @@ function fixture(t, override = true) {
   const home = join(root, 'home');
   const project = join(root, 'project');
   const config = override ? join(root, 'custom codex home') : join(home, '.codex');
+  const codexLog = join(root, 'codex-plugin.log');
+  const fakeCodex = join(root, 'fake-codex.cjs');
   mkdirSync(home); mkdirSync(project);
+  writeFileSync(fakeCodex, `
+const { appendFileSync } = require('node:fs');
+const args = process.argv.slice(2);
+appendFileSync(process.env.MY_WORKBENCH_TEST_CODEX_LOG, JSON.stringify(args) + '\\n');
+if (process.env.MY_WORKBENCH_FAIL_PLUGIN_INSTALL === '1' && args[0] === 'plugin' && args[1] === 'add') process.exit(42);
+process.stdout.write(JSON.stringify({ ok: true }));
+`);
   const env = { ...process.env, HOME: home, USERPROFILE: home, APPDATA: join(home, 'AppData'), XDG_CONFIG_HOME: join(home, '.config') };
+  env.MY_WORKBENCH_TEST_CODEX_BIN = process.execPath;
+  env.MY_WORKBENCH_TEST_CODEX_SCRIPT = fakeCodex;
+  env.MY_WORKBENCH_TEST_CODEX_LOG = codexLog;
   if (override) env.CODEX_HOME = config; else delete env.CODEX_HOME;
+  const runRaw = (...args) => spawnSync(process.execPath, [join(repo, 'bin/my-workbench.js'), ...args], { cwd: project, env, encoding: 'utf8' });
   const run = (...args) => {
-    const result = spawnSync(process.execPath, [join(repo, 'bin/my-workbench.js'), ...args], { cwd: project, env, encoding: 'utf8' });
+    const result = runRaw(...args);
     assert.equal(result.status, 0, result.stdout + result.stderr);
     return result;
   };
-  return { root, home, project, config, run };
+  return { root, home, project, config, codexLog, env, run, runRaw };
 }
 
 test('ChatGPT alias deploys native agents into CODEX_HOME without changing config.toml', t => {
@@ -50,17 +63,35 @@ test('ChatGPT alias deploys native agents into CODEX_HOME without changing confi
   assert.ok(Buffer.byteLength(entry) < 2048);
   assert.ok(entry.includes(join(f.config, 'my-workbench-orchestrator.md').split(sep).join('/')));
   assert.ok(existsSync(join(f.config, 'my-workbench-solutions/toolkit-gui-test.md')));
+  const marketplace = join(f.config, 'my-workbench-plugin-marketplace');
+  assert.ok(existsSync(join(marketplace, '.agents/plugins/marketplace.json')));
+  assert.ok(existsSync(join(marketplace, 'plugins/subagent-config/runtime/server.mjs')));
+  assert.ok(existsSync(join(marketplace, 'plugins/subagent-config/runtime/component.html')));
+  const pluginCalls = readFileSync(f.codexLog, 'utf8').trim().split('\n').map(JSON.parse);
+  assert.deepEqual(pluginCalls.at(-2), ['plugin', 'marketplace', 'add', marketplace, '--json']);
+  assert.deepEqual(pluginCalls.at(-1), ['plugin', 'add', 'subagent-config@my-workbench', '--json']);
   assert.ok(existsSync(join(f.home, '.my-workbench.version')));
   assert.deepEqual(readdirSync(f.project), []);
 });
 
 test('Codex defaults to the sandbox home; dry-run writes nothing', t => {
   const f = fixture(t, false);
-  f.run('--codex', '--dry-run');
+  const dry = f.run('--codex', '--dry-run');
+  assert.match(dry.stdout, /codex plugin marketplace add .* \(dry-run\)/);
+  assert.match(dry.stdout, /codex plugin add subagent-config@my-workbench --json  \(dry-run\)/);
   assert.equal(existsSync(f.config), false);
   assert.equal(existsSync(join(f.home, '.my-workbench.version')), false);
   f.run('--codex', '--user');
   assert.ok(existsSync(join(f.config, 'agents/fixer.toml')));
+});
+
+test('Codex plugin install failure prevents the user version stamp', t => {
+  const f = fixture(t);
+  f.env.MY_WORKBENCH_FAIL_PLUGIN_INSTALL = '1';
+  const result = f.runRaw('--codex');
+  assert.notEqual(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stderr, /codex plugin add subagent-config@my-workbench --json failed/);
+  assert.equal(existsSync(join(f.home, '.my-workbench.version')), false);
 });
 
 test('Codex reruns skip owned files, refresh guides, and preserve model knobs on force', t => {

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -11,17 +12,28 @@ const fixtureHome = fileURLToPath(new URL("./fixtures/codex-home", import.meta.u
 
 test("stdio server exposes the three tools and the MCP Apps resource", async () => {
   const manifest = JSON.parse(await fs.readFile(path.join(pluginRoot, "mcp.json"), "utf8"));
-  const serverConfig = manifest.mcpServers["codex-agent-model-config"];
+  const serverConfig = manifest.mcpServers["subagent-config"];
   const serverEntryPoint = serverConfig.args[0].replace("${PLUGIN_ROOT}", pluginRoot);
   assert.equal(serverConfig.type, "stdio");
   assert.equal(serverConfig.cwd, "${PLUGIN_ROOT}");
   await fs.access(serverEntryPoint);
 
-  const client = new Client({ name: "codex-agent-model-config-test", version: "0.1.8" });
+  // Exercise the exact four-file deployment shape: no package.json and no
+  // node_modules may be required by the bundled server at runtime.
+  const isolatedRoot = await fs.mkdtemp(path.join(os.tmpdir(), "subagent-config-runtime-"));
+  const isolatedRuntime = path.join(isolatedRoot, "runtime");
+  await fs.mkdir(isolatedRuntime);
+  await fs.copyFile(serverEntryPoint, path.join(isolatedRuntime, "server.mjs"));
+  await fs.copyFile(
+    path.join(pluginRoot, "runtime", "component.html"),
+    path.join(isolatedRuntime, "component.html"),
+  );
+
+  const client = new Client({ name: "subagent-config-test", version: "0.1.8" });
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [serverEntryPoint],
-    cwd: pluginRoot,
+    args: [path.join(isolatedRuntime, "server.mjs")],
+    cwd: isolatedRoot,
     env: { ...process.env, CODEX_HOME: fixtureHome },
   });
 
@@ -34,12 +46,12 @@ test("stdio server exposes the three tools and the MCP Apps resource", async () 
     );
 
     const resources = await client.listResources();
-    const appResource = resources.resources.find((resource) => resource.uri === "ui://codex-agent-model-config/v10.html");
+    const appResource = resources.resources.find((resource) => resource.uri === "ui://subagent-config/v10.html");
     assert.ok(appResource);
     const component = await client.readResource({ uri: appResource.uri });
     assert.equal(component.contents[0]?.mimeType, "text/html;profile=mcp-app");
     const componentHtml = component.contents[0]?.text ?? "";
-    assert.match(componentHtml, /Subagent model configuration/);
+    assert.match(componentHtml, /Subagent Config/);
     assert.match(componentHtml, /ui\/notifications\/tool-input/);
     assert.match(componentHtml, /project-root-value/);
     assert.doesNotMatch(componentHtml, /project-root-field/);
@@ -68,5 +80,6 @@ test("stdio server exposes the three tools and the MCP Apps resource", async () 
     assert.equal(JSON.stringify(rejected).includes(secret), false);
   } finally {
     await client.close();
+    await fs.rm(isolatedRoot, { recursive: true, force: true });
   }
 });

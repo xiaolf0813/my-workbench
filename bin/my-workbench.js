@@ -75,6 +75,20 @@ const SOLUTIONS_SRC = join(PKG_ROOT, "agents", "solutions");
 /** Directory the solution guides occupy inside a deployment realm. */
 const SOLUTIONS_DEST_DIR = "my-workbench-solutions";
 
+/** Bundled, offline Codex plugin and its personal local marketplace. */
+const CODEX_PLUGIN_SOURCE = join(PKG_ROOT, "agents", "backends", "codex", "subagent-config");
+const CODEX_MARKETPLACE_SOURCE = join(PKG_ROOT, "agents", "backends", "codex", "subagent-config-marketplace");
+const CODEX_MARKETPLACE_DIR = "my-workbench-plugin-marketplace";
+const CODEX_MARKETPLACE_NAME = "my-workbench";
+const CODEX_PLUGIN_NAME = "subagent-config";
+const CODEX_PLUGIN_ID = `${CODEX_PLUGIN_NAME}@${CODEX_MARKETPLACE_NAME}`;
+const CODEX_PLUGIN_FILES = [
+  "plugin.json",
+  "mcp.json",
+  "runtime/server.mjs",
+  "runtime/component.html",
+];
+
 /**
  * Package names of the two lane artifacts. They are the SINGLE authored source of
  * these strings: the same name is the browser module id the page registers under,
@@ -923,6 +937,35 @@ function opencodeInstalled() {
   return !(result.error && result.error.code === "ENOENT");
 }
 
+/** A read-only prerequisite probe; unlike the OpenCode compatibility probe, capability must exit successfully. */
+function commandSucceeds(command, args, options = {}) {
+  const result = spawnSync(command, args, { stdio: "ignore", windowsHide: true, ...options });
+  return !result.error && result.status === 0;
+}
+
+function codexProgram() {
+  return process.env.MY_WORKBENCH_TEST_CODEX_BIN || "codex";
+}
+
+function codexArgs(args) {
+  const script = process.env.MY_WORKBENCH_TEST_CODEX_SCRIPT;
+  return script ? [script, ...args] : args;
+}
+
+function codexPluginPrerequisiteFailures(root) {
+  const failures = [];
+  if (!commandSucceeds("node", ["--version"])) {
+    failures.push("ChatGPT / Codex deployment requires Node.js on PATH for the bundled Subagent Config plugin");
+  }
+  if (!commandSucceeds(codexProgram(), codexArgs(["plugin", "--help"]), {
+    cwd: existsSync(root) ? root : undefined,
+    env: { ...process.env, CODEX_HOME: root },
+  })) {
+    failures.push("ChatGPT / Codex deployment requires a Codex CLI with 'codex plugin' support on PATH");
+  }
+  return failures;
+}
+
 /**
  * Assemble one agent markdown file for a backend: its frontmatter lines from
  * agents/roster.json supplies frontmatter for the shared prompt bodies.
@@ -1764,15 +1807,63 @@ function codexOutputs(root, usedSlots) {
   return outputs;
 }
 
+function installCodexPluginFiles(root, display, opts, counts) {
+  const marketplaceRoot = join(root, CODEX_MARKETPLACE_DIR);
+  const always = { ...display, ...opts, preserve: false, regenerate: true };
+  writeAgent(
+    join(marketplaceRoot, ".agents", "plugins", "marketplace.json"),
+    readFileSync(join(CODEX_MARKETPLACE_SOURCE, ".agents", "plugins", "marketplace.json"), "utf8"),
+    always,
+    counts,
+  );
+  for (const rel of CODEX_PLUGIN_FILES) {
+    writeAgent(
+      join(marketplaceRoot, "plugins", CODEX_PLUGIN_NAME, rel),
+      readFileSync(join(CODEX_PLUGIN_SOURCE, rel), "utf8"),
+      always,
+      counts,
+    );
+  }
+  return marketplaceRoot;
+}
+
+function runCodexPluginCommand(root, args) {
+  const result = spawnSync(codexProgram(), codexArgs(args), {
+    cwd: root,
+    env: { ...process.env, CODEX_HOME: root },
+    encoding: "utf8",
+    windowsHide: true,
+  });
+  if (!result.error && result.status === 0) return;
+  const detail = [result.error?.message, result.stderr, result.stdout]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join("; ");
+  throw new Error(`codex ${args.join(" ")} failed${detail ? `: ${detail}` : ""}`);
+}
+
+function installCodexPlugin(root, marketplaceRoot, opts) {
+  const commands = [
+    ["plugin", "marketplace", "add", marketplaceRoot, "--json"],
+    ["plugin", "add", CODEX_PLUGIN_ID, "--json"],
+  ];
+  for (const args of commands) {
+    console.log(`  plugin     codex ${args.join(" ")}${opts.dryRun ? "  (dry-run)" : ""}`);
+    if (!opts.dryRun) runCodexPluginCommand(root, args);
+  }
+}
+
 function applyCodex(opts, counts) {
   const root = codexRoot();
   const usedSlots = new Set();
   const display = { ...opts, displayRoot: homedir(), displayPrefix: "~/" };
-  console.log(`\n${root}/  (ChatGPT / Codex: AGENTS.md, agents/*.toml, my-workbench-solutions/)`);
+  console.log(`\n${root}/  (ChatGPT / Codex: agents, orchestration, solutions, Subagent Config)`);
   for (const [rel, text] of codexOutputs(root, usedSlots)) writeAgent(join(root, rel), text, display, counts);
   installSolutions(root, display, counts);
+  const marketplaceRoot = installCodexPluginFiles(root, display, opts, counts);
+  installCodexPlugin(root, marketplaceRoot, opts);
   warnUnusedSlots("codex", usedSlots);
-  console.log("  note       restart ChatGPT / Codex sessions; existing AGENTS.md files skip unless --force, and AGENTS.override.md takes precedence");
+  console.log("  note       restart ChatGPT / Codex after deployment; existing AGENTS.md files skip unless --force, and AGENTS.override.md takes precedence");
 }
 
 /**
@@ -2304,6 +2395,7 @@ async function main() {
   if (opts.targets.has("opencode") && !opencodeInstalled()) {
     prereqFailures.push("OpenCode is not installed (no 'opencode' on PATH); install OpenCode first");
   }
+  if (opts.targets.has("codex")) prereqFailures.push(...codexPluginPrerequisiteFailures(codexRoot()));
   if (opts.targets.has("dsh") && !existsSync(dshHome())) {
     prereqFailures.push(`DSH is not installed (no ${dshHome()}); install DeepSeek Harness first, then rerun with --dsh`);
   }

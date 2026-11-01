@@ -127,7 +127,7 @@ export function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Subagent model configuration</h1>
+        <h1>Subagent Config</h1>
       </header>
       <StatusMessage status={status} />
       <div className="layout">

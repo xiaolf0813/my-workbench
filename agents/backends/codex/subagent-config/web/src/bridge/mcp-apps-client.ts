@@ -82,7 +82,7 @@ export async function initializeMcpApps(): Promise<void> {
   if (initialized) return;
   await request("ui/initialize", {
     protocolVersion: "2026-01-26",
-    appInfo: { name: "codex-agent-model-config-ui", version: "0.1.8" },
+    appInfo: { name: "subagent-config-ui", version: "0.1.8" },
     appCapabilities: {},
   });
   notify("ui/notifications/initialized");

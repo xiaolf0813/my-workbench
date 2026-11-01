@@ -36,7 +36,7 @@ use crate::error::WorkbenchError;
 use crate::preserve::{
     frontmatter_key_of, CLAUDE_AGENT_KEYS, OPENCODE_AGENT_KEYS, ZCODE_AGENT_KEYS,
 };
-use crate::types::{APPLY_ORDER, Target};
+use crate::types::{Target, APPLY_ORDER};
 
 /// The orchestrator file inside an `agents/` directory — deployed, but not
 /// an agent, so it never counts as one.
@@ -220,7 +220,11 @@ fn count_preset_files(dir: &Path, count: &mut usize, newest_ms: &mut Option<i64>
 fn dsh_preset_stats(dsh_home: &Path) -> (Option<usize>, Option<i64>) {
     let mut count = 0usize;
     let mut newest_ms = None;
-    count_preset_files(&crate::dsh::preset_root(dsh_home), &mut count, &mut newest_ms);
+    count_preset_files(
+        &crate::dsh::preset_root(dsh_home),
+        &mut count,
+        &mut newest_ms,
+    );
     if count == 0 {
         (None, None)
     } else {
@@ -272,7 +276,12 @@ fn key_value_of(line: &str) -> Option<(&str, &str)> {
 /// `fallback_name`, usually the file stem), every model key of `keys` →
 /// its first-occurrence value, and the body — everything after the closing
 /// fence, verbatim (the whole text when there is no frontmatter block).
-fn parse_deployed_agent(text: &str, fallback_name: &str, file_name: &str, keys: &[&str]) -> DeployedAgent {
+fn parse_deployed_agent(
+    text: &str,
+    fallback_name: &str,
+    file_name: &str,
+    keys: &[&str],
+) -> DeployedAgent {
     let mut name: Option<String> = None;
     let mut description: Option<String> = None;
     let mut values: Vec<Option<String>> = vec![None; keys.len()];
@@ -373,9 +382,13 @@ fn has_agent_file(dir: &Path, target: Target) -> bool {
     entries.filter_map(Result::ok).any(|entry| {
         let path = entry.path();
         path.is_file()
-            && path
-                .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case(if target == Target::Codex { "toml" } else { "md" }))
+            && path.extension().is_some_and(|ext| {
+                ext.eq_ignore_ascii_case(if target == Target::Codex {
+                    "toml"
+                } else {
+                    "md"
+                })
+            })
             && entry.file_name().to_str() != Some(AGENTS_MD)
     })
 }
@@ -398,9 +411,13 @@ pub fn list_deployed_agents(
             .filter(|entry| {
                 let path = entry.path();
                 path.is_file()
-                    && path
-                        .extension()
-                        .is_some_and(|ext| ext.eq_ignore_ascii_case(if target == Target::Codex { "toml" } else { "md" }))
+                    && path.extension().is_some_and(|ext| {
+                        ext.eq_ignore_ascii_case(if target == Target::Codex {
+                            "toml"
+                        } else {
+                            "md"
+                        })
+                    })
                     && entry.file_name().to_str() != Some(AGENTS_MD)
             })
             .filter_map(|entry| entry.file_name().to_str().map(str::to_owned))
@@ -456,9 +473,8 @@ pub fn save_deployed_agent(
         )
     })?;
     let path = resolve_agent_file(&dir, file_name, target)?;
-    let text = std::fs::read_to_string(&path).map_err(|err| {
-        WorkbenchError::Message(format!("cannot read {}: {err}", path.display()))
-    })?;
+    let text = std::fs::read_to_string(&path)
+        .map_err(|err| WorkbenchError::Message(format!("cannot read {}: {err}", path.display())))?;
     let final_text = if target == Target::Codex {
         crate::codex::edit_agent(&text, new_body, settings)?
     } else {
@@ -469,7 +485,12 @@ pub fn save_deployed_agent(
     if target == Target::Codex {
         crate::codex::read_agent(&final_text, &fallback_name, file_name)
     } else {
-        Ok(parse_deployed_agent(&final_text, &fallback_name, file_name, keys))
+        Ok(parse_deployed_agent(
+            &final_text,
+            &fallback_name,
+            file_name,
+            keys,
+        ))
     }
 }
 
@@ -485,7 +506,11 @@ fn file_stem_of(file_name: &str) -> String {
 /// a single normal path component naming an existing `.md` file whose
 /// canonical location stays inside the canonical directory (symlink escape
 /// refused). Anything else is a hard error — unknown names included.
-fn resolve_agent_file(dir: &Path, file_name: &str, target: Target) -> Result<PathBuf, WorkbenchError> {
+fn resolve_agent_file(
+    dir: &Path,
+    file_name: &str,
+    target: Target,
+) -> Result<PathBuf, WorkbenchError> {
     let invalid = |why: &str| {
         Err(WorkbenchError::Message(format!(
             "invalid agent file name '{file_name}': {why}"
@@ -502,9 +527,17 @@ fn resolve_agent_file(dir: &Path, file_name: &str, target: Target) -> Result<Pat
         [Component::Normal(_)] => {}
         _ => return invalid("not a plain file name"),
     }
-    let extension = if target == Target::Codex { ".toml" } else { ".md" };
+    let extension = if target == Target::Codex {
+        ".toml"
+    } else {
+        ".md"
+    };
     if !file_name.to_ascii_lowercase().ends_with(extension) {
-        return invalid(if target == Target::Codex { "only .toml agent files can be saved" } else { "only .md agent files can be saved" });
+        return invalid(if target == Target::Codex {
+            "only .toml agent files can be saved"
+        } else {
+            "only .md agent files can be saved"
+        });
     }
     let path = dir.join(rel);
     if !path.starts_with(dir) {
@@ -518,8 +551,9 @@ fn resolve_agent_file(dir: &Path, file_name: &str, target: Target) -> Result<Pat
     }
     // Symlink containment: the file's real location must stay inside the
     // directory's real location.
-    let canon_dir = dunce::canonicalize(dir)
-        .map_err(|err| WorkbenchError::Message(format!("cannot resolve {}: {err}", dir.display())))?;
+    let canon_dir = dunce::canonicalize(dir).map_err(|err| {
+        WorkbenchError::Message(format!("cannot resolve {}: {err}", dir.display()))
+    })?;
     let canon_path = dunce::canonicalize(&path).map_err(|err| {
         WorkbenchError::Message(format!("cannot resolve {}: {err}", path.display()))
     })?;
@@ -740,7 +774,11 @@ mod tests {
 
         // dsh: only the preset root directory's existence counts.
         assert!(!target_deployed(&p, Target::Dsh));
-        let preset = sb.home.join(".dsh").join(".agent-presets").join("my-workbench");
+        let preset = sb
+            .home
+            .join(".dsh")
+            .join(".agent-presets")
+            .join("my-workbench");
         fs::create_dir_all(&preset).unwrap();
         assert!(target_deployed(&p, Target::Dsh));
 
@@ -750,7 +788,11 @@ mod tests {
             rows.iter().map(|r| r.target).collect::<Vec<_>>(),
             APPLY_ORDER.to_vec()
         );
-        let deployed: Vec<Target> = rows.iter().filter(|r| r.deployed).map(|r| r.target).collect();
+        let deployed: Vec<Target> = rows
+            .iter()
+            .filter(|r| r.deployed)
+            .map(|r| r.target)
+            .collect();
         assert_eq!(deployed, vec![Target::Claude, Target::Dsh]);
     }
 
@@ -767,7 +809,11 @@ mod tests {
 
         // Files under the preset root: the dsh row carries the recursive
         // regular-file count and the newest mtime; the other rows stay null.
-        let preset = sb.home.join(".dsh").join(".agent-presets").join("my-workbench");
+        let preset = sb
+            .home
+            .join(".dsh")
+            .join(".agent-presets")
+            .join("my-workbench");
         fs::create_dir_all(preset.join("nested")).unwrap();
         fs::write(preset.join("preset.yml"), "lane: {}\n").unwrap();
         fs::write(preset.join("nested").join("agent.cordis.yml"), "rows: {}\n").unwrap();
@@ -848,7 +894,11 @@ mod tests {
         let u = deployed_overview(&params(&sb, None, true));
         for t in [Target::Opencode, Target::Claude, Target::Zcode, Target::Dsh] {
             assert_eq!(
-                u.iter().find(|r| r.target == t).unwrap().deployed_version.as_deref(),
+                u.iter()
+                    .find(|r| r.target == t)
+                    .unwrap()
+                    .deployed_version
+                    .as_deref(),
                 Some("0.13.0"),
                 "{t:?}"
             );
@@ -859,12 +909,20 @@ mod tests {
         let n = deployed_overview(&params(&sb, None, false));
         for t in [Target::Opencode, Target::Claude] {
             assert!(
-                n.iter().find(|r| r.target == t).unwrap().deployed_version.is_none(),
+                n.iter()
+                    .find(|r| r.target == t)
+                    .unwrap()
+                    .deployed_version
+                    .is_none(),
                 "{t:?}"
             );
         }
         assert_eq!(
-            n.iter().find(|r| r.target == Target::Dsh).unwrap().deployed_version.as_deref(),
+            n.iter()
+                .find(|r| r.target == Target::Dsh)
+                .unwrap()
+                .deployed_version
+                .as_deref(),
             Some("0.13.0")
         );
 
@@ -898,8 +956,14 @@ mod tests {
         let oracle = &agents[1];
         assert_eq!(oracle.name, "oracle");
         assert_eq!(oracle.description.as_deref(), Some("The oracle agent."));
-        assert_eq!(oracle.settings.get("model").and_then(|v| v.as_deref()), Some("opus"));
-        assert_eq!(oracle.settings.get("effort").and_then(|v| v.as_deref()), Some("high"));
+        assert_eq!(
+            oracle.settings.get("model").and_then(|v| v.as_deref()),
+            Some("opus")
+        );
+        assert_eq!(
+            oracle.settings.get("effort").and_then(|v| v.as_deref()),
+            Some("high")
+        );
         // Every backend key is present in the map.
         assert_eq!(oracle.settings.len(), CLAUDE_AGENT_KEYS.len());
         assert_eq!(oracle.body, "\nYou are Oracle.\n");
@@ -907,8 +971,14 @@ mod tests {
         let fixer = &agents[0];
         assert_eq!(fixer.name, "fixer");
         assert!(fixer.description.is_none());
-        assert_eq!(fixer.settings.get("model").and_then(|v| v.as_deref()), Some("inherit"));
-        assert_eq!(fixer.settings.get("effort").and_then(|v| v.as_deref()), None);
+        assert_eq!(
+            fixer.settings.get("model").and_then(|v| v.as_deref()),
+            Some("inherit")
+        );
+        assert_eq!(
+            fixer.settings.get("effort").and_then(|v| v.as_deref()),
+            None
+        );
         // CRLF round trip: the body keeps its \r bytes.
         assert_eq!(fixer.body, "\r\nBody line.\r\n");
     }
@@ -922,11 +992,18 @@ mod tests {
         // Unclosed frontmatter: same rule.
         write_agent(&sb, ".claude/agents/unclosed.md", "---\nname: x\n");
         // AGENTS.md is never listed.
-        write_agent(&sb, ".claude/agents/AGENTS.md", "---\nname: orch\n---\nbody\n");
+        write_agent(
+            &sb,
+            ".claude/agents/AGENTS.md",
+            "---\nname: orch\n---\nbody\n",
+        );
 
         let agents = list_deployed_agents(&p, Target::Claude).unwrap();
         assert_eq!(
-            agents.iter().map(|a| a.file_name.as_str()).collect::<Vec<_>>(),
+            agents
+                .iter()
+                .map(|a| a.file_name.as_str())
+                .collect::<Vec<_>>(),
             vec!["bare.md", "unclosed.md"]
         );
         assert_eq!(agents[0].name, "bare");
@@ -958,13 +1035,20 @@ mod tests {
         let mut settings = BTreeMap::new();
         settings.insert("model".to_string(), Some("custom/pinned".to_string()));
         settings.insert("effort".to_string(), None);
-        let saved = save_deployed_agent(&p, Target::Claude, "oracle.md", "\nNew body.\n", &settings)
-            .unwrap();
+        let saved =
+            save_deployed_agent(&p, Target::Claude, "oracle.md", "\nNew body.\n", &settings)
+                .unwrap();
 
         assert_eq!(saved.name, "oracle");
         assert_eq!(saved.description.as_deref(), Some("The oracle agent."));
-        assert_eq!(saved.settings.get("model").and_then(|v| v.as_deref()), Some("custom/pinned"));
-        assert_eq!(saved.settings.get("effort").and_then(|v| v.as_deref()), None);
+        assert_eq!(
+            saved.settings.get("model").and_then(|v| v.as_deref()),
+            Some("custom/pinned")
+        );
+        assert_eq!(
+            saved.settings.get("effort").and_then(|v| v.as_deref()),
+            None
+        );
         assert_eq!(saved.body, "\nNew body.\n");
 
         let text = fs::read_to_string(&path).unwrap();
@@ -978,7 +1062,10 @@ mod tests {
         settings.insert("effort".to_string(), Some("max".to_string()));
         let saved =
             save_deployed_agent(&p, Target::Claude, "oracle.md", &saved.body, &settings).unwrap();
-        assert_eq!(saved.settings.get("effort").and_then(|v| v.as_deref()), Some("max"));
+        assert_eq!(
+            saved.settings.get("effort").and_then(|v| v.as_deref()),
+            Some("max")
+        );
         let text = fs::read_to_string(&path).unwrap();
         assert_eq!(
             text,
@@ -987,7 +1074,11 @@ mod tests {
 
         // A map without a key leaves that key's line untouched; duplicate
         // key lines collapse to the first when touched, and stay when not.
-        write_agent(&sb, ".claude/agents/dup.md", "---\nmodel: a\nmodel: b\n---\nB\n");
+        write_agent(
+            &sb,
+            ".claude/agents/dup.md",
+            "---\nmodel: a\nmodel: b\n---\nB\n",
+        );
         let mut settings = BTreeMap::new();
         settings.insert("model".to_string(), Some("c".to_string()));
         save_deployed_agent(&p, Target::Claude, "dup.md", "B\n", &settings).unwrap();
@@ -1006,8 +1097,14 @@ mod tests {
         let mut agents = list_deployed_agents(&p, Target::Claude).unwrap();
         let agent = agents.remove(0);
         // Write the read state back: identical bytes.
-        save_deployed_agent(&p, Target::Claude, &agent.file_name, &agent.body, &agent.settings)
-            .unwrap();
+        save_deployed_agent(
+            &p,
+            Target::Claude,
+            &agent.file_name,
+            &agent.body,
+            &agent.settings,
+        )
+        .unwrap();
         assert_eq!(
             fs::read_to_string(sb.project.join(".claude/agents/oracle.md")).unwrap(),
             CLAUDE_ORACLE
@@ -1022,8 +1119,15 @@ mod tests {
             "---\nname: crlf\nmodel: m\r\n---\n\r\nBody.\r\n",
         );
         let agents = list_deployed_agents(&p, Target::Claude).unwrap();
-        let agent = agents.iter().find(|a| a.file_name == "crlf.md").unwrap().clone();
-        assert_eq!(agent.settings.get("model").and_then(|v| v.as_deref()), Some("m"));
+        let agent = agents
+            .iter()
+            .find(|a| a.file_name == "crlf.md")
+            .unwrap()
+            .clone();
+        assert_eq!(
+            agent.settings.get("model").and_then(|v| v.as_deref()),
+            Some("m")
+        );
         save_deployed_agent(&p, Target::Claude, "crlf.md", &agent.body, &agent.settings).unwrap();
         assert_eq!(
             fs::read_to_string(sb.project.join(".claude/agents/crlf.md")).unwrap(),
@@ -1032,9 +1136,17 @@ mod tests {
 
         // A fully-CRLF file has no exact `---` fence line, so it parses as
         // frontmatter-free — and a plain round trip still stays byte-exact.
-        write_agent(&sb, ".claude/agents/dos.md", "---\r\nname: dos\r\n---\r\nD\r\n");
+        write_agent(
+            &sb,
+            ".claude/agents/dos.md",
+            "---\r\nname: dos\r\n---\r\nD\r\n",
+        );
         let agents = list_deployed_agents(&p, Target::Claude).unwrap();
-        let agent = agents.iter().find(|a| a.file_name == "dos.md").unwrap().clone();
+        let agent = agents
+            .iter()
+            .find(|a| a.file_name == "dos.md")
+            .unwrap()
+            .clone();
         assert_eq!(agent.body, "---\r\nname: dos\r\n---\r\nD\r\n");
         save_deployed_agent(&p, Target::Claude, "dos.md", &agent.body, &agent.settings).unwrap();
         assert_eq!(
@@ -1061,7 +1173,8 @@ mod tests {
         // A setting set: a minimal block is synthesized.
         let mut settings = BTreeMap::new();
         settings.insert("model".to_string(), Some("sonnet".to_string()));
-        let saved = save_deployed_agent(&p, Target::Claude, "bare.md", "just text\n", &settings).unwrap();
+        let saved =
+            save_deployed_agent(&p, Target::Claude, "bare.md", "just text\n", &settings).unwrap();
         assert_eq!(saved.name, "bare", "no name line yet → stem fallback");
         assert_eq!(
             fs::read_to_string(sb.project.join(".claude/agents/bare.md")).unwrap(),
@@ -1089,7 +1202,14 @@ mod tests {
         }
 
         // Escapes: parent traversal, absolute, empty.
-        for name in ["../oracle.md", "..", ".", "", "C:\\evil.md", "/etc/passwd.md"] {
+        for name in [
+            "../oracle.md",
+            "..",
+            ".",
+            "",
+            "C:\\evil.md",
+            "/etc/passwd.md",
+        ] {
             assert!(
                 save_deployed_agent(&p, Target::Claude, name, "b", &settings).is_err(),
                 "must reject {name:?}"
@@ -1125,9 +1245,11 @@ mod tests {
 
         // Project-level opencode without a project dir: empty list, save errs.
         let n = params(&sb, None, false);
-        assert!(list_deployed_agents(&n, Target::Opencode).unwrap().is_empty());
-        let err =
-            save_deployed_agent(&n, Target::Claude, "oracle.md", "b", &BTreeMap::new()).unwrap_err();
+        assert!(list_deployed_agents(&n, Target::Opencode)
+            .unwrap()
+            .is_empty());
+        let err = save_deployed_agent(&n, Target::Claude, "oracle.md", "b", &BTreeMap::new())
+            .unwrap_err();
         assert!(err.to_string().contains("project directory"), "{err}");
     }
 
@@ -1157,18 +1279,31 @@ mod tests {
         let mut settings = BTreeMap::new();
         settings.insert("thoughtLevel".to_string(), Some("max".to_string()));
         let saved = save_deployed_agent(&zp, Target::Zcode, "z.md", "Z\n", &settings).unwrap();
-        assert_eq!(saved.settings.get("thoughtLevel").and_then(|v| v.as_deref()), Some("max"));
+        assert_eq!(
+            saved
+                .settings
+                .get("thoughtLevel")
+                .and_then(|v| v.as_deref()),
+            Some("max")
+        );
         assert_eq!(
             fs::read_to_string(sb.home.join(".zcode/agents/z.md")).unwrap(),
             "---\nname: z\nmodel: inherit\nthoughtLevel: max\n---\nZ\n"
         );
 
         // opencode: <project>/.opencode/agents, model + variant.
-        write_agent(&sb, ".opencode/agents/o.md", "---\nname: o\nmodel: m\nvariant: v\n---\nO\n");
+        write_agent(
+            &sb,
+            ".opencode/agents/o.md",
+            "---\nname: o\nmodel: m\nvariant: v\n---\nO\n",
+        );
         let mut settings = BTreeMap::new();
         settings.insert("variant".to_string(), Some("max".to_string()));
         let saved = save_deployed_agent(&p, Target::Opencode, "o.md", "O\n", &settings).unwrap();
-        assert_eq!(saved.settings.get("variant").and_then(|v| v.as_deref()), Some("max"));
+        assert_eq!(
+            saved.settings.get("variant").and_then(|v| v.as_deref()),
+            Some("max")
+        );
         assert_eq!(
             fs::read_to_string(sb.project.join(".opencode/agents/o.md")).unwrap(),
             "---\nname: o\nmodel: m\nvariant: max\n---\nO\n"

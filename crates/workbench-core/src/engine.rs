@@ -22,7 +22,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::*;
 use crate::WorkbenchError;
-use crate::{checks, dsh, dsh_deps, render, roster};
+use crate::{checks, codex_plugin, dsh, dsh_deps, render, roster};
 
 // ---------------------------------------------------------------- constants
 
@@ -336,7 +336,9 @@ fn collect_solutions(
 ) -> Result<(), WorkbenchError> {
     let src = source_root.join("agents").join("solutions");
     if !src.is_dir() {
-        t.push_warning("warn: agents/solutions/ is missing in this installation, skipped".to_string());
+        t.push_warning(
+            "warn: agents/solutions/ is missing in this installation, skipped".to_string(),
+        );
         return Ok(());
     }
     let mut files = Vec::new();
@@ -456,8 +458,21 @@ fn collect_before_dsh(
             });
         }
         collect_solutions(Target::Codex, &root, source_root, t)?;
+        let marketplace_root = root.join(codex_plugin::MARKETPLACE_DIR);
+        for (rel, bytes) in codex_plugin::bundled_files(source_root)? {
+            t.actions.push(Action {
+                target: Target::Codex,
+                dest: marketplace_root.join(&rel),
+                source_rel: Path::new(codex_plugin::MARKETPLACE_DIR)
+                    .join(&rel)
+                    .to_string_lossy()
+                    .replace('\\', "/"),
+                content: ActionContent::Bytes(bytes),
+                regenerate: true,
+            });
+        }
         push_slot_warnings(t, "codex", &slots);
-        t.notes.push("restart ChatGPT / Codex sessions; existing AGENTS.md files skip unless --force, and AGENTS.override.md takes precedence".into());
+        t.notes.push("restart ChatGPT / Codex after deployment; existing AGENTS.md files skip unless --force, and AGENTS.override.md takes precedence".into());
     }
     Ok(())
 }
@@ -539,6 +554,9 @@ fn check_prerequisites(sel: &Selection, ctx: &EngineContext) -> Result<(), Workb
             "OpenCode is not installed (no 'opencode' on PATH); install OpenCode first".to_string(),
         ));
     }
+    if sel.targets.contains(&Target::Codex) {
+        codex_plugin::check_prerequisites(&crate::codex::root(&ctx.home))?;
+    }
     if sel.targets.contains(&Target::Dsh) {
         let home = dsh::dsh_home(&ctx.home);
         if !home.exists() {
@@ -554,10 +572,7 @@ fn check_prerequisites(sel: &Selection, ctx: &EngineContext) -> Result<(), Workb
 /// Source-repo guard (CLI :1716-1720): project-level targets must not install
 /// into the content source itself. The project directory compared against the
 /// source root is the user's picked `Selection::project_dir`.
-fn check_source_repo_guard(
-    sel: &Selection,
-    source_root: &Path,
-) -> Result<(), WorkbenchError> {
+fn check_source_repo_guard(sel: &Selection, source_root: &Path) -> Result<(), WorkbenchError> {
     let touches_project_targets = sel.targets.iter().any(is_project_target);
     if !sel.user_level && touches_project_targets {
         let project =
@@ -611,7 +626,12 @@ fn stamp_rel_name(realm: StampRealm) -> &'static str {
 /// target (in APPLY_ORDER) that belongs to the realm's trigger set.
 fn stamp_drift_target(sel: &Selection, realm: StampRealm) -> Target {
     let mut selected: Vec<Target> = sel.targets.clone();
-    selected.sort_by_key(|t| APPLY_ORDER.iter().position(|o| o == t).unwrap_or(usize::MAX));
+    selected.sort_by_key(|t| {
+        APPLY_ORDER
+            .iter()
+            .position(|o| o == t)
+            .unwrap_or(usize::MAX)
+    });
     if realm == StampRealm::Project {
         return selected
             .into_iter()
@@ -780,6 +800,35 @@ pub fn execute(
         }
     }
 
+    // Register the refreshed offline marketplace and plugin before DSH and,
+    // critically, before any version stamp. A CLI failure leaves deployment
+    // visibly incomplete and therefore upgradeable on the next run.
+    if !cancelled && sel.targets.contains(&Target::Codex) {
+        if sink.is_cancelled() {
+            cancelled = true;
+        } else {
+            let root = crate::codex::root(&ctx.home);
+            let marketplace_root = root.join(codex_plugin::MARKETPLACE_DIR);
+            log_event(
+                sink,
+                Some(Target::Codex),
+                LogLevel::Info,
+                format!(
+                    "codex plugin marketplace add {} --json",
+                    marketplace_root.display()
+                ),
+            );
+            codex_plugin::add_marketplace(&root, &marketplace_root)?;
+            log_event(
+                sink,
+                Some(Target::Codex),
+                LogLevel::Info,
+                format!("codex plugin add {} --json", codex_plugin::PLUGIN_ID),
+            );
+            codex_plugin::add_plugin(&root)?;
+        }
+    }
+
     // DSH stage: executed wholesale by the DSH module, which re-resolves its
     // dependencies before its first write (CLI :1185) and emits its own logs.
     if !cancelled && sel.targets.contains(&Target::Dsh) {
@@ -794,7 +843,11 @@ pub fn execute(
             for note in &outcome.notes {
                 log_event(sink, Some(Target::Dsh), LogLevel::Info, note.clone());
             }
-            done += plan.items.iter().filter(|i| i.target == Target::Dsh).count();
+            done += plan
+                .items
+                .iter()
+                .filter(|i| i.target == Target::Dsh)
+                .count();
             sink.emit(InstallEvent::Progress {
                 phase: PROGRESS_PHASE.to_string(),
                 done,
@@ -1262,12 +1315,18 @@ mod tests {
         let claude_agents = p
             .items
             .iter()
-            .filter(|i| i.path.starts_with(sb.project_dir.join(".claude").join("agents")))
+            .filter(|i| {
+                i.path
+                    .starts_with(sb.project_dir.join(".claude").join("agents"))
+            })
             .count();
         let opencode_agents = p
             .items
             .iter()
-            .filter(|i| i.path.starts_with(sb.project_dir.join(".opencode").join("agents")))
+            .filter(|i| {
+                i.path
+                    .starts_with(sb.project_dir.join(".opencode").join("agents"))
+            })
             .count();
         assert!(claude_agents >= 8, "expected >= 8 claude agents");
         assert!(opencode_agents >= 8, "expected >= 8 opencode agents");
@@ -1411,14 +1470,11 @@ mod tests {
                 item.path.display()
             );
         }
-        assert!(p2
-            .items
-            .iter()
-            .all(|i| i.kind == PlanKind::Skip
-                || i.kind == PlanKind::ManagedBlock
-                || i.path
-                    .components()
-                    .any(|c| c.as_os_str() == "my-workbench-solutions")));
+        assert!(p2.items.iter().all(|i| i.kind == PlanKind::Skip
+            || i.kind == PlanKind::ManagedBlock
+            || i.path
+                .components()
+                .any(|c| c.as_os_str() == "my-workbench-solutions")));
         // Stamps are never skip-gated.
         assert_eq!(p2.stamps.len(), 1);
     }
@@ -1517,17 +1573,12 @@ mod tests {
         let settings = picked.path().join(".claude").join("settings.json");
         assert!(p.items.iter().any(|i| i.path == settings));
         assert!(
-            !p.items
-                .iter()
-                .any(|i| i.path.starts_with(&ctx.project_dir)),
+            !p.items.iter().any(|i| i.path.starts_with(&ctx.project_dir)),
             "nothing may be planned under the legacy context project dir"
         );
         assert_eq!(p.stamps.len(), 1);
         assert_eq!(p.stamps[0].realm, StampRealm::Project);
-        assert_eq!(
-            p.stamps[0].path,
-            picked.path().join("my-workbench.version")
-        );
+        assert_eq!(p.stamps[0].path, picked.path().join("my-workbench.version"));
         assert_eq!(p.stamps[0].version, "9.9.9-test");
 
         // execute writes only into the picked dir.
@@ -1572,7 +1623,8 @@ mod tests {
         s.dsh_profile = Some("web".to_owned());
         let err = plan(&s, &sb.ctx).unwrap_err();
         assert!(
-            err.to_string().contains("--dsh-profile only applies to the DSH target"),
+            err.to_string()
+                .contains("--dsh-profile only applies to the DSH target"),
             "{err}"
         );
 
@@ -1585,7 +1637,8 @@ mod tests {
         s.dsh_profile = Some("--force".to_owned());
         let err = plan(&s, &sb.ctx).unwrap_err();
         assert!(
-            err.to_string().contains("--dsh-profile needs a profile name, got '--force'"),
+            err.to_string()
+                .contains("--dsh-profile needs a profile name, got '--force'"),
             "{err}"
         );
 
@@ -1706,10 +1759,9 @@ mod tests {
         );
 
         let pz = plan(&sb.sel(vec![Target::Zcode], false, false), &sb.ctx).unwrap();
-        assert!(pz
-            .notes
-            .iter()
-            .any(|n| n == "next: restart ZCode sessions to pick up the new AGENTS.md and subagents."));
+        assert!(pz.notes.iter().any(
+            |n| n == "next: restart ZCode sessions to pick up the new AGENTS.md and subagents."
+        ));
 
         // A plan that creates nothing carries no next-notes.
         let s = sb.sel(vec![Target::Zcode], false, false);
@@ -1742,7 +1794,11 @@ mod tests {
         }
         // Exactly one profile, so the managed row has a target.
         fs::create_dir_all(dsh_home.join("profiles").join("web")).unwrap();
-        fs::write(dsh_home.join("profiles").join("web").join("cordis.yml"), "root: y\n").unwrap();
+        fs::write(
+            dsh_home.join("profiles").join("web").join("cordis.yml"),
+            "root: y\n",
+        )
+        .unwrap();
 
         let s = sb.sel(vec![Target::Dsh], false, false);
         // Nothing installed yet: the plan still succeeds, there are no
@@ -1777,7 +1833,10 @@ mod tests {
             clean.tier1.problems
         );
         let compared = clean.tier1.compared;
-        assert!(compared >= 9, "installed preset files are compared: {compared}");
+        assert!(
+            compared >= 9,
+            "installed preset files are compared: {compared}"
+        );
 
         // Tamper one installed preset file → a Dsh-targeted drift entry.
         let preset_yml = dsh_home

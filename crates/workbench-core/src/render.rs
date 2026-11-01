@@ -125,7 +125,11 @@ fn frontmatter_line(
 ///   character, exactly like the regex engine backtracking past a position;
 /// - `on_match` receives the raw matched text, the captured name and the
 ///   match's byte offset in the original input.
-fn replace_placeholders<F>(input: &str, prefix: &str, mut on_match: F) -> Result<String, WorkbenchError>
+fn replace_placeholders<F>(
+    input: &str,
+    prefix: &str,
+    mut on_match: F,
+) -> Result<String, WorkbenchError>
 where
     F: FnMut(&str, &str, usize) -> Result<String, WorkbenchError>,
 {
@@ -134,7 +138,10 @@ where
     while let Some(at) = input[cursor..].find(prefix) {
         let start = cursor + at;
         let after = start + prefix.len();
-        let name: String = input[after..].chars().take_while(|c| is_name_char(*c)).collect();
+        let name: String = input[after..]
+            .chars()
+            .take_while(|c| is_name_char(*c))
+            .collect();
         let after_name = after + name.len();
         if name.is_empty() || !input[after_name..].starts_with("}}") {
             // Malformed candidate: the regex engine would advance one
@@ -167,7 +174,10 @@ fn find_first_placeholder(input: &str, prefixes: &[&str]) -> Option<String> {
                 continue;
             }
             let after = start + prefix.len();
-            let name: String = input[after..].chars().take_while(|c| is_name_char(*c)).collect();
+            let name: String = input[after..]
+                .chars()
+                .take_while(|c| is_name_char(*c))
+                .collect();
             if !name.is_empty() && input[after + name.len()..].starts_with("}}") {
                 return Some(input[start..after + name.len() + 2].to_string());
             }
@@ -193,7 +203,10 @@ fn find_first_generic_placeholder(input: &str) -> Option<String> {
             continue;
         }
         i += 1;
-        let value_len = input[i..].chars().take_while(|c| is_generic_value_char(*c)).count();
+        let value_len = input[i..]
+            .chars()
+            .take_while(|c| is_generic_value_char(*c))
+            .count();
         if value_len == 0 {
             continue;
         }
@@ -210,7 +223,10 @@ fn find_first_generic_placeholder(input: &str) -> Option<String> {
 /// Read one shared prompt body verbatim; a backend template may only reference
 /// prompts that exist (`promptBody`, :565-571). Missing file = hard error.
 fn prompt_body(source_root: &Path, agent_name: &str) -> Result<String, WorkbenchError> {
-    let file = source_root.join("agents").join("prompts").join(format!("{agent_name}.md"));
+    let file = source_root
+        .join("agents")
+        .join("prompts")
+        .join(format!("{agent_name}.md"));
     if !file.exists() {
         return Err(WorkbenchError::Message(format!(
             "agents/prompts/{agent_name}.md is missing (referenced by a backend template)"
@@ -234,7 +250,10 @@ pub fn strip_attribution(body: &str) -> &str {
 /// trimmed content (`loadSlots`, :597-606). A missing directory is an empty
 /// map. Entries are visited in sorted order for determinism (the CLI uses raw
 /// `readdirSync` order; see the port notes in the module docs of checks.rs).
-fn load_slots(source_root: &Path, backend: &str) -> Result<BTreeMap<String, String>, WorkbenchError> {
+fn load_slots(
+    source_root: &Path,
+    backend: &str,
+) -> Result<BTreeMap<String, String>, WorkbenchError> {
     let dir = source_root
         .join("agents")
         .join("backends")
@@ -327,7 +346,8 @@ pub(crate) fn fill_slots(
 ) -> Result<String, WorkbenchError> {
     let slots = load_slots(source_root, backend)?;
     used.note_available(backend, slots.keys().cloned().collect());
-    replace_placeholders(body, "{{slot:", |_, slot_name, _| match slots.get(slot_name) {
+    replace_placeholders(body, "{{slot:", |_, slot_name, _| {
+        match slots.get(slot_name) {
         Some(text) => {
             used.note_used(backend, slot_name);
             Ok(text.clone())
@@ -335,6 +355,7 @@ pub(crate) fn fill_slots(
         None => Err(WorkbenchError::Message(format!(
             "agents/backends/{backend}/slots/ is missing slot '{slot_name}' (referenced by agents/prompts/)"
         ))),
+    }
     })
 }
 
@@ -572,8 +593,8 @@ pub fn render_lane_host(
     )?;
     let known = DSH_LANE_PLUGIN_DEP_ALIASES.join(", ");
     let mut used: Vec<String> = Vec::new();
-    let rendered = replace_placeholders(&template, "{{dep:", |raw, alias, _| {
-        match deps.get(alias) {
+    let rendered =
+        replace_placeholders(&template, "{{dep:", |raw, alias, _| match deps.get(alias) {
             Some(specifier) => {
                 used.push(alias.to_string());
                 Ok(specifier.clone())
@@ -581,8 +602,7 @@ pub fn render_lane_host(
             None => Err(WorkbenchError::Message(format!(
                 "unknown dependency alias '{raw}' in the lane plugin host module (known: {known})"
             ))),
-        }
-    })?;
+        })?;
     for alias in DSH_LANE_PLUGIN_DEP_ALIASES {
         if !used.iter().any(|a| a == alias) {
             return Err(WorkbenchError::Message(format!(
@@ -652,7 +672,9 @@ pub fn lane_ui_client_source(
     let first = rendered.find(version_marker);
     let last = rendered.rfind(version_marker);
     match (first, last) {
-        (Some(at), Some(last_at)) if at == last_at => Ok(rendered.replacen(version_marker, version, 1)),
+        (Some(at), Some(last_at)) if at == last_at => {
+            Ok(rendered.replacen(version_marker, version, 1))
+        }
         _ => Err(WorkbenchError::Message(
             "lane UI must contain exactly one version marker".to_string(),
         )),
@@ -744,14 +766,23 @@ mod tests {
         let body = "Keep this.\n";
         assert_eq!(strip_attribution(body), body);
         // notice present but no trailing blank line: untouched
-        assert_eq!(strip_attribution(&format!("{ATTRIBUTION_NOTICE}\nX")), &format!("{ATTRIBUTION_NOTICE}\nX"));
+        assert_eq!(
+            strip_attribution(&format!("{ATTRIBUTION_NOTICE}\nX")),
+            &format!("{ATTRIBUTION_NOTICE}\nX")
+        );
         // exactly the prefix: removed with its blank line
-        assert_eq!(strip_attribution(&format!("{ATTRIBUTION_NOTICE}\n\nBody")), "Body");
+        assert_eq!(
+            strip_attribution(&format!("{ATTRIBUTION_NOTICE}\n\nBody")),
+            "Body"
+        );
         // a mid-prompt mention survives
         let mention = format!("Intro\n\n{ATTRIBUTION_NOTICE}\n\nTail");
         assert_eq!(strip_attribution(&mention), mention);
         // a truncated notice (one \n) is not the prefix
-        assert_eq!(strip_attribution(&format!("{ATTRIBUTION_NOTICE}\nBody")), &format!("{ATTRIBUTION_NOTICE}\nBody"));
+        assert_eq!(
+            strip_attribution(&format!("{ATTRIBUTION_NOTICE}\nBody")),
+            &format!("{ATTRIBUTION_NOTICE}\nBody")
+        );
         assert_eq!(strip_attribution(""), "");
     }
 
@@ -760,11 +791,29 @@ mod tests {
     #[test]
     fn fill_slots_replaces_and_records_usage() {
         let dir = tempfile::tempdir().unwrap();
-        write(dir.path(), "agents/backends/claude/slots/tone.md", "Be kind.\n");
-        write(dir.path(), "agents/backends/claude/slots/voice-2.md", "  \n");
-        write(dir.path(), "agents/backends/claude/slots/notes.txt", "ignored");
+        write(
+            dir.path(),
+            "agents/backends/claude/slots/tone.md",
+            "Be kind.\n",
+        );
+        write(
+            dir.path(),
+            "agents/backends/claude/slots/voice-2.md",
+            "  \n",
+        );
+        write(
+            dir.path(),
+            "agents/backends/claude/slots/notes.txt",
+            "ignored",
+        );
         let mut used = UsedSlots::new();
-        let out = fill_slots(dir.path(), "claude", "A {{slot:tone}} B {{slot:tone}} C", &mut used).unwrap();
+        let out = fill_slots(
+            dir.path(),
+            "claude",
+            "A {{slot:tone}} B {{slot:tone}} C",
+            &mut used,
+        )
+        .unwrap();
         assert_eq!(out, "A Be kind. B Be kind. C");
         // value's trailing whitespace was stripped at load time
         let out = fill_slots(dir.path(), "claude", "x{{slot:voice-2}}y", &mut used).unwrap();
@@ -798,7 +847,8 @@ mod tests {
             "{{slot:",
             "{slot:x}}",
         ] {
-            let out = fill_slots(dir.path(), "claude", &format!("a {literal} b"), &mut used).unwrap();
+            let out =
+                fill_slots(dir.path(), "claude", &format!("a {literal} b"), &mut used).unwrap();
             assert_eq!(out, format!("a {literal} b"), "literal {literal:?}");
         }
         // a replacement containing a placeholder-looking text is NOT rescanned
@@ -860,8 +910,16 @@ mod tests {
             "agents/prompts/agent-a.md",
             &format!("{ATTRIBUTION_NOTICE}\n\n  Preamble {{{{slot:tone}}}}.\n  more  \n\n"),
         );
-        write(dir.path(), "agents/backends/claude/slots/tone.md", "Be kind.");
-        write(dir.path(), "agents/disciplines.md", "Rule one.\nRule two.\n\n \n");
+        write(
+            dir.path(),
+            "agents/backends/claude/slots/tone.md",
+            "Be kind.",
+        );
+        write(
+            dir.path(),
+            "agents/disciplines.md",
+            "Rule one.\nRule two.\n\n \n",
+        );
     }
 
     #[test]
@@ -900,11 +958,17 @@ mod tests {
             record: serde_json::Value::Null,
         };
         let err = assemble_agent(dir.path(), "claude", &ghost, &mut used).unwrap_err();
-        assert_eq!(err.to_string(), "agents/backends metadata is missing agent 'ghost'");
+        assert_eq!(
+            err.to_string(),
+            "agents/backends metadata is missing agent 'ghost'"
+        );
         // agent-b has no claude frontmatter → absent from the backend's map
         let agent_b = roster.iter().find(|e| e.name == "agent-b").unwrap();
         let err = assemble_agent(dir.path(), "claude", agent_b, &mut used).unwrap_err();
-        assert_eq!(err.to_string(), "agents/backends metadata is missing agent 'agent-b'");
+        assert_eq!(
+            err.to_string(),
+            "agents/backends metadata is missing agent 'agent-b'"
+        );
     }
 
     #[test]
@@ -994,13 +1058,15 @@ mod tests {
         let out = fill_prompts(dir.path(), "{{prompt:agent-a}}", "claude", &mut used).unwrap();
         assert_eq!(out, "Preamble Be kind..\n  more\n\nRule one.\nRule two.");
         // no trailing newline after the placeholder line
-        let out = fill_prompts(dir.path(), "k:\n  {{prompt:agent-a}}", "claude", &mut used).unwrap();
+        let out =
+            fill_prompts(dir.path(), "k:\n  {{prompt:agent-a}}", "claude", &mut used).unwrap();
         assert_eq!(
             out,
             "k:\n  Preamble Be kind..\n    more\n\n  Rule one.\n  Rule two."
         );
         // tab indentation pads with SPACES, as JS `" ".repeat` does
-        let out = fill_prompts(dir.path(), "k:\n\t{{prompt:agent-a}}", "claude", &mut used).unwrap();
+        let out =
+            fill_prompts(dir.path(), "k:\n\t{{prompt:agent-a}}", "claude", &mut used).unwrap();
         assert_eq!(
             out,
             "k:\n\tPreamble Be kind..\n   more\n\n Rule one.\n Rule two."
@@ -1019,8 +1085,13 @@ mod tests {
             "agents/prompts/nope.md is missing (referenced by a backend template)"
         );
         // slot missing inside the prompt body
-        write(dir.path(), "agents/prompts/ghost-slot.md", "x {{slot:missing}}");
-        let err = fill_prompts(dir.path(), "{{prompt:ghost-slot}}", "claude", &mut used).unwrap_err();
+        write(
+            dir.path(),
+            "agents/prompts/ghost-slot.md",
+            "x {{slot:missing}}",
+        );
+        let err =
+            fill_prompts(dir.path(), "{{prompt:ghost-slot}}", "claude", &mut used).unwrap_err();
         assert_eq!(
             err.to_string(),
             "agents/backends/claude/slots/ is missing slot 'missing' (referenced by agents/prompts/)"
@@ -1058,7 +1129,11 @@ mod tests {
             "agents/backends/dsh/agent.cordis.yml left '{{prompt:ghost}}' unfilled"
         );
 
-        write(dir.path(), "agents/backends/dsh/slots/tone.md", "{{slot:other}} x");
+        write(
+            dir.path(),
+            "agents/backends/dsh/slots/tone.md",
+            "{{slot:other}} x",
+        );
         let err = render_dsh_composition(dir.path()).unwrap_err();
         assert_eq!(
             err.to_string(),
@@ -1082,7 +1157,11 @@ mod tests {
     #[test]
     fn render_lane_prompts_is_the_exact_js_template() {
         let dir = tempfile::tempdir().unwrap();
-        write(dir.path(), "agents/disciplines.md", "Rule one.\nRule two.\n");
+        write(
+            dir.path(),
+            "agents/disciplines.md",
+            "Rule one.\nRule two.\n",
+        );
         write(dir.path(), "agents/backends/dsh/slots/tone.md", "calm");
         write(
             dir.path(),
@@ -1149,13 +1228,23 @@ mod tests {
     // ------------------------------------------------------ renderLaneHost
 
     fn host_template(dir: &tempfile::TempDir, body: &str) {
-        write(dir.path(), "agents/backends/dsh/lane-plugin/host-package/src/index.js", body);
+        write(
+            dir.path(),
+            "agents/backends/dsh/lane-plugin/host-package/src/index.js",
+            body,
+        );
     }
 
     fn bare_deps() -> BTreeMap<String, String> {
         BTreeMap::from([
-            ("dsh-tools".to_string(), "@deepseek-ai/dsh-tools".to_string()),
-            ("schemastery".to_string(), "@deepseek-ai/schemastery".to_string()),
+            (
+                "dsh-tools".to_string(),
+                "@deepseek-ai/dsh-tools".to_string(),
+            ),
+            (
+                "schemastery".to_string(),
+                "@deepseek-ai/schemastery".to_string(),
+            ),
         ])
     }
 
@@ -1174,8 +1263,14 @@ mod tests {
         // file: URL values pass through untouched
         host_template(&dir, "a '{{dep:dsh-tools}}' b '{{dep:schemastery}}'");
         let file_deps = BTreeMap::from([
-            ("dsh-tools".to_string(), "file:///C:/x/dsh-tools".to_string()),
-            ("schemastery".to_string(), "file:///C:/x/schemastery".to_string()),
+            (
+                "dsh-tools".to_string(),
+                "file:///C:/x/dsh-tools".to_string(),
+            ),
+            (
+                "schemastery".to_string(),
+                "file:///C:/x/schemastery".to_string(),
+            ),
         ]);
         assert_eq!(
             render_lane_host(dir.path(), &file_deps).unwrap(),
@@ -1186,7 +1281,10 @@ mod tests {
     #[test]
     fn render_lane_host_unknown_alias_and_never_imported_errors() {
         let dir = tempfile::tempdir().unwrap();
-        host_template(&dir, "import x from '{{dep:typo-name}}'\nimport z from '{{dep:schemastery}}'");
+        host_template(
+            &dir,
+            "import x from '{{dep:typo-name}}'\nimport z from '{{dep:schemastery}}'",
+        );
         let err = render_lane_host(dir.path(), &bare_deps()).unwrap_err();
         assert_eq!(
             err.to_string(),
@@ -1263,16 +1361,26 @@ mod tests {
     #[test]
     fn lane_ui_client_source_requires_exactly_one_marker() {
         let dir = tempfile::tempdir().unwrap();
-        write(dir.path(), "agents/backends/dsh/lane-plugin-ui/lib/client.js", "none");
+        write(
+            dir.path(),
+            "agents/backends/dsh/lane-plugin-ui/lib/client.js",
+            "none",
+        );
         let err = lane_ui_client_source(dir.path(), &lanes_fixture(), "1.2.3").unwrap_err();
-        assert_eq!(err.to_string(), "lane UI must contain exactly one roster marker");
+        assert_eq!(
+            err.to_string(),
+            "lane UI must contain exactly one roster marker"
+        );
         write(
             dir.path(),
             "agents/backends/dsh/lane-plugin-ui/lib/client.js",
             "\"__MY_WORKBENCH_LANES__\" and \"__MY_WORKBENCH_LANES__\"",
         );
         let err = lane_ui_client_source(dir.path(), &lanes_fixture(), "1.2.3").unwrap_err();
-        assert_eq!(err.to_string(), "lane UI must contain exactly one roster marker");
+        assert_eq!(
+            err.to_string(),
+            "lane UI must contain exactly one roster marker"
+        );
 
         // The version banner marker is required exactly once too, and must
         // never ship verbatim into an installed file.
@@ -1282,14 +1390,20 @@ mod tests {
             "const LANES = \"__MY_WORKBENCH_LANES__\"\n// __MY_WORKBENCH_VERSION__ and __MY_WORKBENCH_VERSION__\n",
         );
         let err = lane_ui_client_source(dir.path(), &lanes_fixture(), "1.2.3").unwrap_err();
-        assert_eq!(err.to_string(), "lane UI must contain exactly one version marker");
+        assert_eq!(
+            err.to_string(),
+            "lane UI must contain exactly one version marker"
+        );
         write(
             dir.path(),
             "agents/backends/dsh/lane-plugin-ui/lib/client.js",
             "const LANES = \"__MY_WORKBENCH_LANES__\"\n",
         );
         let err = lane_ui_client_source(dir.path(), &lanes_fixture(), "1.2.3").unwrap_err();
-        assert_eq!(err.to_string(), "lane UI must contain exactly one version marker");
+        assert_eq!(
+            err.to_string(),
+            "lane UI must contain exactly one version marker"
+        );
     }
 
     // --------------------------------------------------------- real-tree smoke
@@ -1299,13 +1413,18 @@ mod tests {
         let root = repo_root();
         let roster = load_roster(&root).expect("roster loads");
         assert!(roster.len() >= 8, "expected the full roster");
-        let lanes: Vec<LaneRecord> =
-            serde_json::from_str(&std::fs::read_to_string(root.join("agents/backends/dsh/lanes.json")).unwrap())
-                .expect("lanes parse");
+        let lanes: Vec<LaneRecord> = serde_json::from_str(
+            &std::fs::read_to_string(root.join("agents/backends/dsh/lanes.json")).unwrap(),
+        )
+        .expect("lanes parse");
         render_dsh_composition(&root).expect("dsh composition renders");
         render_lane_prompts(&root, &lanes).expect("lane prompts render");
         render_lane_host(&root, &bare_deps()).expect("lane host renders");
-        let client = lane_ui_client_source(&root, &lanes, crate::VERSION).expect("client source renders");
-        assert!(!client.contains("__MY_WORKBENCH_VERSION__"), "the version banner must not ship verbatim");
+        let client =
+            lane_ui_client_source(&root, &lanes, crate::VERSION).expect("client source renders");
+        assert!(
+            !client.contains("__MY_WORKBENCH_VERSION__"),
+            "the version banner must not ship verbatim"
+        );
     }
 }

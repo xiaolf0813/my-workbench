@@ -108,7 +108,10 @@ fn launcher_module_roots_uncached(path_env: &str) -> Vec<PathBuf> {
             let sibling = dir.join("node_modules");
             push_existing(sibling.clone(), &mut seen, &mut roots);
             push_existing(
-                sibling.join("@deepseek-ai").join("dsh").join("node_modules"),
+                sibling
+                    .join("@deepseek-ai")
+                    .join("dsh")
+                    .join("node_modules"),
                 &mut seen,
                 &mut roots,
             );
@@ -282,9 +285,27 @@ fn encode_url_path(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for &byte in text.as_bytes() {
         match byte {
-            b'!' | b'$' | b'&' | b'\'' | b'(' | b')' | b'*' | b'+' | b',' | b'-' | b'.'
-            | b'/' | b'0'..=b'9' | b':' | b';' | b'=' | b'@' | b'A'..=b'Z' | b'_'
-            | b'a'..=b'z' | b'~' => out.push(byte as char),
+            b'!'
+            | b'$'
+            | b'&'
+            | b'\''
+            | b'('
+            | b')'
+            | b'*'
+            | b'+'
+            | b','
+            | b'-'
+            | b'.'
+            | b'/'
+            | b'0'..=b'9'
+            | b':'
+            | b';'
+            | b'='
+            | b'@'
+            | b'A'..=b'Z'
+            | b'_'
+            | b'a'..=b'z'
+            | b'~' => out.push(byte as char),
             _ => {
                 out.push('%');
                 out.push_str(&format!("{byte:02X}"));
@@ -307,12 +328,7 @@ pub fn resolve_lane_dependencies(
     let env_modules = std::env::var("MY_WORKBENCH_DSH_NODE_MODULES")
         .ok()
         .filter(|value| !value.is_empty());
-    resolve_lane_dependencies_in(
-        home,
-        deps,
-        &path_env,
-        env_modules.as_deref().map(Path::new),
-    )
+    resolve_lane_dependencies_in(home, deps, &path_env, env_modules.as_deref().map(Path::new))
 }
 
 /// Parameter-injected variant of [`resolve_lane_dependencies`] — same
@@ -418,11 +434,20 @@ mod tests {
             vec![
                 profiles.join("node_modules"),
                 profiles.join("alpha").join("node_modules"),
-                profiles.join("alpha").join(".dsh-module-fallback").join("node_modules"),
+                profiles
+                    .join("alpha")
+                    .join(".dsh-module-fallback")
+                    .join("node_modules"),
                 profiles.join("beta").join("node_modules"),
-                profiles.join("beta").join(".dsh-module-fallback").join("node_modules"),
+                profiles
+                    .join("beta")
+                    .join(".dsh-module-fallback")
+                    .join("node_modules"),
                 profiles.join("node_modules").join("node_modules"),
-                profiles.join("node_modules").join(".dsh-module-fallback").join("node_modules"),
+                profiles
+                    .join("node_modules")
+                    .join(".dsh-module-fallback")
+                    .join("node_modules"),
                 fallback,
             ],
             "profile dirs are sorted, env modules come last, no launcher roots for an empty PATH"
@@ -433,7 +458,10 @@ mod tests {
     fn an_empty_env_modules_value_is_falsy_like_the_js() {
         let dir = tempfile::tempdir().unwrap();
         let roots = dsh_module_roots(&dir.path().join("home"), "", Some(Path::new("")));
-        assert!(roots.len() == 1, "only the profile closure root remains: {roots:?}");
+        assert!(
+            roots.len() == 1,
+            "only the profile closure root remains: {roots:?}"
+        );
     }
 
     // -- scenario 1: profile closure beats the explicit fallback --------------
@@ -444,7 +472,11 @@ mod tests {
         let home = dir.path().join("home");
         let profile_root = home.join("profiles").join("node_modules");
         let fallback = dir.path().join("fallback");
-        let tools_file = package_at(&profile_root, "@deepseek-ai/dsh-tools", &json!("./index.mjs"));
+        let tools_file = package_at(
+            &profile_root,
+            "@deepseek-ai/dsh-tools",
+            &json!("./index.mjs"),
+        );
         let schema_file = package_at(
             &profile_root,
             "@deepseek-ai/schemastery",
@@ -458,7 +490,11 @@ mod tests {
         let result = resolve_lane_dependencies_in(&home, &deps(), "", Some(&fallback)).unwrap();
         assert_eq!(result["tools"], path_to_file_url(&tools_file));
         assert_eq!(result["schema"], path_to_file_url(&schema_file));
-        assert!(result["schema"].ends_with("/index.mjs"), "{}", result["schema"]);
+        assert!(
+            result["schema"].ends_with("/index.mjs"),
+            "{}",
+            result["schema"]
+        );
     }
 
     // -- scenario 2: launcher shims, without executing them -------------------
@@ -498,7 +534,11 @@ mod tests {
 
             let path_env = bin.to_string_lossy().into_owned();
             let result = resolve_lane_dependencies_in(&home, &deps(), &path_env, None).unwrap();
-            assert_eq!(result["tools"], path_to_file_url(&tools_file), "shim {base}");
+            assert_eq!(
+                result["tools"],
+                path_to_file_url(&tools_file),
+                "shim {base}"
+            );
         }
     }
 
@@ -569,7 +609,10 @@ mod tests {
             ),
             "the searched list leads with the profile closure: {text}"
         );
-        assert!(text.contains("no 'dsh' launcher was found on PATH"), "{text}");
+        assert!(
+            text.contains("no 'dsh' launcher was found on PATH"),
+            "{text}"
+        );
         // BTreeMap iteration is alphabetical, so `schema` resolves first and is
         // the package named when both are missing (the JS iterates insertion
         // order and would name `tools`; the searched list and notes are identical).
@@ -597,7 +640,10 @@ mod tests {
             text.contains("the 'dsh' install on PATH was searched too but does not carry it"),
             "{text}"
         );
-        assert!(text.contains(&bin.join("node_modules").display().to_string()), "{text}");
+        assert!(
+            text.contains(&bin.join("node_modules").display().to_string()),
+            "{text}"
+        );
     }
 
     // -- packageEntryOf -------------------------------------------------------
@@ -605,7 +651,10 @@ mod tests {
     #[test]
     fn package_entry_of_prefers_strings_then_condition_keys_then_module_then_main() {
         let entry = |value: serde_json::Value| package_entry_of(&value);
-        assert_eq!(entry(json!({ "exports": "./a.mjs" })), Some("./a.mjs".to_owned()));
+        assert_eq!(
+            entry(json!({ "exports": "./a.mjs" })),
+            Some("./a.mjs".to_owned())
+        );
         assert_eq!(
             entry(json!({ "exports": { ".": "./root.mjs" } })),
             Some("./root.mjs".to_owned())
@@ -633,8 +682,14 @@ mod tests {
             entry(json!({ "exports": { ".": { "import": "./deep.mjs" } } })),
             Some("./deep.mjs".to_owned())
         );
-        assert_eq!(entry(json!({ "module": "./m.js" })), Some("./m.js".to_owned()));
-        assert_eq!(entry(json!({ "main": "./main.js" })), Some("./main.js".to_owned()));
+        assert_eq!(
+            entry(json!({ "module": "./m.js" })),
+            Some("./m.js".to_owned())
+        );
+        assert_eq!(
+            entry(json!({ "main": "./main.js" })),
+            Some("./main.js".to_owned())
+        );
         assert_eq!(entry(json!({})), None);
         assert_eq!(entry(json!({ "exports": 42 })), None);
         assert_eq!(entry(json!({ "exports": { ".": null } })), None);
@@ -702,7 +757,11 @@ mod tests {
         let root = dir.path().join("node_modules");
         let dir = root.join("pkg");
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("package.json"), json!({ "main": "./i.js" }).to_string()).unwrap();
+        std::fs::write(
+            dir.join("package.json"),
+            json!({ "main": "./i.js" }).to_string(),
+        )
+        .unwrap();
         std::fs::write(dir.join("i.js"), "").unwrap();
         let found = resolve_dsh_package("pkg", std::slice::from_ref(&root)).unwrap();
         assert_eq!(found.version, "unknown");

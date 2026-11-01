@@ -117,9 +117,7 @@ fn apply_no_window(cmd: &mut Command) {
 
 /// Drain a pipe on its own thread so a chatty child can never deadlock the
 /// deadline poller.
-fn drain_pipe<R: std::io::Read + Send + 'static>(
-    pipe: Option<R>,
-) -> thread::JoinHandle<Vec<u8>> {
+fn drain_pipe<R: std::io::Read + Send + 'static>(pipe: Option<R>) -> thread::JoinHandle<Vec<u8>> {
     thread::spawn(move || {
         let mut buf = Vec::new();
         if let Some(mut pipe) = pipe {
@@ -463,7 +461,10 @@ fn tier2_syntax_problems(source_root: &Path, problems: &mut Vec<String>) {
         match run_with_timeout(&mut cmd, TIER2_TIMEOUT) {
             RunOutcome::Finished(out) if out.success => {}
             RunOutcome::Finished(out) => {
-                problems.push(format!("{rel}: node --check failed: {}", captured_diagnostic(&out)));
+                problems.push(format!(
+                    "{rel}: node --check failed: {}",
+                    captured_diagnostic(&out)
+                ));
             }
             RunOutcome::TimedOut => {
                 problems.push(format!("{rel}: node --check timed out after 10s"));
@@ -531,7 +532,9 @@ fn tier2_host_problem(source_root: &Path, problems: &mut Vec<String>) {
             problems.push(format!("{prefix}{text}"));
         }
         RunOutcome::TimedOut => {
-            problems.push(format!("{prefix}the host half import check timed out after 10s"));
+            problems.push(format!(
+                "{prefix}the host half import check timed out after 10s"
+            ));
         }
         RunOutcome::NotFound => {
             problems.push(format!("{prefix}node is no longer runnable"));
@@ -579,7 +582,9 @@ fn tier2_prompts_problem(source_root: &Path, problems: &mut Vec<String>) {
             problems.push(format!("{prefix}{text}"));
         }
         RunOutcome::TimedOut => {
-            problems.push(format!("{prefix}the prompt module check timed out after 10s"));
+            problems.push(format!(
+                "{prefix}the prompt module check timed out after 10s"
+            ));
         }
         RunOutcome::NotFound => {
             problems.push(format!("{prefix}node is no longer runnable"));
@@ -867,10 +872,14 @@ fn write_json_atomic<T: Serialize>(path: &Path, value: &T) -> Result<(), String>
         .map(|d| d.subsec_nanos())
         .unwrap_or(0);
     let tmp = path.with_file_name(format!("{stem}.{}.{}.tmp", std::process::id(), nanos));
-    fs::write(&tmp, &bytes).map_err(|e| single_line(&format!("cannot write {}: {e}", tmp.display())))?;
+    fs::write(&tmp, &bytes)
+        .map_err(|e| single_line(&format!("cannot write {}: {e}", tmp.display())))?;
     if let Err(e) = fs::rename(&tmp, path) {
         let _ = fs::remove_file(&tmp);
-        return Err(single_line(&format!("cannot replace {}: {e}", path.display())));
+        return Err(single_line(&format!(
+            "cannot replace {}: {e}",
+            path.display()
+        )));
     }
     Ok(())
 }
@@ -951,4 +960,3 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
-

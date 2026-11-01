@@ -140,25 +140,39 @@ pub fn lanes(source_root: &Path) -> Result<Vec<LaneRecord>, WorkbenchError> {
     let mut tools = std::collections::HashSet::new();
     let mut lanes = Vec::with_capacity(array.len());
     for lane in array {
-        let key = lane.get("key").and_then(serde_json::Value::as_str).unwrap_or_default();
-        let tool = lane.get("tool").and_then(serde_json::Value::as_str).unwrap_or_default();
+        let key = lane
+            .get("key")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
+        let tool = lane
+            .get("tool")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default();
         let zh = lane.get("zh").and_then(serde_json::Value::as_str);
         let shape_ok = lane.is_object()
             && is_lane_key(key)
             && is_lane_tool(tool)
             && zh.is_some_and(|zh| !zh.trim().is_empty());
         if !shape_ok {
-            return Err(WorkbenchError::Message("invalid DSH lane record".to_owned()));
+            return Err(WorkbenchError::Message(
+                "invalid DSH lane record".to_owned(),
+            ));
         }
         if !keys.insert(key.to_owned()) || !tools.insert(tool.to_owned()) {
             return Err(WorkbenchError::Message(format!(
                 "duplicate DSH lane key or tool: {key}"
             )));
         }
-        let complete = lane.get("denyWrites").is_some_and(serde_json::Value::is_boolean)
-            && lane.get("denyShell").is_some_and(serde_json::Value::is_boolean);
+        let complete = lane
+            .get("denyWrites")
+            .is_some_and(serde_json::Value::is_boolean)
+            && lane
+                .get("denyShell")
+                .is_some_and(serde_json::Value::is_boolean);
         if !complete {
-            return Err(WorkbenchError::Message(format!("incomplete DSH lane: {key}")));
+            return Err(WorkbenchError::Message(format!(
+                "incomplete DSH lane: {key}"
+            )));
         }
         lanes.push(LaneRecord {
             key: key.to_owned(),
@@ -227,9 +241,13 @@ pub fn find_profile_dirs(home: &Path, only: Option<&str>) -> Vec<ProfileDir> {
     }
 
     let is_profile_marker = |name: &str| {
-        [PROFILE_ROOT_FILENAME, PROFILE_PATCH_FILENAME, PROFILE_MANIFEST_FILENAME]
-            .iter()
-            .any(|file| profiles_dir.join(name).join(file).exists())
+        [
+            PROFILE_ROOT_FILENAME,
+            PROFILE_PATCH_FILENAME,
+            PROFILE_MANIFEST_FILENAME,
+        ]
+        .iter()
+        .any(|file| profiles_dir.join(name).join(file).exists())
     };
 
     let mut all: Vec<String> = Vec::new();
@@ -374,7 +392,9 @@ pub fn compute_lane_ui_patch_row(
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
         Err(err) => return Err(err.into()),
     };
-    let begin = existing.as_deref().and_then(|text| text.find(LANE_UI_BLOCK_BEGIN));
+    let begin = existing
+        .as_deref()
+        .and_then(|text| text.find(LANE_UI_BLOCK_BEGIN));
 
     let (outcome, next) = if let Some(begin) = begin {
         let existing = existing.expect("begin implies existing");
@@ -389,12 +409,7 @@ pub fn compute_lane_ui_patch_row(
             }
         };
         let after = end + LANE_UI_BLOCK_END.len();
-        let next = format!(
-            "{}{}{}",
-            &existing[..begin],
-            block,
-            &existing[after..]
-        );
+        let next = format!("{}{}{}", &existing[..begin], block, &existing[after..]);
         let outcome = if next == existing {
             PatchOutcome::Unchanged
         } else {
@@ -418,15 +433,14 @@ pub fn compute_lane_ui_patch_row(
                 .filter(|line| line.trim() != "[]")
                 .collect::<Vec<_>>()
                 .join("\n");
-            let separator = if without_empty_list.trim().is_empty()
-                || without_empty_list.ends_with("\n\n")
-            {
-                ""
-            } else if without_empty_list.ends_with('\n') {
-                "\n"
-            } else {
-                "\n\n"
-            };
+            let separator =
+                if without_empty_list.trim().is_empty() || without_empty_list.ends_with("\n\n") {
+                    ""
+                } else if without_empty_list.ends_with('\n') {
+                    "\n"
+                } else {
+                    "\n\n"
+                };
             (
                 PatchOutcome::Added,
                 format!("{without_empty_list}{separator}{block}\n"),
@@ -439,7 +453,10 @@ pub fn compute_lane_ui_patch_row(
             } else {
                 "\n\n"
             };
-            (PatchOutcome::Added, format!("{existing}{separator}{block}\n"))
+            (
+                PatchOutcome::Added,
+                format!("{existing}{separator}{block}\n"),
+            )
         } else {
             (PatchOutcome::Skipped, String::new())
         }
@@ -669,7 +686,12 @@ fn dsh_outputs(
 /// `name` (`rowName` in `applyDsh`). The literal join, never canonicalized,
 /// matching the JS `pathToFileURL(join(...)).href`.
 fn lane_ui_row_name(preset_root: &Path) -> String {
-    dsh_deps::path_to_file_url(&preset_root.join(DSH_LANE_UI_DIR).join("src").join("index.js"))
+    dsh_deps::path_to_file_url(
+        &preset_root
+            .join(DSH_LANE_UI_DIR)
+            .join("src")
+            .join("index.js"),
+    )
 }
 
 // ---------------------------------------------------------------- display
@@ -770,7 +792,9 @@ pub fn plan_dsh_in(
     let row_name = lane_ui_row_name(&preset);
     let profiles = find_profile_dirs(home, sel.dsh_profile.as_deref());
     if profiles.is_empty() {
-        outcome.notes.extend(no_profile_notes(home, sel.dsh_profile.as_deref()));
+        outcome
+            .notes
+            .extend(no_profile_notes(home, sel.dsh_profile.as_deref()));
         outcome.notes.push(manual_row_note(
             &format!("你的 profile 的 {PROFILE_PATCH_FILENAME}"),
             &row_name,
@@ -789,9 +813,7 @@ pub fn plan_dsh_in(
                         "{} 不是纯补丁列表，受管行未写入（直接追加会破坏该文件）",
                         profile.dir.join(PROFILE_PATCH_FILENAME).display()
                     ));
-                    outcome
-                        .notes
-                        .push(manual_row_note("该文件", &row_name));
+                    outcome.notes.push(manual_row_note("该文件", &row_name));
                 }
                 PatchOutcome::Added | PatchOutcome::Updated => {
                     outcome.managed_blocks += 1;
@@ -933,7 +955,10 @@ pub fn execute_dsh_in(
             log(
                 sink,
                 LogLevel::Info,
-                format!("{DSH_LANE_PLUGIN_DIR}/（宿主插件与 {} 个专项提示词）", lanes.len()),
+                format!(
+                    "{DSH_LANE_PLUGIN_DIR}/（宿主插件与 {} 个专项提示词）",
+                    lanes.len()
+                ),
             );
         } else if dest_rel == "lane-plugin-ui/package.json" {
             log(
@@ -1038,11 +1063,7 @@ pub fn execute_dsh_in(
                         LogLevel::Info,
                         "仅写入一条静态 UI 行；不安装任何工具或软件包",
                     );
-                    log(
-                        sink,
-                        LogLevel::Info,
-                        "受管块已是最新，无需更改",
-                    );
+                    log(sink, LogLevel::Info, "受管块已是最新，无需更改");
                 }
                 PatchOutcome::Added => {
                     outcome.managed_blocks += 1;
@@ -1380,7 +1401,10 @@ mod tests {
         ];
         for value in cases {
             write_lanes_file(dir.path(), &value);
-            assert_eq!(lanes(dir.path()).unwrap_err().to_string(), "invalid DSH lane record");
+            assert_eq!(
+                lanes(dir.path()).unwrap_err().to_string(),
+                "invalid DSH lane record"
+            );
         }
     }
 
@@ -1389,7 +1413,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write_lanes_file(
             dir.path(),
-            &json!([lane_record("k", "subagent_a"), lane_record("k", "subagent_b")]),
+            &json!([
+                lane_record("k", "subagent_a"),
+                lane_record("k", "subagent_b")
+            ]),
         );
         assert_eq!(
             lanes(dir.path()).unwrap_err().to_string(),
@@ -1398,7 +1425,10 @@ mod tests {
 
         write_lanes_file(
             dir.path(),
-            &json!([lane_record("a", "subagent_x"), lane_record("b", "subagent_x")]),
+            &json!([
+                lane_record("a", "subagent_x"),
+                lane_record("b", "subagent_x")
+            ]),
         );
         assert_eq!(
             lanes(dir.path()).unwrap_err().to_string(),
@@ -1463,14 +1493,22 @@ mod tests {
         // Every initialized profile is maintained, in sorted order — no
         // hardcoded name wins.
         std::fs::write(home.join("profiles").join("beta").join("cordis.yml"), "").unwrap();
-        std::fs::write(home.join("profiles").join("alpha").join("cordis.patch.yml"), "").unwrap();
+        std::fs::write(
+            home.join("profiles").join("alpha").join("cordis.patch.yml"),
+            "",
+        )
+        .unwrap();
         let found = find_profile_dirs(&home, None);
         assert_eq!(profile_names(&found), vec!["alpha", "beta"]);
         assert!(found.iter().all(|p| p.source == ProfileSource::Profile));
 
         // A package.json alone also proves a directory is a profile.
         std::fs::create_dir_all(home.join("profiles").join("gamma")).unwrap();
-        std::fs::write(home.join("profiles").join("gamma").join("package.json"), "{}").unwrap();
+        std::fs::write(
+            home.join("profiles").join("gamma").join("package.json"),
+            "{}",
+        )
+        .unwrap();
         assert_eq!(
             profile_names(&find_profile_dirs(&home, None)),
             vec!["alpha", "beta", "gamma"]
@@ -1530,7 +1568,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let home = dir.path().join("dsh-home");
         std::fs::create_dir_all(home.join("profiles").join("web")).unwrap();
-        std::fs::write(home.join("profiles").join("web").join("cordis.patch.yml"), "").unwrap();
+        std::fs::write(
+            home.join("profiles").join("web").join("cordis.patch.yml"),
+            "",
+        )
+        .unwrap();
         std::fs::create_dir_all(home.join("profiles").join("cli")).unwrap();
         std::fs::write(home.join("profiles").join("cli").join("cordis.yml"), "").unwrap();
         std::fs::create_dir_all(home.join("profiles").join("node_modules")).unwrap();
@@ -1554,10 +1596,8 @@ mod tests {
 
     // -- the managed block ---------------------------------------------------------
 
-    const OLD_ROW: &str =
-        "file:///C:/old/.agent-presets/my-workbench/lane-plugin-ui/src/index.js";
-    const NEW_ROW: &str =
-        "file:///C:/home/.agent-presets/my-workbench/lane-plugin-ui/src/index.js";
+    const OLD_ROW: &str = "file:///C:/old/.agent-presets/my-workbench/lane-plugin-ui/src/index.js";
+    const NEW_ROW: &str = "file:///C:/home/.agent-presets/my-workbench/lane-plugin-ui/src/index.js";
 
     #[test]
     fn patch_row_reports_unchanged_for_a_byte_identical_block() {
@@ -1565,7 +1605,11 @@ mod tests {
         let profile = dir.path().join("web");
         std::fs::create_dir_all(&profile).unwrap();
         let file = profile.join(PROFILE_PATCH_FILENAME);
-        std::fs::write(&file, format!("# mine\n{}\n# also mine\n", lane_ui_patch_block(NEW_ROW))).unwrap();
+        std::fs::write(
+            &file,
+            format!("# mine\n{}\n# also mine\n", lane_ui_patch_block(NEW_ROW)),
+        )
+        .unwrap();
 
         let (outcome, next) = compute_lane_ui_patch_row(&profile, NEW_ROW).unwrap();
         assert_eq!(outcome, PatchOutcome::Unchanged);
@@ -1596,7 +1640,10 @@ mod tests {
             format!("before\n{}\nafter\n", lane_ui_patch_block(NEW_ROW))
         );
 
-        assert_eq!(write_lane_ui_patch_row(&profile, NEW_ROW).unwrap(), PatchOutcome::Updated);
+        assert_eq!(
+            write_lane_ui_patch_row(&profile, NEW_ROW).unwrap(),
+            PatchOutcome::Updated
+        );
         assert_eq!(
             std::fs::read_to_string(&file).unwrap(),
             format!("before\n{}\nafter\n", lane_ui_patch_block(NEW_ROW))
@@ -1613,7 +1660,10 @@ mod tests {
 
         let error = compute_lane_ui_patch_row(&profile, NEW_ROW).unwrap_err();
         let text = error.to_string();
-        assert!(text.contains("opening marker but not its closing marker"), "{text}");
+        assert!(
+            text.contains("opening marker but not its closing marker"),
+            "{text}"
+        );
         assert!(text.contains(&file.display().to_string()), "{text}");
     }
 
@@ -1683,7 +1733,12 @@ mod tests {
     #[test]
     fn patch_row_skips_any_other_shape_without_writing() {
         let dir = tempfile::tempdir().unwrap();
-        let shapes = ["{flow: map}\n", "[ ]\n", "scalar\n", "[] # trailing comment\n"];
+        let shapes = [
+            "{flow: map}\n",
+            "[ ]\n",
+            "scalar\n",
+            "[] # trailing comment\n",
+        ];
         for (index, shape) in shapes.iter().enumerate() {
             let profile = dir.path().join(format!("shape-{index}"));
             std::fs::create_dir_all(&profile).unwrap();
@@ -1703,7 +1758,13 @@ mod tests {
 
     #[test]
     fn is_skipped_never_copies_build_or_local_files() {
-        for name in ["node_modules", "package-lock.json", "settings.local.json", ".git", ".env"] {
+        for name in [
+            "node_modules",
+            "package-lock.json",
+            "settings.local.json",
+            ".git",
+            ".env",
+        ] {
             assert!(is_skipped(name), "{name}");
         }
         for name in ["preset.yml", "src", "lib", "client.js"] {
@@ -1725,7 +1786,11 @@ mod tests {
         )
         .unwrap();
         std::fs::create_dir_all(home.join("profiles").join("editor")).unwrap();
-        std::fs::write(home.join("profiles").join("editor").join("cordis.yml"), "root: y\n").unwrap();
+        std::fs::write(
+            home.join("profiles").join("editor").join("cordis.yml"),
+            "root: y\n",
+        )
+        .unwrap();
         let _ = user_home;
         (user_home, home)
     }
@@ -1740,10 +1805,10 @@ mod tests {
         );
         let (_user_home, home) = install_fixture(dir.path());
         let specifiers =
-            dsh_deps::resolve_lane_dependencies_in(&home, &lane_plugin_dep_map(), "", None).unwrap();
+            dsh_deps::resolve_lane_dependencies_in(&home, &lane_plugin_dep_map(), "", None)
+                .unwrap();
 
-        let outcome =
-            plan_dsh_in(&source_root, &selection(false), &specifiers, &home).unwrap();
+        let outcome = plan_dsh_in(&source_root, &selection(false), &specifiers, &home).unwrap();
         assert_eq!(
             outcome.created,
             9 + solution_guide_count(&source_root),
@@ -1751,19 +1816,35 @@ mod tests {
         );
         assert_eq!(outcome.skipped, 0);
         assert_eq!(outcome.overwritten, 0);
-        assert_eq!(outcome.managed_blocks, 2, "web and editor are both profiles");
+        assert_eq!(
+            outcome.managed_blocks, 2,
+            "web and editor are both profiles"
+        );
         assert_eq!(outcome.items.len(), 11 + solution_guide_count(&source_root));
         assert!(outcome.items.iter().all(|item| item.target == Target::Dsh));
         assert_eq!(outcome.items[0].kind, PlanKind::Create);
-        assert_eq!(outcome.items[0].source_rel, "agents/backends/dsh/preset.yml");
+        assert_eq!(
+            outcome.items[0].source_rel,
+            "agents/backends/dsh/preset.yml"
+        );
         let managed: Vec<&PlanItem> = outcome
             .items
             .iter()
             .filter(|item| item.kind == PlanKind::ManagedBlock)
             .collect();
-        assert_eq!(managed[0].path, home.join("profiles").join("editor").join(PROFILE_PATCH_FILENAME));
+        assert_eq!(
+            managed[0].path,
+            home.join("profiles")
+                .join("editor")
+                .join(PROFILE_PATCH_FILENAME)
+        );
         assert_eq!(managed[0].source_rel, "profiles/editor/cordis.patch.yml");
-        assert_eq!(managed[1].path, home.join("profiles").join("web").join(PROFILE_PATCH_FILENAME));
+        assert_eq!(
+            managed[1].path,
+            home.join("profiles")
+                .join("web")
+                .join(PROFILE_PATCH_FILENAME)
+        );
         assert_eq!(managed[1].source_rel, "profiles/web/cordis.patch.yml");
         assert_eq!(
             outcome.notes,
@@ -1811,8 +1892,13 @@ mod tests {
         // A current block plans as a note instead of a managed item.
         let row_name = lane_ui_row_name(&preset_root(&home));
         let current = format!("{}\n", lane_ui_patch_block(&row_name));
-        std::fs::write(home.join("profiles").join("web").join(PROFILE_PATCH_FILENAME), &current)
-            .unwrap();
+        std::fs::write(
+            home.join("profiles")
+                .join("web")
+                .join(PROFILE_PATCH_FILENAME),
+            &current,
+        )
+        .unwrap();
         let third = plan_dsh_in(&source_root, &selection(false), &specifiers, &home).unwrap();
         assert_eq!(third.managed_blocks, 1);
         assert!(
@@ -1834,8 +1920,16 @@ mod tests {
         let ctx = engine_context(&user_home);
         let sink = VecSink::default();
 
-        let outcome =
-            execute_dsh_in(&source_root, &ctx, &selection(false), &sink, &home, "", None).unwrap();
+        let outcome = execute_dsh_in(
+            &source_root,
+            &ctx,
+            &selection(false),
+            &sink,
+            &home,
+            "",
+            None,
+        )
+        .unwrap();
         assert_eq!(outcome.created, 9 + solution_guide_count(&source_root));
         assert_eq!(outcome.skipped, 0);
         assert_eq!(outcome.overwritten, 0);
@@ -1868,7 +1962,8 @@ mod tests {
         // Rendered files byte-match the render functions' output.
         let lanes = lanes(&source_root).unwrap();
         let specifiers =
-            dsh_deps::resolve_lane_dependencies_in(&home, &lane_plugin_dep_map(), "", None).unwrap();
+            dsh_deps::resolve_lane_dependencies_in(&home, &lane_plugin_dep_map(), "", None)
+                .unwrap();
         assert_eq!(
             std::fs::read_to_string(preset.join("agent.cordis.yml")).unwrap(),
             render::render_dsh_composition(&source_root).unwrap()
@@ -1885,8 +1980,7 @@ mod tests {
             std::fs::read_to_string(preset.join("lane-plugin/src/prompts.generated.js")).unwrap(),
             render::render_lane_prompts(&source_root, &lanes).unwrap()
         );
-        let client =
-            std::fs::read_to_string(preset.join("lane-plugin-ui/lib/client.js")).unwrap();
+        let client = std::fs::read_to_string(preset.join("lane-plugin-ui/lib/client.js")).unwrap();
         assert_eq!(
             client,
             render::lane_ui_client_source(&source_root, &lanes, crate::VERSION).unwrap()
@@ -1984,7 +2078,10 @@ mod tests {
             "the unselected profile is left alone"
         );
         let texts = sink.log_texts();
-        assert!(texts.iter().any(|text| text.contains("--dsh-profile 指定")), "{texts:?}");
+        assert!(
+            texts.iter().any(|text| text.contains("--dsh-profile 指定")),
+            "{texts:?}"
+        );
 
         // A named profile that does not exist is reported, never guessed at.
         let sink = VecSink::default();
@@ -2001,7 +2098,9 @@ mod tests {
         assert_eq!(outcome.managed_blocks, 0);
         let texts = sink.log_texts();
         assert!(
-            texts.iter().any(|text| text.contains("nope 未命中") && text.contains("设置页未写入")),
+            texts
+                .iter()
+                .any(|text| text.contains("nope 未命中") && text.contains("设置页未写入")),
             "{texts:?}"
         );
         assert!(texts.iter().any(|text| text.contains("手动加入")));
@@ -2020,8 +2119,16 @@ mod tests {
         let user_home = dir.path().join("user-home");
         let ctx = engine_context(&user_home);
         let sink = VecSink::default();
-        let outcome =
-            execute_dsh_in(&source_root, &ctx, &selection(false), &sink, &home, "", None).unwrap();
+        let outcome = execute_dsh_in(
+            &source_root,
+            &ctx,
+            &selection(false),
+            &sink,
+            &home,
+            "",
+            None,
+        )
+        .unwrap();
         assert_eq!(outcome.created, 9 + solution_guide_count(&source_root));
         assert_eq!(outcome.managed_blocks, 0);
 
@@ -2033,18 +2140,25 @@ mod tests {
             "{texts:?}"
         );
         assert!(
-            texts.iter().any(|text| text.contains("现有条目：alpha, beta")),
+            texts
+                .iter()
+                .any(|text| text.contains("现有条目：alpha, beta")),
             "{texts:?}"
         );
         assert!(texts.iter().any(|text| text.contains("手动加入")));
         // No patch file anywhere.
         for profile in ["alpha", "beta"] {
-            assert!(!home.join("profiles").join(profile).join("cordis.patch.yml").exists());
+            assert!(!home
+                .join("profiles")
+                .join(profile)
+                .join("cordis.patch.yml")
+                .exists());
         }
 
         // The same home plans with the not-mounted notes.
         let specifiers =
-            dsh_deps::resolve_lane_dependencies_in(&home, &lane_plugin_dep_map(), "", None).unwrap();
+            dsh_deps::resolve_lane_dependencies_in(&home, &lane_plugin_dep_map(), "", None)
+                .unwrap();
         let planned = plan_dsh_in(&source_root, &selection(false), &specifiers, &home).unwrap();
         assert_eq!(planned.managed_blocks, 0);
         assert!(
@@ -2105,8 +2219,16 @@ mod tests {
         // the second file must never be written.
         let sink = CancelAfterSink::new(2);
 
-        let outcome =
-            execute_dsh_in(&source_root, &ctx, &selection(false), &sink, &home, "", None).unwrap();
+        let outcome = execute_dsh_in(
+            &source_root,
+            &ctx,
+            &selection(false),
+            &sink,
+            &home,
+            "",
+            None,
+        )
+        .unwrap();
         assert_eq!(outcome.created, 1, "only preset.yml landed: {outcome:?}");
         assert!(preset_root(&home).join("preset.yml").exists());
         assert!(!preset_root(&home).join("agent.cordis.yml").exists());
@@ -2143,7 +2265,10 @@ mod tests {
         // block match — no drift, and everything was examined.
         let (clean, compared) = drift_dsh_with_compared(&source_root, &home, false).unwrap();
         assert!(clean.is_empty(), "{clean:?}");
-        assert!(compared >= 9, "installed preset files are compared: {compared}");
+        assert!(
+            compared >= 9,
+            "installed preset files are compared: {compared}"
+        );
 
         // Tamper one installed preset file → exactly that drift entry.
         let preset_yml = preset_root(&home).join("preset.yml");
@@ -2177,7 +2302,10 @@ mod tests {
             None,
         )
         .unwrap();
-        let patch = home.join("profiles").join("web").join(PROFILE_PATCH_FILENAME);
+        let patch = home
+            .join("profiles")
+            .join("web")
+            .join(PROFILE_PATCH_FILENAME);
 
         // Rewriting the row's name inside the managed block is drift the next
         // install would repair, attributed to the patch file with the stable
@@ -2193,7 +2321,11 @@ mod tests {
         // Deleting the patch file entirely: the install would re-add the row.
         // `web` keeps its cordis.yml, so it stays a maintained profile (the
         // editor row is current and reports nothing).
-        std::fs::write(home.join("profiles").join("web").join("cordis.yml"), "root: y\n").unwrap();
+        std::fs::write(
+            home.join("profiles").join("web").join("cordis.yml"),
+            "root: y\n",
+        )
+        .unwrap();
         std::fs::remove_file(&patch).unwrap();
         let drifted = drift_dsh(&source_root, &home, false).unwrap();
         assert_eq!(drifted.len(), 1, "{drifted:?}");

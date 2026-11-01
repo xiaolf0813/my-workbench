@@ -249,7 +249,16 @@ fn scan_jsonc_tokens(text: &str) -> Option<Vec<Tok<'_>>> {
                     let c = b[j];
                     if matches!(
                         c,
-                        b' ' | b'\t' | b'\n' | b'\r' | b'"' | b'{' | b'}' | b'[' | b']' | b',' | b':'
+                        b' ' | b'\t'
+                            | b'\n'
+                            | b'\r'
+                            | b'"'
+                            | b'{'
+                            | b'}'
+                            | b'['
+                            | b']'
+                            | b','
+                            | b':'
                     ) {
                         break;
                     }
@@ -413,7 +422,10 @@ fn is_json_stub_dest(dest: &Path) -> bool {
     let Some(base) = dest.file_name().and_then(|n| n.to_str()) else {
         return false;
     };
-    let parent = dest.parent().and_then(Path::file_name).and_then(|n| n.to_str());
+    let parent = dest
+        .parent()
+        .and_then(Path::file_name)
+        .and_then(|n| n.to_str());
     if base == "settings.json" && parent == Some(".claude") {
         return true;
     }
@@ -507,11 +519,18 @@ fn reconcile_stub(dest: &Path, stub: &[u8]) -> Option<Vec<u8>> {
 /// mirroring the CLI's `copyOne` force path.
 pub(crate) fn overwrite_bytes<'a>(dest: &Path, fresh: &'a [u8]) -> Option<Cow<'a, [u8]>> {
     if dest.extension().is_some_and(|ext| ext == "toml")
-        && dest.parent().and_then(Path::file_name).is_some_and(|name| name == "agents")
+        && dest
+            .parent()
+            .and_then(Path::file_name)
+            .is_some_and(|name| name == "agents")
     {
-        let Ok(previous) = std::fs::read_to_string(dest) else { return Some(Cow::Borrowed(fresh)); };
+        let Ok(previous) = std::fs::read_to_string(dest) else {
+            return Some(Cow::Borrowed(fresh));
+        };
         let fresh_text = std::str::from_utf8(fresh).ok()?;
-        return Some(Cow::Owned(crate::codex::preserve_settings(&previous, fresh_text).into_bytes()));
+        return Some(Cow::Owned(
+            crate::codex::preserve_settings(&previous, fresh_text).into_bytes(),
+        ));
     }
     if is_json_stub_dest(dest) {
         return reconcile_stub(dest, fresh).map(Cow::Owned);
@@ -535,7 +554,9 @@ pub(crate) fn overwrite_bytes<'a>(dest: &Path, fresh: &'a [u8]) -> Option<Cow<'a
             if saved.is_empty() {
                 return Some(Cow::Borrowed(fresh));
             }
-            Some(Cow::Owned(restore_frontmatter_keys(&saved, fresh_text).into_bytes()))
+            Some(Cow::Owned(
+                restore_frontmatter_keys(&saved, fresh_text).into_bytes(),
+            ))
         }
     }
 }
@@ -628,7 +649,10 @@ mod tests {
         let text = "---\nmodel: m\nthoughtLevel: max\nvariant: max\n---\n";
         assert_eq!(snapshot_frontmatter_keys(text, ZCODE_AGENT_KEYS).len(), 2);
         assert_eq!(snapshot_frontmatter_keys(text, CLAUDE_AGENT_KEYS).len(), 1);
-        assert_eq!(snapshot_frontmatter_keys(text, OPENCODE_AGENT_KEYS).len(), 2);
+        assert_eq!(
+            snapshot_frontmatter_keys(text, OPENCODE_AGENT_KEYS).len(),
+            2
+        );
         // The FIRST line per key wins.
         let text = "---\nmodel: one\nmodel: two\n---\n";
         let saved = snapshot_frontmatter_keys(text, CLAUDE_AGENT_KEYS);
@@ -636,12 +660,19 @@ mod tests {
         assert_eq!(saved[0].line, "model: one");
         // Leading whitespace stays part of the saved line.
         let text = "---\n  model: one\n---\n";
-        assert_eq!(snapshot_frontmatter_keys(text, CLAUDE_AGENT_KEYS)[0].line, "  model: one");
+        assert_eq!(
+            snapshot_frontmatter_keys(text, CLAUDE_AGENT_KEYS)[0].line,
+            "  model: one"
+        );
         // Near misses do not match: wrong key, key with inner space, bare key.
         let text = "---\nmodels: x\nmodel :x\nmodel\n---\n";
         assert!(snapshot_frontmatter_keys(text, CLAUDE_AGENT_KEYS).is_empty());
         // No frontmatter block / unclosed block / model line only in the body.
-        for text in ["model: y\n", "---\nmodel: y\n", "---\nname: x\n---\nmodel: y\n"] {
+        for text in [
+            "model: y\n",
+            "---\nmodel: y\n",
+            "---\nname: x\n---\nmodel: y\n",
+        ] {
             assert!(snapshot_frontmatter_keys(text, CLAUDE_AGENT_KEYS).is_empty());
         }
     }
@@ -663,27 +694,21 @@ mod tests {
         // render that carries thoughtLevel; a thoughtLevel-only save inserts
         // without touching the render's model line.
         let render = "---\nname: oracle\nmodel: inherit\n---\n";
-        let saved =
-            snapshot_frontmatter_keys("---\nmodel: pinned\n---\n", ZCODE_AGENT_KEYS);
+        let saved = snapshot_frontmatter_keys("---\nmodel: pinned\n---\n", ZCODE_AGENT_KEYS);
         assert_eq!(
             restore_frontmatter_keys(&saved, render),
             "---\nname: oracle\nmodel: pinned\n---\n"
         );
         let render = "---\nname: oracle\nmodel: inherit\n---\n";
-        let saved = snapshot_frontmatter_keys(
-            "---\nthoughtLevel: max\n---\n",
-            ZCODE_AGENT_KEYS,
-        );
+        let saved = snapshot_frontmatter_keys("---\nthoughtLevel: max\n---\n", ZCODE_AGENT_KEYS);
         assert_eq!(
             restore_frontmatter_keys(&saved, render),
             "---\nname: oracle\nmodel: inherit\nthoughtLevel: max\n---\n"
         );
         // Insert into an empty block (the closing fence is line 2); two saved
         // lines insert in saved order.
-        let saved = snapshot_frontmatter_keys(
-            "---\nmodel: x\nvariant: max\n---\n",
-            OPENCODE_AGENT_KEYS,
-        );
+        let saved =
+            snapshot_frontmatter_keys("---\nmodel: x\nvariant: max\n---\n", OPENCODE_AGENT_KEYS);
         assert_eq!(
             restore_frontmatter_keys(&saved, "---\n---\nbody\n"),
             "---\nmodel: x\nvariant: max\n---\nbody\n"
@@ -721,8 +746,14 @@ mod tests {
         let text = "{\"model\": \"a\\\"b\", \"x\": \"\\\\\"}";
         assert_eq!(root_member_value(text, "model").unwrap(), "\"a\\\"b\"");
         // Atoms run up to whitespace, structural chars, quotes and comments.
-        assert_eq!(root_member_value("{\"model\": 1.5e-3}", "model").unwrap(), "1.5e-3");
-        assert_eq!(root_member_value("{\"model\": true}", "model").unwrap(), "true");
+        assert_eq!(
+            root_member_value("{\"model\": 1.5e-3}", "model").unwrap(),
+            "1.5e-3"
+        );
+        assert_eq!(
+            root_member_value("{\"model\": true}", "model").unwrap(),
+            "true"
+        );
         // Comments between tokens are skipped; trailing whitespace before the
         // terminator is excluded from the span.
         let text = "{ /* head */ \"model\" /* k */ : /* v */ 123 /* after */ , \"x\": 1 }";
@@ -742,7 +773,7 @@ mod tests {
         for text in [
             "{\n  \"model\": \"unterminated\n}\n",
             "{\n  /* unterminated\n}\n",
-            "{\n  \"model\": \"x\"\n",          // unbalanced braces
+            "{\n  \"model\": \"x\"\n",         // unbalanced braces
             "[\"not\", \"an\", \"object\"]\n", // root is not an object
             "{} trailing\n",                   // tokens after the root closes
             "{}{}",                            // two root objects
@@ -775,12 +806,13 @@ mod tests {
                 .unwrap();
         assert_eq!(owned.len(), 1);
         assert_eq!(owned[0].key, "$schema");
-        assert_eq!(owned[0].member, "\"$schema\": \"https://opencode.ai/config.json\"");
+        assert_eq!(
+            owned[0].member,
+            "\"$schema\": \"https://opencode.ai/config.json\""
+        );
         // A multi-key stub derives every key, first occurrence per key.
-        let owned = stub_owned_members(
-            "{\n  \"a\": 1,\n  \"b\": \"x\",\n  \"a\": \"second\"\n}\n",
-        )
-        .unwrap();
+        let owned = stub_owned_members("{\n  \"a\": 1,\n  \"b\": \"x\",\n  \"a\": \"second\"\n}\n")
+            .unwrap();
         assert_eq!(owned.len(), 2);
         assert_eq!(owned[0].key, "a");
         assert_eq!(owned[0].value, "1");
@@ -793,7 +825,8 @@ mod tests {
     fn reconcile_replaces_only_the_value_span() {
         // The user's key spelling, member spacing and surrounding comments
         // survive; only the value span is reset to the canonical value.
-        let text = "{\n  // config\n  \"agent\"  :  \"user-pinned\" , // keep\n  \"model\": \"sonnet\"\n}";
+        let text =
+            "{\n  // config\n  \"agent\"  :  \"user-pinned\" , // keep\n  \"model\": \"sonnet\"\n}";
         assert_eq!(
             reconcile_owned_key("agent", "\"orchestrator\"", "\"agent\": \"orchestrator\"", text).unwrap(),
             "{\n  // config\n  \"agent\"  :  \"orchestrator\" , // keep\n  \"model\": \"sonnet\"\n}"
@@ -801,13 +834,20 @@ mod tests {
         // The FIRST occurrence wins; duplicates stay untouched.
         let text = "{\"agent\": \"first\", \"agent\": \"second\"}";
         assert_eq!(
-            reconcile_owned_key("agent", "\"canonical\"", "\"agent\": \"canonical\"", text).unwrap(),
+            reconcile_owned_key("agent", "\"canonical\"", "\"agent\": \"canonical\"", text)
+                .unwrap(),
             "{\"agent\": \"canonical\", \"agent\": \"second\"}"
         );
         // Any value shape is span-replaced (an object here).
         let text = "{\n  \"agent\": { \"old\": true }\n}";
         assert_eq!(
-            reconcile_owned_key("agent", "\"orchestrator\"", "\"agent\": \"orchestrator\"", text).unwrap(),
+            reconcile_owned_key(
+                "agent",
+                "\"orchestrator\"",
+                "\"agent\": \"orchestrator\"",
+                text
+            )
+            .unwrap(),
             "{\n  \"agent\": \"orchestrator\"\n}"
         );
     }
@@ -818,23 +858,47 @@ mod tests {
         // precedes the closing brace.
         let text = "{\n  \"model\": \"sonnet\"\n}\n";
         assert_eq!(
-            reconcile_owned_key("agent", "\"orchestrator\"", "\"agent\": \"orchestrator\"", text).unwrap(),
+            reconcile_owned_key(
+                "agent",
+                "\"orchestrator\"",
+                "\"agent\": \"orchestrator\"",
+                text
+            )
+            .unwrap(),
             "{\n  \"model\": \"sonnet\",\n  \"agent\": \"orchestrator\"\n}\n"
         );
         // A comment breaks the whitespace run: insertion lands after it.
         let text = "{ \"a\": 1 /* keep */ }";
         assert_eq!(
-            reconcile_owned_key("agent", "\"orchestrator\"", "\"agent\": \"orchestrator\"", text).unwrap(),
+            reconcile_owned_key(
+                "agent",
+                "\"orchestrator\"",
+                "\"agent\": \"orchestrator\"",
+                text
+            )
+            .unwrap(),
             "{ \"a\": 1 /* keep */,\n  \"agent\": \"orchestrator\" }"
         );
         // Empty root: no comma.
         assert_eq!(
-            reconcile_owned_key("agent", "\"orchestrator\"", "\"agent\": \"orchestrator\"", "{}").unwrap(),
+            reconcile_owned_key(
+                "agent",
+                "\"orchestrator\"",
+                "\"agent\": \"orchestrator\"",
+                "{}"
+            )
+            .unwrap(),
             "{\n  \"agent\": \"orchestrator\"}"
         );
         // Compact root: the member butts against the brace.
         assert_eq!(
-            reconcile_owned_key("agent", "\"orchestrator\"", "\"agent\": \"orchestrator\"", "{\"a\":1}").unwrap(),
+            reconcile_owned_key(
+                "agent",
+                "\"orchestrator\"",
+                "\"agent\": \"orchestrator\"",
+                "{\"a\":1}"
+            )
+            .unwrap(),
             "{\"a\":1,\n  \"agent\": \"orchestrator\"}"
         );
     }
@@ -901,7 +965,11 @@ mod tests {
         assert_eq!(&*out, &fresh[..]);
 
         // User-retuned file on disk: model replaced, effort inserted.
-        std::fs::write(&dest, "---\nmodel: custom/pinned\neffort: high\n---\nold body\n").unwrap();
+        std::fs::write(
+            &dest,
+            "---\nmodel: custom/pinned\neffort: high\n---\nold body\n",
+        )
+        .unwrap();
         let out = overwrite_bytes(&dest, fresh).unwrap();
         assert_eq!(
             &*out,

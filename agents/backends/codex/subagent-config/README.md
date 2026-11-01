@@ -1,4 +1,4 @@
-# Codex Agent Model Config
+# Subagent Config
 
 Desktop-only ChatGPT/Codex plugin for editing model fields in existing custom Codex
 subagent TOML files.
@@ -23,26 +23,28 @@ subagent TOML files.
 
 ## Install and run
 
-The desktop plugin entry points are `plugin.json` and `mcp.json`; install this
-folder from the ChatGPT desktop app as a local desktop-only plugin.
+`npx my-workbench --codex` (or `--chatgpt`) builds the complete Codex target and
+installs this plugin with it. The deployment copies the checked-in runtime into
+`<CODEX_HOME>/my-workbench-plugin-marketplace/`, registers that local marketplace,
+then installs `subagent-config@my-workbench` through the official `codex plugin`
+CLI. Restart ChatGPT / Codex afterward.
 
 For local development:
 
 ```sh
-cd codex-agent-model-config
+cd agents/backends/codex/subagent-config
 npm install
 npm --prefix web install
 npm run build
 npm test
 ```
 
-`npm run build` compiles the stdio server and creates the inlined MCP Apps UI at
-`web/dist/component.html`. Keep the root `node_modules/`, `dist/`, and `web/dist/`
-directories present when installing the plugin locally.
+`npm run build` bundles the dependency-free deployment artifacts at
+`runtime/server.mjs` and `runtime/component.html`; those two files are checked in
+and are the only runtime payload beside `plugin.json` and `mcp.json`.
 
-For ChatGPT desktop testing, expose this folder through a repo or personal local
-plugin marketplace, restart ChatGPT, install **Codex Agent Model Config**, and open
-it in a local Codex chat. The final acceptance pass is:
+For ChatGPT desktop testing, deploy the Codex target, restart ChatGPT, and open
+**Subagent Config** in a local Codex chat. The final acceptance pass is:
 
 1. Load and save a personal agent.
 2. Open the plugin from a project chat, confirm its read-only project root, then

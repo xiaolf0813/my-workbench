@@ -51,7 +51,7 @@ export function AgentModelForm({
   if (!agent) {
     return (
       <main className="detail">
-        <h1>Codex subagent model configuration</h1>
+        <h1>Subagent Config</h1>
         <p>Select an agent to inspect its model configuration.</p>
       </main>
     );

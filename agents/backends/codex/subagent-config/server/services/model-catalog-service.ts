@@ -182,8 +182,8 @@ async function loadModelsFromAppServer(): Promise<unknown[]> {
       id: 0,
       params: {
         clientInfo: {
-          name: "codex_agent_model_config",
-          title: "Codex Agent Model Config",
+          name: "subagent_config",
+          title: "Subagent Config",
           version: "0.1.8",
         },
       },

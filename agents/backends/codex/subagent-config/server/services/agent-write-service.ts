@@ -84,7 +84,7 @@ export async function updateAgentModel(
     ...(input.modelVerbosity === undefined ? {} : { model_verbosity: input.modelVerbosity }),
   });
 
-  const temporaryPath = await fs.mkdtemp(path.join(path.dirname(filePath), ".codex-agent-model-config-"));
+  const temporaryPath = await fs.mkdtemp(path.join(path.dirname(filePath), ".subagent-config-"));
   const candidatePath = path.join(temporaryPath, "candidate.toml");
   try {
     const candidate = await fs.open(candidatePath, "wx", 0o600);

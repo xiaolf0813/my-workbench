@@ -51,17 +51,27 @@ pub fn agent_source_problems(source_root: &Path) -> Vec<String> {
             problems.push(format!("agent '{}' has no description", entry.name));
         }
         for backend in ["claude", "opencode", "zcode", "codex"] {
-            if backend == "codex" && !source_root.join("agents/backends/codex").is_dir() { continue; }
-            let lines = entry.record.get("frontmatter").and_then(|f| f.get(backend));
-            // ZCode uses AGENTS.md as its main agent.
-            if entry.name == "orchestrator" && (backend == "zcode" || backend == "codex") && lines.is_none() {
+            if backend == "codex" && !source_root.join("agents/backends/codex").is_dir() {
                 continue;
             }
-            let description_lines = lines
-                .and_then(Value::as_array)
-                .map_or(0, |a| a.iter().filter(|l| l.as_str() == Some("@description")).count());
+            let lines = entry.record.get("frontmatter").and_then(|f| f.get(backend));
+            // ZCode uses AGENTS.md as its main agent.
+            if entry.name == "orchestrator"
+                && (backend == "zcode" || backend == "codex")
+                && lines.is_none()
+            {
+                continue;
+            }
+            let description_lines = lines.and_then(Value::as_array).map_or(0, |a| {
+                a.iter()
+                    .filter(|l| l.as_str() == Some("@description"))
+                    .count()
+            });
             if description_lines != 1 {
-                problems.push(format!("agent '{}' has invalid {backend} frontmatter", entry.name));
+                problems.push(format!(
+                    "agent '{}' has invalid {backend} frontmatter",
+                    entry.name
+                ));
             }
         }
     }
@@ -164,9 +174,14 @@ pub fn lane_plugin_problems(source_root: &Path) -> Vec<String> {
         }
     };
     let empty = serde_json::Map::new();
-    let exports = manifest.get("exports").and_then(Value::as_object).unwrap_or(&empty);
+    let exports = manifest
+        .get("exports")
+        .and_then(Value::as_object)
+        .unwrap_or(&empty);
     for (key, target) in exports {
-        let Some(target) = target.as_str() else { continue };
+        let Some(target) = target.as_str() else {
+            continue;
+        };
         if !host_pkg.join(target).exists() {
             problems.push(format!(
                 "host-package/package.json exports '{key}' -> '{target}', which does not exist"
@@ -184,7 +199,9 @@ pub fn lane_plugin_problems(source_root: &Path) -> Vec<String> {
     let lanes = match load_lanes(source_root) {
         Ok(lanes) => lanes,
         Err(e) => {
-            problems.push(format!("agents/backends/dsh/lanes.json could not be read: {e}"));
+            problems.push(format!(
+                "agents/backends/dsh/lanes.json could not be read: {e}"
+            ));
             return problems;
         }
     };
@@ -206,7 +223,9 @@ pub fn lane_plugin_problems(source_root: &Path) -> Vec<String> {
                 problems.push("host module does not import the rendered roster".to_string());
             }
         }
-        Err(e) => problems.push(format!("the lane plugin host module could not be read: {e}")),
+        Err(e) => problems.push(format!(
+            "the lane plugin host module could not be read: {e}"
+        )),
     }
     problems
 }
@@ -359,7 +378,10 @@ pub fn lane_ui_plugin_problems(source_root: &Path) -> Vec<String> {
     }
 
     let empty = serde_json::Map::new();
-    let exports = manifest.get("exports").and_then(Value::as_object).unwrap_or(&empty);
+    let exports = manifest
+        .get("exports")
+        .and_then(Value::as_object)
+        .unwrap_or(&empty);
     let client_target = exports.get("./client");
     match client_target.and_then(Value::as_str) {
         Some(target) => {
@@ -396,7 +418,9 @@ pub fn lane_ui_plugin_problems(source_root: &Path) -> Vec<String> {
     let lanes = match load_lanes(source_root) {
         Ok(lanes) => lanes,
         Err(e) => {
-            problems.push(format!("agents/backends/dsh/lanes.json could not be read: {e}"));
+            problems.push(format!(
+                "agents/backends/dsh/lanes.json could not be read: {e}"
+            ));
             return problems;
         }
     };
@@ -427,9 +451,9 @@ pub fn lane_ui_plugin_problems(source_root: &Path) -> Vec<String> {
 
     // The bundle registers under the name the module table keys it by.
     match find_module_id(&bundle) {
-        None => problems.push(
-            "lane-plugin-ui/lib/client.js does not declare a module id".to_string(),
-        ),
+        None => {
+            problems.push("lane-plugin-ui/lib/client.js does not declare a module id".to_string())
+        }
         Some(id) => {
             let package_name = template_label(manifest.get("name"));
             if id != package_name {
@@ -489,9 +513,17 @@ mod tests {
   }
 }"#,
         );
-        write(dir.path(), "agents/prompts/orchestrator.md", "Orchestrate.\n");
+        write(
+            dir.path(),
+            "agents/prompts/orchestrator.md",
+            "Orchestrate.\n",
+        );
         write(dir.path(), "agents/prompts/explorer.md", "Explore.\n");
-        write(dir.path(), "agents/prompts_cn/orchestrator_cn.md", "编排。\n");
+        write(
+            dir.path(),
+            "agents/prompts_cn/orchestrator_cn.md",
+            "编排。\n",
+        );
         write(dir.path(), "agents/prompts_cn/explorer_cn.md", "探索。\n");
         write(
             dir.path(),
@@ -518,7 +550,11 @@ mod tests {
             "agents/backends/dsh/lane-plugin-ui/package.json",
             r#"{ "name": "@wb/lane-ui", "dsh": { "client": { "platform": "web" } }, "exports": { ".": "lib/host.js", "./client": "./lib/client.js" } }"#,
         );
-        write(dir.path(), "agents/backends/dsh/lane-plugin-ui/lib/host.js", "export const name = '@wb/lane-ui'\nexport const inject = []\n");
+        write(
+            dir.path(),
+            "agents/backends/dsh/lane-plugin-ui/lib/host.js",
+            "export const name = '@wb/lane-ui'\nexport const inject = []\n",
+        );
         write(
             dir.path(),
             "agents/backends/dsh/lane-plugin-ui/lib/client.js",
@@ -572,19 +608,39 @@ mod tests {
 }"#,
         );
         let problems = agent_source_problems(dir.path());
-        assert!(problems.contains(&"agent 'orchestrator' has no description".to_string()), "{problems:?}");
-        assert!(problems.contains(&"agent 'orchestrator' has invalid claude frontmatter".to_string()), "{problems:?}");
-        assert!(problems.contains(&"agent 'orchestrator' has invalid opencode frontmatter".to_string()), "{problems:?}");
-        assert!(problems.contains(&"agent 'explorer' has invalid zcode frontmatter".to_string()), "{problems:?}");
+        assert!(
+            problems.contains(&"agent 'orchestrator' has no description".to_string()),
+            "{problems:?}"
+        );
+        assert!(
+            problems.contains(&"agent 'orchestrator' has invalid claude frontmatter".to_string()),
+            "{problems:?}"
+        );
+        assert!(
+            problems.contains(&"agent 'orchestrator' has invalid opencode frontmatter".to_string()),
+            "{problems:?}"
+        );
+        assert!(
+            problems.contains(&"agent 'explorer' has invalid zcode frontmatter".to_string()),
+            "{problems:?}"
+        );
         // non-array frontmatter (opencode: string) counts as invalid exactly once
-        assert_eq!(problems.iter().filter(|p| p.contains("opencode frontmatter")).count(), 1);
+        assert_eq!(
+            problems
+                .iter()
+                .filter(|p| p.contains("opencode frontmatter"))
+                .count(),
+            1
+        );
     }
 
     #[test]
     fn orchestrator_may_omit_zcode_but_nothing_else() {
         let dir = valid_tree();
         // valid_tree's orchestrator has no zcode frontmatter and passes
-        assert!(!agent_source_problems(dir.path()).iter().any(|p| p.contains("orchestrator")));
+        assert!(!agent_source_problems(dir.path())
+            .iter()
+            .any(|p| p.contains("orchestrator")));
         // removing opencode IS flagged
         write(
             dir.path(),
@@ -599,17 +655,30 @@ mod tests {
 }"#,
         );
         let problems = agent_source_problems(dir.path());
-        assert!(problems.contains(&"agent 'orchestrator' has invalid opencode frontmatter".to_string()), "{problems:?}");
+        assert!(
+            problems.contains(&"agent 'orchestrator' has invalid opencode frontmatter".to_string()),
+            "{problems:?}"
+        );
     }
 
     #[test]
     fn orphan_prompts_and_missing_bodies_both_directions() {
         let dir = valid_tree();
-        write(dir.path(), "agents/prompts/orphan.md", "nobody references me\n");
+        write(
+            dir.path(),
+            "agents/prompts/orphan.md",
+            "nobody references me\n",
+        );
         fs::remove_file(dir.path().join("agents/prompts/explorer.md")).unwrap();
         let problems = agent_source_problems(dir.path());
-        assert!(problems.contains(&"agents/prompts/orphan.md has no agent record".to_string()), "{problems:?}");
-        assert!(problems.contains(&"agent 'explorer' has no prompt body".to_string()), "{problems:?}");
+        assert!(
+            problems.contains(&"agents/prompts/orphan.md has no agent record".to_string()),
+            "{problems:?}"
+        );
+        assert!(
+            problems.contains(&"agent 'explorer' has no prompt body".to_string()),
+            "{problems:?}"
+        );
     }
 
     #[test]
@@ -617,15 +686,29 @@ mod tests {
         let dir = valid_tree();
         // directory absent: no Chinese checks at all
         fs::remove_dir_all(dir.path().join("agents/prompts_cn")).unwrap();
-        assert!(!agent_source_problems(dir.path()).iter().any(|p| p.contains("Chinese")));
+        assert!(!agent_source_problems(dir.path())
+            .iter()
+            .any(|p| p.contains("Chinese")));
         // directory present again, but the orchestrator pair is missing
         write(dir.path(), "agents/prompts_cn/ghost_cn.md", "orphan\n");
         write(dir.path(), "agents/prompts_cn/explorer_cn.md", "探索。\n");
         let problems = agent_source_problems(dir.path());
-        assert!(problems.contains(&"agent 'orchestrator' has no Chinese reference translation".to_string()), "{problems:?}");
-        assert!(problems.contains(&"agents/prompts_cn/ghost_cn.md has no agent record".to_string()), "{problems:?}");
+        assert!(
+            problems
+                .contains(&"agent 'orchestrator' has no Chinese reference translation".to_string()),
+            "{problems:?}"
+        );
+        assert!(
+            problems.contains(&"agents/prompts_cn/ghost_cn.md has no agent record".to_string()),
+            "{problems:?}"
+        );
         // explorer still has its pair and is not flagged
-        assert!(!problems.iter().any(|p| p.contains("agent 'explorer' has no Chinese")), "{problems:?}");
+        assert!(
+            !problems
+                .iter()
+                .any(|p| p.contains("agent 'explorer' has no Chinese")),
+            "{problems:?}"
+        );
     }
 
     #[test]
@@ -633,7 +716,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let problems = agent_source_problems(dir.path());
         assert_eq!(problems.len(), 1);
-        assert!(problems[0].starts_with("agents/roster.json could not be read:"), "{problems:?}");
+        assert!(
+            problems[0].starts_with("agents/roster.json could not be read:"),
+            "{problems:?}"
+        );
     }
 
     // ------------------------------------------------ lanePluginProblems
@@ -661,8 +747,14 @@ mod tests {
         );
         let problems = lane_plugin_problems(dir.path());
         assert!(problems.contains(&"host-package/package.json exports './missing' -> 'src/gone.js', which does not exist".to_string()), "{problems:?}");
-        assert!(problems.contains(&"lane 'ghost' has no agent record".to_string()), "{problems:?}");
-        assert!(problems.contains(&"host module does not import the rendered roster".to_string()), "{problems:?}");
+        assert!(
+            problems.contains(&"lane 'ghost' has no agent record".to_string()),
+            "{problems:?}"
+        );
+        assert!(
+            problems.contains(&"host module does not import the rendered roster".to_string()),
+            "{problems:?}"
+        );
         assert_eq!(problems.len(), 3, "{problems:?}");
     }
 
@@ -681,10 +773,19 @@ mod tests {
     #[test]
     fn lane_plugin_unreadable_manifest_is_a_problem() {
         let dir = valid_tree();
-        fs::remove_file(dir.path().join("agents/backends/dsh/lane-plugin/host-package/package.json")).unwrap();
+        fs::remove_file(
+            dir.path()
+                .join("agents/backends/dsh/lane-plugin/host-package/package.json"),
+        )
+        .unwrap();
         let problems = lane_plugin_problems(dir.path());
         assert_eq!(problems.len(), 1);
-        assert!(problems[0].starts_with("agents/backends/dsh/lane-plugin/host-package/package.json could not be read:"), "{problems:?}");
+        assert!(
+            problems[0].starts_with(
+                "agents/backends/dsh/lane-plugin/host-package/package.json could not be read:"
+            ),
+            "{problems:?}"
+        );
     }
 
     // ---------------------------------------------- laneUiPluginProblems
@@ -692,16 +793,32 @@ mod tests {
     #[test]
     fn lane_ui_flags_declaration_export_and_target_problems() {
         let dir = valid_tree();
-        write(dir.path(), "agents/backends/dsh/lane-plugin-ui/lib/other.js", "x\n");
+        write(
+            dir.path(),
+            "agents/backends/dsh/lane-plugin-ui/lib/other.js",
+            "x\n",
+        );
         write(
             dir.path(),
             "agents/backends/dsh/lane-plugin-ui/package.json",
             r#"{ "name": "@wb/lane-ui", "dsh": { "client": { "platform": "desktop" } }, "exports": { "./client": "./lib/other.js", ".": "lib/gone.js" } }"#,
         );
         let problems = lane_ui_plugin_problems(dir.path());
-        assert!(problems.contains(&"lane-plugin-ui/package.json dsh.client.platform is \"desktop\", not \"web\"".to_string()), "{problems:?}");
+        assert!(
+            problems.contains(
+                &"lane-plugin-ui/package.json dsh.client.platform is \"desktop\", not \"web\""
+                    .to_string()
+            ),
+            "{problems:?}"
+        );
         assert!(problems.contains(&"lane-plugin-ui/package.json exports './client' -> './lib/other.js', but the rendered page installs as './lib/client.js'".to_string()), "{problems:?}");
-        assert!(problems.contains(&"lane-plugin-ui/package.json exports '.' -> \"lib/gone.js\", which does not exist".to_string()), "{problems:?}");
+        assert!(
+            problems.contains(
+                &"lane-plugin-ui/package.json exports '.' -> \"lib/gone.js\", which does not exist"
+                    .to_string()
+            ),
+            "{problems:?}"
+        );
         // non-string ./client and missing '.'
         write(
             dir.path(),
@@ -710,7 +827,13 @@ mod tests {
         );
         let problems = lane_ui_plugin_problems(dir.path());
         assert!(problems.contains(&"lane-plugin-ui/package.json exports no './client', so dsh-client-modules would refuse the package".to_string()), "{problems:?}");
-        assert!(problems.contains(&"lane-plugin-ui/package.json exports '.' -> undefined, which does not exist".to_string()), "{problems:?}");
+        assert!(
+            problems.contains(
+                &"lane-plugin-ui/package.json exports '.' -> undefined, which does not exist"
+                    .to_string()
+            ),
+            "{problems:?}"
+        );
         // no dsh at all + missing export target file
         write(
             dir.path(),
@@ -739,7 +862,10 @@ mod tests {
         assert!(problems.contains(&"lane-plugin-ui/lib/client.js declares no factory, so the module table cannot materialize it".to_string()), "{problems:?}");
         assert!(problems.contains(&"lane-plugin-ui/lib/client.js registers id 'other-id' but the package is named '@wb/lane-ui'".to_string()), "{problems:?}");
         assert!(problems.contains(&"lane-plugin-ui/lib/client.js requires 'vue', which is not one of the browser shell's 9 seed modules (it would fail at runtime with \"missed the module table\")".to_string()), "{problems:?}");
-        assert!(!problems.iter().any(|p| p.contains("'react-dom'")), "{problems:?}");
+        assert!(
+            !problems.iter().any(|p| p.contains("'react-dom'")),
+            "{problems:?}"
+        );
     }
 
     #[test]
@@ -751,16 +877,23 @@ mod tests {
             "\"__MY_WORKBENCH_LANES__\" \"__MY_WORKBENCH_LANES__\"\nwindow.__ModuleLoader__.load('@wb/lane-ui', { id: '@wb/lane-ui', factory: () => 1 })\n",
         );
         let problems = lane_ui_plugin_problems(dir.path());
-        assert!(problems.contains(&"lane UI must contain exactly one roster marker".to_string()), "{problems:?}");
+        assert!(
+            problems.contains(&"lane UI must contain exactly one roster marker".to_string()),
+            "{problems:?}"
+        );
     }
 
     #[test]
     fn require_and_id_scanners_follow_the_js_regexes() {
         // \b boundary: "grid:" does contain "id:" (no \b in that regex) but
         // "prerequisite(" must not count as require(
-        let bundle = "grid: 'x' prerequisite('y') require( 'react' )require('react-dom')xrequire('vue')";
+        let bundle =
+            "grid: 'x' prerequisite('y') require( 'react' )require('react-dom')xrequire('vue')";
         assert_eq!(find_module_id(bundle), Some("x".to_string()));
-        assert_eq!(find_requires(bundle), vec!["react".to_string(), "react-dom".to_string()]);
+        assert_eq!(
+            find_requires(bundle),
+            vec!["react".to_string(), "react-dom".to_string()]
+        );
         // factory: needs \b and optional whitespace before the colon
         assert!(has_factory_pattern("factory: 1"));
         assert!(has_factory_pattern("({factory : f})"));

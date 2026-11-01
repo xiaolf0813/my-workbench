@@ -1,17 +1,19 @@
 {
-  "name": "codex-agent-model-config-server",
+  "name": "subagent-config-server",
   "version": "0.1.8",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm run build:server && npm --prefix web run build",
-    "build:server": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
-    "pretest": "npm run build:server",
+    "build": "npm run typecheck && npm run build:server && npm --prefix web run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build:server": "node scripts/build-server.js",
+    "start": "node runtime/server.mjs",
+    "pretest": "npm run build",
     "test": "node --test tests/*.test.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "esbuild": "^0.28.2",
     "typescript": "^5.9.3"
   },
   "dependencies": {

@@ -1,20 +1,20 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "codex-agent-model-config",
+  "name": "subagent-config",
   "version": "0.1.8",
   "description": "Configure models for existing Codex custom subagents from a desktop-only MCP app.",
   "license": "MIT",
   "extensions": {
     "com.openai": {
       "interface": {
-        "displayName": "Codex Agent Model Config",
+        "displayName": "Subagent Config",
         "shortDescription": "Edit model settings for existing custom Codex subagents.",
         "longDescription": "Scan personal and current-project Codex custom agent TOML files, inspect model settings and read-only role instructions, then save model changes in place.",
         "developerName": "xiaolf",
         "category": "Productivity",
         "capabilities": ["Read", "Write"],
         "defaultPrompt": [
-          "Open the Codex agent model configuration app.",
+          "Open the Subagent Config app.",
           "Show the model settings for my custom Codex subagents."
         ]
       }

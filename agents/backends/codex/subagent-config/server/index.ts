@@ -13,16 +13,16 @@ import { getAgentConfigurationsTool } from "./tools/get-agent-configurations.js"
 import { listModelsTool } from "./tools/list-models.js";
 import { updateAgentModelTool } from "./tools/update-agent-model.js";
 
-const UI_RESOURCE_URI = "ui://codex-agent-model-config/v10.html";
+const UI_RESOURCE_URI = "ui://subagent-config/v10.html";
 
 function createMcpServer() {
   const server = new McpServer({
-    name: "codex-agent-model-config",
+    name: "subagent-config",
     version: "0.1.8",
   });
 
-  registerAppResource(server, "codex-agent-model-config", UI_RESOURCE_URI, {}, async () => {
-    const uiBundle = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "../web/dist/component.html"), "utf8");
+  registerAppResource(server, "subagent-config", UI_RESOURCE_URI, {}, async () => {
+    const uiBundle = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "component.html"), "utf8");
     return {
       contents: [
         {

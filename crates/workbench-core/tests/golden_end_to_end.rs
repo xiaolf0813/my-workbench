@@ -56,7 +56,9 @@ const WALK_SKIP: [&str; 3] = ["node_modules", "package-lock.json", "settings.loc
 
 fn repo_root() -> PathBuf {
     // The crate lives at <repo>/crates/workbench-core.
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
 }
 
 // ----------------------------------------------------------------- sandbox
@@ -93,9 +95,11 @@ impl EventSink for NullSink {
 // ---------------------------------------------------------------- fixtures
 
 struct Fixtures {
-    /// Directory holding the fake `opencode` launcher, prepended to PATH on
-    /// both sides so the install gate is deterministic on any host.
+    /// Directory holding the fake `opencode` launcher, prepended to PATH.
     bin: PathBuf,
+    /// Node script used as a fake `codex` so golden runs never mutate the
+    /// developer's real plugin configuration.
+    fake_codex: PathBuf,
 }
 
 fn make_fixtures(run_dir: &Path) -> Fixtures {
@@ -118,7 +122,13 @@ fn make_fixtures(run_dir: &Path) -> Fixtures {
             fs::set_permissions(&launcher, fs::Permissions::from_mode(0o755)).unwrap();
         }
     }
-    Fixtures { bin }
+    let fake_codex = run_dir.join("fixtures").join("fake-codex.cjs");
+    fs::write(
+        &fake_codex,
+        "process.stdout.write(JSON.stringify({ ok: true }));\n",
+    )
+    .unwrap();
+    Fixtures { bin, fake_codex }
 }
 
 /// Fake DSH home: TWO initialized profiles (`web` and `cli`, so the row
@@ -307,11 +317,7 @@ fn cli_env(sandbox: &Sandbox, dsh: bool) -> (Vec<(String, String)>, Vec<&'static
         ),
         (
             "APPDATA".to_string(),
-            sandbox
-                .home
-                .join("AppData")
-                .to_string_lossy()
-                .into_owned(),
+            sandbox.home.join("AppData").to_string_lossy().into_owned(),
         ),
         (
             "XDG_CONFIG_HOME".to_string(),
@@ -384,7 +390,9 @@ fn run_cli(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| format!("could not spawn node: {e}"))?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("could not spawn node: {e}"))?;
     let deadline = Instant::now() + CLI_TIMEOUT;
     let status = loop {
         match child.try_wait() {
@@ -494,8 +502,14 @@ fn compare_trees(cli: &Sandbox, core: &Sandbox, case: &str) {
     let cli_tree = collect_tree(&cli.root);
     let core_tree = collect_tree(&core.root);
 
-    let only_cli: Vec<&String> = cli_tree.keys().filter(|k| !core_tree.contains_key(*k)).collect();
-    let only_core: Vec<&String> = core_tree.keys().filter(|k| !cli_tree.contains_key(*k)).collect();
+    let only_cli: Vec<&String> = cli_tree
+        .keys()
+        .filter(|k| !core_tree.contains_key(*k))
+        .collect();
+    let only_core: Vec<&String> = core_tree
+        .keys()
+        .filter(|k| !cli_tree.contains_key(*k))
+        .collect();
     assert!(
         only_cli.is_empty() && only_core.is_empty(),
         "case {case}: the sandbox trees hold different file sets\n  only CLI wrote: {only_cli:?}\n  only core wrote: {only_core:?}"
@@ -503,7 +517,11 @@ fn compare_trees(cli: &Sandbox, core: &Sandbox, case: &str) {
 
     for (rel, cli_bytes) in &cli_tree {
         let core_bytes = &core_tree[rel];
-        let cli_norm = normalize(cli_bytes, &cli.root.to_string_lossy(), &cli.home.to_string_lossy());
+        let cli_norm = normalize(
+            cli_bytes,
+            &cli.root.to_string_lossy(),
+            &cli.home.to_string_lossy(),
+        );
         let core_norm = normalize(
             core_bytes,
             &core.root.to_string_lossy(),
@@ -595,20 +613,37 @@ fn run_install_case(
     if case.name == "codex_home" {
         std::env::set_var("CODEX_HOME", core.root.join("custom codex home"));
         env_remove.retain(|name| *name != "CODEX_HOME");
-        env_set.push(("CODEX_HOME".into(), cli.root.join("custom codex home").to_string_lossy().into_owned()));
+        env_set.push((
+            "CODEX_HOME".into(),
+            cli.root
+                .join("custom codex home")
+                .to_string_lossy()
+                .into_owned(),
+        ));
     }
     if case.name == "preserve_codex" || case.name == "skip_codex" {
         for side in [&cli, &core] {
             let root = side.home.join(".codex");
             fs::create_dir_all(root.join("agents")).unwrap();
-            fs::write(root.join("config.toml"), "# user-owned\n[agents]\nenabled = true\n").unwrap();
+            fs::write(
+                root.join("config.toml"),
+                "# user-owned\n[agents]\nenabled = true\n",
+            )
+            .unwrap();
             fs::write(root.join("AGENTS.override.md"), "user override\n").unwrap();
             fs::write(root.join("AGENTS.md"), "user instructions\n").unwrap();
             fs::write(root.join("agents/observer.toml"), "model = \"custom/model\" # pin\nmodel_reasoning_effort = 'high'\nmodel_verbosity = \"low\"\nname = \"old\"\ndeveloper_instructions = \"old body\"\n").unwrap();
         }
     }
-    let run = run_cli(repo, case.cli_flags, &cli.project, &env_set, &env_remove, &fixtures.bin)
-        .unwrap_or_else(|e| panic!("case {}: {e}", case.name));
+    let run = run_cli(
+        repo,
+        case.cli_flags,
+        &cli.project,
+        &env_set,
+        &env_remove,
+        &fixtures.bin,
+    )
+    .unwrap_or_else(|e| panic!("case {}: {e}", case.name));
     assert_eq!(
         run.status,
         Some(0),
@@ -650,8 +685,15 @@ fn run_install_case(
                 fs::write(sandbox.root.join(rel), "TAMPERED-BY-GATE\n").unwrap();
             }
         }
-        let rerun = run_cli(repo, case.cli_flags, &cli.project, &env_set, &env_remove, &fixtures.bin)
-            .unwrap_or_else(|e| panic!("case {} (rerun): {e}", case.name));
+        let rerun = run_cli(
+            repo,
+            case.cli_flags,
+            &cli.project,
+            &env_set,
+            &env_remove,
+            &fixtures.bin,
+        )
+        .unwrap_or_else(|e| panic!("case {} (rerun): {e}", case.name));
         assert_eq!(
             rerun.status,
             Some(0),
@@ -731,49 +773,110 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
     match case.name {
         "codex" | "codex_alias" | "codex_home" | "codex_user" | "preserve_codex" | "skip_codex" => {
             for side in [cli, core] {
-                let root = if case.name == "codex_home" { side.root.join("custom codex home") } else { side.home.join(".codex") };
+                let root = if case.name == "codex_home" {
+                    side.root.join("custom codex home")
+                } else {
+                    side.home.join(".codex")
+                };
                 assert!(!side.project.join("my-workbench.version").exists());
-                let mut files: Vec<_> = fs::read_dir(root.join("agents")).unwrap().map(|e| e.unwrap().path()).collect();
+                let mut files: Vec<_> = fs::read_dir(root.join("agents"))
+                    .unwrap()
+                    .map(|e| e.unwrap().path())
+                    .collect();
                 files.sort();
                 assert_eq!(files.len(), 9);
                 for file in &files {
                     let text = fs::read_to_string(file).unwrap();
                     let parsed: toml_edit::DocumentMut = text.parse().unwrap();
                     assert!(parsed.get("name").and_then(|v| v.as_str()).is_some());
-                    assert!(parsed.get("developer_instructions").and_then(|v| v.as_str()).is_some());
+                    assert!(parsed
+                        .get("developer_instructions")
+                        .and_then(|v| v.as_str())
+                        .is_some());
                 }
                 if case.name == "preserve_codex" || case.name == "skip_codex" {
                     let observer = fs::read_to_string(root.join("agents/observer.toml")).unwrap();
                     assert!(observer.contains("model = \"custom/model\" # pin"));
                     assert!(observer.contains("model_reasoning_effort = 'high'"));
-                    assert_eq!(fs::read_to_string(root.join("config.toml")).unwrap(), "# user-owned\n[agents]\nenabled = true\n");
-                    assert_eq!(fs::read_to_string(root.join("AGENTS.override.md")).unwrap(), "user override\n");
+                    assert_eq!(
+                        fs::read_to_string(root.join("config.toml")).unwrap(),
+                        "# user-owned\n[agents]\nenabled = true\n"
+                    );
+                    assert_eq!(
+                        fs::read_to_string(root.join("AGENTS.override.md")).unwrap(),
+                        "user override\n"
+                    );
                     if case.name == "preserve_codex" {
                         assert!(observer.contains("features.shell_tool = false"));
                         assert!(!observer.contains("old body"));
                     } else {
                         assert!(observer.contains("old body"));
-                        assert_eq!(fs::read_to_string(root.join("AGENTS.md")).unwrap(), "user instructions\n");
+                        assert_eq!(
+                            fs::read_to_string(root.join("AGENTS.md")).unwrap(),
+                            "user instructions\n"
+                        );
                     }
                 }
             }
             let params = workbench_core::deployed::DeployedParams {
-                project_dir: None, user_level: false, home: &core.home, dsh_home: &core.dsh_home,
+                project_dir: None,
+                user_level: false,
+                home: &core.home,
+                dsh_home: &core.dsh_home,
             };
-            let agents = workbench_core::deployed::list_deployed_agents(&params, Target::Codex).unwrap();
+            let agents =
+                workbench_core::deployed::list_deployed_agents(&params, Target::Codex).unwrap();
             assert_eq!(agents.len(), 9);
             let agent = agents.iter().find(|a| a.name == "oracle").unwrap();
-            let root = if case.name == "codex_home" { core.root.join("custom codex home") } else { core.home.join(".codex") };
+            let root = if case.name == "codex_home" {
+                core.root.join("custom codex home")
+            } else {
+                core.home.join(".codex")
+            };
             let path = root.join("agents").join(&agent.file_name);
             let original = fs::read(&path).unwrap();
-            workbench_core::deployed::save_deployed_agent(&params, Target::Codex, &agent.file_name, &agent.body, &BTreeMap::new()).unwrap();
-            assert_eq!(fs::read(&path).unwrap(), original, "native editor no-op must preserve bytes");
-            for invalid in ["../config.toml", "..\\config.toml", "oracle.md", "unknown.toml"] {
-                assert!(workbench_core::deployed::save_deployed_agent(&params, Target::Codex, invalid, "", &BTreeMap::new()).is_err());
+            workbench_core::deployed::save_deployed_agent(
+                &params,
+                Target::Codex,
+                &agent.file_name,
+                &agent.body,
+                &BTreeMap::new(),
+            )
+            .unwrap();
+            assert_eq!(
+                fs::read(&path).unwrap(),
+                original,
+                "native editor no-op must preserve bytes"
+            );
+            for invalid in [
+                "../config.toml",
+                "..\\config.toml",
+                "oracle.md",
+                "unknown.toml",
+            ] {
+                assert!(workbench_core::deployed::save_deployed_agent(
+                    &params,
+                    Target::Codex,
+                    invalid,
+                    "",
+                    &BTreeMap::new()
+                )
+                .is_err());
             }
             if case.name == "codex" {
-                let sel = Selection { project_dir: core.project.clone(), targets: vec![Target::Codex], user_level: false, force: false, dsh_profile: None };
-                let ctx = EngineContext { project_dir: core.project.clone(), home: core.home.clone(), bundled_root: repo.to_path_buf(), version: workbench_core::VERSION.into() };
+                let sel = Selection {
+                    project_dir: core.project.clone(),
+                    targets: vec![Target::Codex],
+                    user_level: false,
+                    force: false,
+                    dsh_profile: None,
+                };
+                let ctx = EngineContext {
+                    project_dir: core.project.clone(),
+                    home: core.home.clone(),
+                    bundled_root: repo.to_path_buf(),
+                    version: workbench_core::VERSION.into(),
+                };
                 assert!(check_drift(&sel, &ctx).unwrap().tier1.drifted.is_empty());
                 let guide = root.join("my-workbench-solutions/toolkit-gui-test.md");
                 let original = fs::read(&guide).unwrap();
@@ -797,11 +900,7 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
             );
         }
         "user" => {
-            assert_eq!(
-                planned.stamps.len(),
-                1,
-                "--user stamps the Home realm only"
-            );
+            assert_eq!(planned.stamps.len(), 1, "--user stamps the Home realm only");
             assert_eq!(planned.stamps[0].realm, StampRealm::Home);
             assert_eq!(
                 planned.stamps[0].path,
@@ -816,7 +915,10 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
             // Both profiles are maintained: the row lands in web AND cli.
             for name in ["web", "cli"] {
                 let row = fs::read_to_string(
-                    core.dsh_home.join("profiles").join(name).join("cordis.patch.yml"),
+                    core.dsh_home
+                        .join("profiles")
+                        .join(name)
+                        .join("cordis.patch.yml"),
                 )
                 .unwrap();
                 assert!(
@@ -826,10 +928,7 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
             }
         }
         "dsh_rerun" => {
-            let preset = core
-                .dsh_home
-                .join(".agent-presets")
-                .join("my-workbench");
+            let preset = core.dsh_home.join(".agent-presets").join("my-workbench");
             // The regenerate trio was tampered with identically on both sides
             // and must come back as the fresh render…
             assert_eq!(
@@ -911,8 +1010,7 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
                 jsonc, "TAMPERED\n",
                 "--force must not overwrite an unparseable user file with the stub"
             );
-            let settings =
-                fs::read_to_string(core.project.join(".claude/settings.json")).unwrap();
+            let settings = fs::read_to_string(core.project.join(".claude/settings.json")).unwrap();
             assert_eq!(settings, "TAMPERED\n");
         }
         "preserve" => {
@@ -921,8 +1019,7 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
         }
         "preserve_zcode" => {
             for side in [cli, core] {
-                let oracle =
-                    fs::read_to_string(side.home.join(".zcode/agents/oracle.md")).unwrap();
+                let oracle = fs::read_to_string(side.home.join(".zcode/agents/oracle.md")).unwrap();
                 assert!(
                     oracle.contains("model: custom/pinned-zcode"),
                     "the zcode agent's retuned model line must survive --force"
@@ -947,10 +1044,9 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
                 assert!(claude_oracle.contains("effort: max\n---"));
                 assert!(claude_oracle.contains("Strategic technical advisor"));
                 assert!(!claude_oracle.contains("old body"));
-                let oc_oracle = fs::read_to_string(
-                    side.home.join(".config/opencode/agents/oracle.md"),
-                )
-                .unwrap();
+                let oc_oracle =
+                    fs::read_to_string(side.home.join(".config/opencode/agents/oracle.md"))
+                        .unwrap();
                 assert!(oc_oracle.contains("model: custom/user-oc-agent"));
                 assert!(oc_oracle.contains("variant: high\n---"));
                 assert!(oc_oracle.contains("Strategic technical advisor"));
@@ -959,8 +1055,7 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
                 // ~/.claude/settings.json: the owned `agent` key was DELETED —
                 // its full member span is re-inserted before the closing
                 // brace; every user byte (model, env token) survives.
-                let settings =
-                    fs::read_to_string(side.home.join(".claude/settings.json")).unwrap();
+                let settings = fs::read_to_string(side.home.join(".claude/settings.json")).unwrap();
                 assert_eq!(
                     settings,
                     "{\n  \"model\": \"sonnet\",\n  \"env\": {\n    \"ANTHROPIC_AUTH_TOKEN\": \"sk-user-home-token\"\n  },\n  \"agent\": \"orchestrator\"\n}\n",
@@ -969,10 +1064,8 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
                 // ~/.config/opencode/opencode.jsonc: `$schema` present but
                 // user-modified — reset to canonical; comment and model key
                 // survive.
-                let jsonc = fs::read_to_string(
-                    side.home.join(".config/opencode/opencode.jsonc"),
-                )
-                .unwrap();
+                let jsonc =
+                    fs::read_to_string(side.home.join(".config/opencode/opencode.jsonc")).unwrap();
                 assert_eq!(
                     jsonc,
                     "{\n  // mine\n  \"$schema\": \"https://opencode.ai/config.json\",\n  \"model\": \"custom/user-oc\"\n}\n",
@@ -986,7 +1079,10 @@ fn extra_asserts(case: &Case, repo: &Path, cli: &Sandbox, core: &Sandbox, planne
             // restamped (never skip-gated) on both sides.
             for (rel, _) in PRESEED.iter().take(3) {
                 let content = fs::read_to_string(core.project.join(rel)).unwrap();
-                assert_eq!(content, "SEEDED\n", "{rel} must survive untouched without --force");
+                assert_eq!(
+                    content, "SEEDED\n",
+                    "{rel} must survive untouched without --force"
+                );
             }
         }
         _ => {}
@@ -1010,6 +1106,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
         "CODEX_HOME",
         "DSH_HOME",
         "MY_WORKBENCH_DSH_NODE_MODULES",
+        "MY_WORKBENCH_TEST_CODEX_BIN",
+        "MY_WORKBENCH_TEST_CODEX_SCRIPT",
     ]);
 
     let repo = repo_root();
@@ -1034,44 +1132,98 @@ fn golden_end_to_end_cli_vs_workbench_core() {
         .unwrap();
     let fixtures = make_fixtures(run_dir.path());
 
+    std::env::set_var("MY_WORKBENCH_TEST_CODEX_BIN", "node");
+    std::env::set_var("MY_WORKBENCH_TEST_CODEX_SCRIPT", &fixtures.fake_codex);
+
     // Ambient PATH: the fake opencode launcher goes first so the engine's
     // find_on_path probe is deterministic regardless of the host.
     let mut path_parts: Vec<PathBuf> = vec![fixtures.bin.clone()];
-    path_parts.extend(std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default()));
+    path_parts.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
     std::env::set_var("PATH", std::env::join_paths(&path_parts).unwrap());
 
     let cases: &[Case] = &[
         Case {
-            name: "codex", cli_flags: &["--codex"], targets: &[Target::Codex],
-            user_level: false, force: false, dsh: false, preseed: None,
-            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+            name: "codex",
+            cli_flags: &["--codex"],
+            targets: &[Target::Codex],
+            user_level: false,
+            force: false,
+            dsh: false,
+            preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
         },
         Case {
-            name: "codex_alias", cli_flags: &["--chatgpt"], targets: &[Target::Codex],
-            user_level: false, force: false, dsh: false, preseed: None,
-            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+            name: "codex_alias",
+            cli_flags: &["--chatgpt"],
+            targets: &[Target::Codex],
+            user_level: false,
+            force: false,
+            dsh: false,
+            preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
         },
         Case {
-            name: "codex_home", cli_flags: &["--codex"], targets: &[Target::Codex],
-            user_level: false, force: false, dsh: false, preseed: None,
-            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+            name: "codex_home",
+            cli_flags: &["--codex"],
+            targets: &[Target::Codex],
+            user_level: false,
+            force: false,
+            dsh: false,
+            preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
         },
         Case {
-            name: "codex_user", cli_flags: &["--codex", "--user"], targets: &[Target::Codex],
-            user_level: true, force: false, dsh: false, preseed: None,
-            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+            name: "codex_user",
+            cli_flags: &["--codex", "--user"],
+            targets: &[Target::Codex],
+            user_level: true,
+            force: false,
+            dsh: false,
+            preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
         },
         Case {
-            name: "preserve_codex", cli_flags: &["--codex", "--force"], targets: &[Target::Codex],
-            user_level: false, force: true, dsh: false, preseed: None,
-            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+            name: "preserve_codex",
+            cli_flags: &["--codex", "--force"],
+            targets: &[Target::Codex],
+            user_level: false,
+            force: true,
+            dsh: false,
+            preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
         },
         Case {
-            name: "skip_codex", cli_flags: &["--codex"], targets: &[Target::Codex],
-            user_level: false, force: false, dsh: false, preseed: None,
-            preserve_seed: false, preserve_seed_user: false, dsh_profile: None, rerun: false,
+            name: "skip_codex",
+            cli_flags: &["--codex"],
+            targets: &[Target::Codex],
+            user_level: false,
+            force: false,
+            dsh: false,
+            preseed: None,
+            preserve_seed: false,
+            preserve_seed_user: false,
+            dsh_profile: None,
+            rerun: false,
         },
-        Case { // 1
+        Case {
+            // 1
             name: "default",
             cli_flags: &[],
             targets: &[Target::Opencode, Target::Claude],
@@ -1084,7 +1236,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             dsh_profile: None,
             rerun: false,
         },
-        Case { // 2
+        Case {
+            // 2
             name: "user",
             cli_flags: &["--user"],
             targets: &[Target::Opencode, Target::Claude],
@@ -1097,7 +1250,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             dsh_profile: None,
             rerun: false,
         },
-        Case { // 3
+        Case {
+            // 3
             name: "zcode",
             cli_flags: &["--zcode"],
             targets: &[Target::Zcode],
@@ -1110,7 +1264,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             dsh_profile: None,
             rerun: false,
         },
-        Case { // 4
+        Case {
+            // 4
             name: "dsh",
             cli_flags: &["--dsh"],
             targets: &[Target::Dsh],
@@ -1123,7 +1278,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             dsh_profile: None,
             rerun: false,
         },
-        Case { // 5
+        Case {
+            // 5
             // Runs --dsh TWICE in both engines with identical tampering in
             // between: locks the regenerate-trio refresh plus skip-the-rest
             // parity of a re-run.
@@ -1139,7 +1295,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             dsh_profile: None,
             rerun: true,
         },
-        Case { // 6
+        Case {
+            // 6
             name: "dsh_profile",
             cli_flags: &["--dsh", "--dsh-profile", "web"],
             targets: &[Target::Dsh],
@@ -1152,7 +1309,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             dsh_profile: Some("web"),
             rerun: false,
         },
-        Case { // 7
+        Case {
+            // 7
             name: "force",
             cli_flags: &["--force"],
             targets: &[Target::Opencode, Target::Claude],
@@ -1165,7 +1323,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             dsh_profile: None,
             rerun: false,
         },
-        Case { // 8
+        Case {
+            // 8
             name: "skip",
             cli_flags: &[],
             targets: &[Target::Opencode, Target::Claude],
@@ -1178,7 +1337,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             dsh_profile: None,
             rerun: false,
         },
-        Case { // 9
+        Case {
+            // 9
             // --force over user-retuned files: agent markdown must snapshot
             // the user's model lines and write them back into the fresh
             // renders, while the two JSON stubs reconcile the stub's own keys
@@ -1196,7 +1356,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             dsh_profile: None,
             rerun: false,
         },
-        Case { // 10
+        Case {
+            // 10
             // The same contract at the zcode user-level target: ~/.zcode/agents
             // is an `agents/` destination, so its pins survive --force too.
             name: "preserve_zcode",
@@ -1211,7 +1372,8 @@ fn golden_end_to_end_cli_vs_workbench_core() {
             dsh_profile: None,
             rerun: false,
         },
-        Case { // 11
+        Case {
+            // 11
             // The overwrite contract at the --user destinations: ~/.claude
             // (agents + settings.json, stub-owned `agent` key re-inserted) and
             // ~/.config/opencode (opencode.jsonc, user-modified `$schema`
@@ -1232,7 +1394,9 @@ fn golden_end_to_end_cli_vs_workbench_core() {
     ];
 
     for (index, case) in cases.iter().enumerate() {
-        let base = run_dir.path().join(format!("{:02}-{}", index + 1, case.name));
+        let base = run_dir
+            .path()
+            .join(format!("{:02}-{}", index + 1, case.name));
         let (cli, core, planned) = run_install_case(case, &repo, &fixtures, &base);
         extra_asserts(case, &repo, &cli, &core, &planned);
         compare_trees(&cli, &core, case.name);
@@ -1245,8 +1409,15 @@ fn golden_end_to_end_cli_vs_workbench_core() {
         let sandbox = Sandbox::create(&base.join("cli"));
         set_ambient_env(&sandbox, false);
         let (env_set, env_remove) = cli_env(&sandbox, false);
-        let run = run_cli(&repo, &[], &sandbox.project, &env_set, &env_remove, &fixtures.bin)
-            .unwrap_or_else(|e| panic!("tamper-drift: {e}"));
+        let run = run_cli(
+            &repo,
+            &[],
+            &sandbox.project,
+            &env_set,
+            &env_remove,
+            &fixtures.bin,
+        )
+        .unwrap_or_else(|e| panic!("tamper-drift: {e}"));
         assert_eq!(
             run.status,
             Some(0),

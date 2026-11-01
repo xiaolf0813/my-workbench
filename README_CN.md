@@ -15,7 +15,7 @@ npx my-workbench
 - **`.opencode/`** — OpenCode 核心配置与原生 `.opencode/agents/` 子智能体：十个智能体 — `orchestrator`、`explorer`、`librarian`、`oracle`、`designer`、`fixer`、`observer`、`spotter`、`driver`、`improver`。
 - **`.claude/`** — 同一批专家智能体的 Claude Code 原生子智能体形态（`.claude/agents/*.md`）。所有目标中安装内容完全一致。
 - **`~/.zcode/`** — 可选的 ZCode 支持（`--zcode`）：用户级全局指令，外加各专家子智能体作为 ZCode 用户级 agents（`~/.zcode/agents/*.md`）。不在项目内写入任何内容。
-- **`~/.codex/`** — 可选的本地 ChatGPT / Codex 支持（`--chatgpt` 或 `--codex`）：全局短入口、编排策略、九个原生 TOML 子智能体及方案指南；支持 `CODEX_HOME`。
+- **`~/.codex/`** — 可选的本地 ChatGPT / Codex 支持（`--chatgpt` 或 `--codex`）：全局短入口、编排策略、九个原生 TOML 子智能体、方案指南及内置的 **Subagent Config** 插件；支持 `CODEX_HOME`。
 - **`~/.dsh/`** — 可选的 DeepSeek Harness 支持（`--dsh`）：在 `<DSH_HOME>/.agent-presets/my-workbench/` 安装一个 agent preset — orchestrator 提示词作为该 preset 的 persona，外加拥有七个具名专家工具与「MyWorkbench 赛道模型」设置页的打包 **lane 插件**。工具在 preset 作用域内；设置页需要在每个 DSH profile（Web GUI 的 `web`、桌面版的 `desktop`）各写一行惰性行，那是 profile 层的全部足迹。不在项目内写入任何内容。
 
 ## OpenCode 目标
@@ -67,9 +67,10 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 - `AGENTS.md`：主智能体的短入口，加载 `my-workbench-orchestrator.md` 完整策略，避免挤占 AGENTS.md 自动发现的大小预算；派生专家遵循各自的职责。
 - `agents/*.toml`：九个原生专家子智能体，使用 `name`、`description`、`developer_instructions`，从同一 roster、提示词和通用纪律组装。默认继承当前会话模型，也可通过已部署 TOML 或桌面编辑器调整。
+- `my-workbench-plugin-marketplace/`：包含 **Subagent Config** 的离线本地 marketplace；插件只编辑已部署子智能体的模型字段。部署通过 `codex plugin` 注册 marketplace 与插件，不直接编辑 Codex 插件状态。
 - `my-workbench-solutions/`：每次安装刷新的平台指南。
 
-仅用户级，按需启用，不下载、不写项目文件。已有文件默认跳过；`--force` 保留子智能体顶层的 `model`、`model_reasoning_effort`、`model_reasoning_summary`、`model_verbosity` 设置。不修改 `config.toml`、鉴权文件或 `AGENTS.override.md`。若已有 `AGENTS.md` 被跳过、存在更高优先级的 `AGENTS.override.md`，或用户设置禁用了子智能体，策略可能未加载或无法委派；请按需协调这些配置，再启动新会话。职责指令不会授予工具权限，也不会建立独立沙箱。
+仅用户级，按需启用，不下载、不写项目文件；要求 PATH 中存在 Node.js 以及支持 `codex plugin` 的 Codex CLI。已有智能体文件默认跳过；`--force` 保留子智能体顶层的 `model`、`model_reasoning_effort`、`model_reasoning_summary`、`model_verbosity` 设置，而内置 marketplace 与插件运行时每次部署都会刷新。不直接编辑 `config.toml`、鉴权文件或 `AGENTS.override.md`。插件注册失败时整个部署失败，且不会写版本戳。成功后需要重启 ChatGPT / Codex。若已有 `AGENTS.md` 被跳过、存在更高优先级的 `AGENTS.override.md`，或用户设置禁用了子智能体，策略可能未加载或无法委派；请按需协调这些配置，再启动新会话。职责指令不会授予工具权限，也不会建立独立沙箱。
 
 桌面部署页提供 **ChatGPT / Codex** 标签、原生智能体卡片及模型/推理强度编辑。派发遵循宿主实际工具：支持角色选择时使用自定义角色，否则给通用子智能体提供相应角色指令；必须等待全部已派发任务返回后再继续。
 

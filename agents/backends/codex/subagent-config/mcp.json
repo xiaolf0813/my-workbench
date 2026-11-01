@@ -1,10 +1,10 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
-    "codex-agent-model-config": {
+    "subagent-config": {
       "type": "stdio",
       "command": "node",
-      "args": ["${PLUGIN_ROOT}/dist/index.js"],
+      "args": ["${PLUGIN_ROOT}/runtime/server.mjs"],
       "cwd": "${PLUGIN_ROOT}"
     }
   }
