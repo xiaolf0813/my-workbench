@@ -4,6 +4,8 @@ English | [简体中文](README_CN.md)
 
 Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex + DeepSeek Harness agent setup, installed into your project (or at user level with `--user`; ZCode, Codex and DSH are always user-level) with one command.
 
+The retired first-party Tauri desktop app is preserved on the [`desktop`](https://github.com/xiaolf0813/my-workbench/tree/desktop) branch and is not maintained on `main`.
+
 ```bash
 npx my-workbench
 ```
@@ -64,13 +66,11 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 `npx my-workbench --chatgpt` (alias: `--codex`) installs native local custom agents into **CODEX_HOME**, defaulting to `~/.codex/`. This targets the current ChatGPT desktop app's local Codex runtime and Codex CLI; hosted chats and custom GPTs do not read these local files.
 
 - `AGENTS.md` — a short primary-agent entrypoint that loads `my-workbench-orchestrator.md`; the full policy stays outside the automatic AGENTS.md size budget. Spawned specialists follow their own roles.
-- `agents/*.toml` — nine specialists, each with native `name`, `description`, and `developer_instructions`, assembled from the same roster, prompts and disciplines. Models inherit from the current session unless you tune them in the deployed TOML or the desktop editor.
+- `agents/*.toml` — nine specialists, each with native `name`, `description`, and `developer_instructions`, assembled from the same roster, prompts and disciplines. Models inherit from the current session unless you tune them in the deployed TOML or Subagent Config.
 - `my-workbench-plugin-marketplace/` — an offline local marketplace containing **Subagent Config**, which edits only the deployed agents' model fields. Deployment registers the marketplace and plugin through `codex plugin`; it never edits Codex plugin state directly.
 - `my-workbench-solutions/` — the platform guides, refreshed on every install.
 
 User-level only, opt-in, with no downloads or project writes. Node.js and a Codex CLI that supports `codex plugin` are required. Existing agent files skip unless `--force`; force preserves the agents' top-level `model`, `model_reasoning_effort`, `model_reasoning_summary`, and `model_verbosity` settings, while the bundled marketplace and plugin runtime refresh on every deployment. `config.toml`, authentication files, and `AGENTS.override.md` are never edited directly. A plugin registration failure fails the deployment before its version stamp. Restart ChatGPT / Codex after a successful deployment. An existing `AGENTS.md` that was skipped, a higher-priority `AGENTS.override.md`, or disabled subagents in your own settings may prevent the policy from loading or dispatching; reconcile those intentionally, then start a new session. Role instructions do not grant tools or create a separate sandbox.
-
-The desktop deployment page includes **ChatGPT / Codex**, native agent cards, and model/reasoning settings. Dispatch uses the host's actual tools: select a custom role when supported; otherwise supply that role's instructions to a generic subagent. Wait for every dispatched task to return before proceeding.
 
 Schema and discovery follow official OpenAI documentation: [custom agents](https://learn.chatgpt.com/docs/agent-configuration/subagents), [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 

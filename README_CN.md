@@ -4,6 +4,8 @@
 
 可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex + DeepSeek Harness 智能体配置，一条命令安装到你的项目（或用 `--user` 安装到用户级；ZCode、Codex 与 DSH 恒为用户级）。
 
+已停止维护的自研 Tauri 桌面应用保留在 [`desktop`](https://github.com/xiaolf0813/my-workbench/tree/desktop) 分支，`main` 不再维护它。
+
 > 本文件为参考翻译，以[英文版](README.md)为准。
 
 ```bash
@@ -66,13 +68,11 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 `npx my-workbench --chatgpt`（别名 `--codex`）把原生本地子智能体安装到 **CODEX_HOME**，默认 `~/.codex/`。适用于当前 ChatGPT 桌面程序的本地 Codex 运行时及 Codex CLI；云端聊天和自定义 GPT 不读取这些本地文件。
 
 - `AGENTS.md`：主智能体的短入口，加载 `my-workbench-orchestrator.md` 完整策略，避免挤占 AGENTS.md 自动发现的大小预算；派生专家遵循各自的职责。
-- `agents/*.toml`：九个原生专家子智能体，使用 `name`、`description`、`developer_instructions`，从同一 roster、提示词和通用纪律组装。默认继承当前会话模型，也可通过已部署 TOML 或桌面编辑器调整。
+- `agents/*.toml`：九个原生专家子智能体，使用 `name`、`description`、`developer_instructions`，从同一 roster、提示词和通用纪律组装。默认继承当前会话模型，也可通过已部署 TOML 或 Subagent Config 调整。
 - `my-workbench-plugin-marketplace/`：包含 **Subagent Config** 的离线本地 marketplace；插件只编辑已部署子智能体的模型字段。部署通过 `codex plugin` 注册 marketplace 与插件，不直接编辑 Codex 插件状态。
 - `my-workbench-solutions/`：每次安装刷新的平台指南。
 
 仅用户级，按需启用，不下载、不写项目文件；要求 PATH 中存在 Node.js 以及支持 `codex plugin` 的 Codex CLI。已有智能体文件默认跳过；`--force` 保留子智能体顶层的 `model`、`model_reasoning_effort`、`model_reasoning_summary`、`model_verbosity` 设置，而内置 marketplace 与插件运行时每次部署都会刷新。不直接编辑 `config.toml`、鉴权文件或 `AGENTS.override.md`。插件注册失败时整个部署失败，且不会写版本戳。成功后需要重启 ChatGPT / Codex。若已有 `AGENTS.md` 被跳过、存在更高优先级的 `AGENTS.override.md`，或用户设置禁用了子智能体，策略可能未加载或无法委派；请按需协调这些配置，再启动新会话。职责指令不会授予工具权限，也不会建立独立沙箱。
-
-桌面部署页提供 **ChatGPT / Codex** 标签、原生智能体卡片及模型/推理强度编辑。派发遵循宿主实际工具：支持角色选择时使用自定义角色，否则给通用子智能体提供相应角色指令；必须等待全部已派发任务返回后再继续。
 
 格式及发现规则依据 OpenAI 官方文档：[自定义智能体](https://learn.chatgpt.com/docs/agent-configuration/subagents)、[AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)。
 

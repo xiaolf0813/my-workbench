@@ -14,11 +14,12 @@ node_modules/
 *:Zone.Identifier
 /my-workbench.version
 
-# Desktop GUI (Tauri 2 scaffold)
+# Archived desktop build artifacts may remain after switching branches.
 /target/
 /ui/node_modules/
 /ui/dist/
 /src-tauri/gen/
 src-tauri/target/
 *.rs.bk
+
 .workbuddy-ai/
