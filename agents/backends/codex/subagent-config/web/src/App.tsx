@@ -112,10 +112,10 @@ export function App() {
       const result = await callTool<UpdateResult>("update_agent_model", {
         agentId: agent.id,
         fileRevision: agent.fileRevision,
-        model: values.model,
-        modelReasoningEffort: values.effort,
-        ...(values.summary ? { modelReasoningSummary: values.summary } : {}),
-        ...(values.verbosity ? { modelVerbosity: values.verbosity } : {}),
+        model: values.model || null,
+        modelReasoningEffort: values.model && values.effort ? values.effort : null,
+        modelReasoningSummary: values.model && values.summary ? values.summary : null,
+        modelVerbosity: values.model && values.verbosity ? values.verbosity : null,
       });
       if (!result.saved) throw new Error(result.error || "The server rejected the save.");
       await refresh();

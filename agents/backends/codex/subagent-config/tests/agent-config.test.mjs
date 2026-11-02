@@ -32,6 +32,22 @@ test("updates model fields while preserving layout and other values", async () =
   assert.match(updated, /\[metadata\]/);
 });
 
+test("clears model fields to restore inherited configuration", () => {
+  const source = 'model = "gpt-6-luna"\nmodel_reasoning_effort = "high"\nmodel_reasoning_summary = "auto"\nmodel_verbosity = "low"\nname = "planner"\ndescription = "Plans work."\ndeveloper_instructions = "Plan first."\n';
+  const updated = replaceModelFields(source, {
+    model: null,
+    model_reasoning_effort: null,
+    model_reasoning_summary: null,
+    model_verbosity: null,
+  });
+  const fields = parseEditableToml(updated).fields;
+  assert.equal(fields.has("model"), false);
+  assert.equal(fields.has("model_reasoning_effort"), false);
+  assert.equal(fields.has("model_reasoning_summary"), false);
+  assert.equal(fields.has("model_verbosity"), false);
+  assert.equal(fields.get("name"), "planner");
+});
+
 test("maps the Codex picker catalog and disallows custom slugs", () => {
   const catalog = modelCatalogFromRows([
     {

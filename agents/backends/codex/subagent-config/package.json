@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "npm run typecheck && npm run build:server && npm --prefix web run build",
+    "build": "npm run build:dist && npm run build:server && npm --prefix web run build",
+    "build:dist": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build:server": "node scripts/build-server.js",
     "start": "node runtime/server.mjs",

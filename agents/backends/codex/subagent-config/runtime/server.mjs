@@ -35270,6 +35270,9 @@ function updateOrInsertField(lines, key, value) {
   next.splice(insertAt, 0, replacement);
   return next;
 }
+function removeField(lines, key) {
+  return lines.filter((line) => TOP_LEVEL_ASSIGNMENT.exec(line)?.[1] !== key);
+}
 function parseEditableToml(source) {
   const lines = source.split(/\r?\n/);
   const fields = /* @__PURE__ */ new Map();
@@ -35305,7 +35308,7 @@ function parseEditableToml(source) {
 function replaceModelFields(source, updates) {
   let lines = parseEditableToml(source).lines;
   for (const [key, value] of Object.entries(updates)) {
-    lines = updateOrInsertField(lines, key, value);
+    lines = value === null ? removeField(lines, key) : updateOrInsertField(lines, key, value);
   }
   return lines.join("\n");
 }
@@ -35384,7 +35387,7 @@ async function readScope(scope, directory, projectRoot) {
         modelReasoningEffort = modelString(parsed.fields, "model_reasoning_effort");
         modelReasoningSummary = modelString(parsed.fields, "model_reasoning_summary");
         modelVerbosity = modelString(parsed.fields, "model_verbosity");
-        if (!name || !description || developerInstructions === null) {
+        if (!name || !description || !developerInstructions) {
           throw invalid("The agent file must contain name, description, and developer_instructions.");
         }
       } catch (error62) {
@@ -36467,21 +36470,40 @@ function validateExistingAgent(source, filePath, resolver, agentId) {
 async function updateAgentModel(resolver, models, input2, scannedFilePath) {
   const filePath = scannedFilePath ? resolver.validateScannedAgentPath(input2.agentId, scannedFilePath) : resolver.resolveAgentPath(input2.agentId);
   if (!filePath) throw invalid2("Unknown or read-only agent.");
-  validateModel(input2.model, models);
-  validateEffort(input2.modelReasoningEffort, models);
-  const availability = validateSelectedEffort(input2.model, input2.modelReasoningEffort, models);
+  let availability = { available: null };
+  if (input2.model === null) {
+    if (input2.modelReasoningEffort !== null || input2.modelReasoningSummary != null || input2.modelVerbosity != null) {
+      throw invalid2("Inherited model configuration cannot pin reasoning or verbosity fields.");
+    }
+  } else {
+    validateModel(input2.model, models);
+    if (input2.modelReasoningEffort !== null) {
+      validateEffort(input2.modelReasoningEffort, models);
+      availability = validateSelectedEffort(input2.model, input2.modelReasoningEffort, models);
+    } else {
+      availability = { available: models.models.find((entry) => entry.slug === input2.model)?.available ?? null };
+    }
+  }
   const currentRevision = await readFileRevision(filePath);
   if (currentRevision !== input2.fileRevision) {
     throw invalid2("The file changed after it was loaded. Refresh and try again.");
   }
   const source = await fs2.readFile(filePath, "utf8");
   validateExistingAgent(source, filePath, resolver, input2.agentId);
-  const updated = replaceModelFields(source, {
-    model: input2.model,
-    model_reasoning_effort: input2.modelReasoningEffort,
-    ...input2.modelReasoningSummary === void 0 ? {} : { model_reasoning_summary: input2.modelReasoningSummary },
-    ...input2.modelVerbosity === void 0 ? {} : { model_verbosity: input2.modelVerbosity }
-  });
+  const updated = replaceModelFields(
+    source,
+    input2.model === null ? {
+      model: null,
+      model_reasoning_effort: null,
+      model_reasoning_summary: null,
+      model_verbosity: null
+    } : {
+      model: input2.model,
+      model_reasoning_effort: input2.modelReasoningEffort,
+      ...input2.modelReasoningSummary === void 0 ? {} : { model_reasoning_summary: input2.modelReasoningSummary },
+      ...input2.modelVerbosity === void 0 ? {} : { model_verbosity: input2.modelVerbosity }
+    }
+  );
   const temporaryPath = await fs2.mkdtemp(path4.join(path4.dirname(filePath), ".subagent-config-"));
   const candidatePath = path4.join(temporaryPath, "candidate.toml");
   try {
@@ -36529,7 +36551,7 @@ async function updateAgentModelTool(input2) {
 }
 
 // server/index.ts
-var UI_RESOURCE_URI = "ui://subagent-config/v10.html";
+var UI_RESOURCE_URI = "ui://subagent-config/v11.html";
 function createMcpServer() {
   const server = new McpServer({
     name: "subagent-config",
@@ -36622,17 +36644,17 @@ function createMcpServer() {
   const updateInputSchema = external_exports.object({
     agentId: external_exports.string().min(1).max(1024),
     fileRevision: external_exports.string().regex(/^sha256:[0-9a-f]{64}$/),
-    model: external_exports.string().min(1).max(128),
-    modelReasoningEffort: external_exports.string().min(1).max(32),
-    modelReasoningSummary: external_exports.string().min(1).max(32).optional(),
-    modelVerbosity: external_exports.string().min(1).max(32).optional()
+    model: external_exports.string().min(1).max(128).nullable(),
+    modelReasoningEffort: external_exports.string().min(1).max(32).nullable(),
+    modelReasoningSummary: external_exports.string().min(1).max(32).nullable().optional(),
+    modelVerbosity: external_exports.string().min(1).max(32).nullable().optional()
   }).strict();
   j(
     server,
     "update_agent_model",
     {
       title: "Update agent model",
-      description: "Save only model, reasoning-effort, optional reasoning-summary, and optional verbosity fields to an existing custom agent TOML file.",
+      description: "Save or clear only model, reasoning-effort, optional reasoning-summary, and optional verbosity fields in an existing custom agent TOML file.",
       inputSchema: updateInputSchema,
       annotations: {
         destructiveHint: true,

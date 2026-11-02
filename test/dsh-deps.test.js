@@ -304,6 +304,20 @@ function upgradeRun(cwd, stamp, registry, path) {
   })
 }
 
+function upgradeCodexRun(cwd, codexHome, registry) {
+  return new Promise(resolveRun => {
+    const child = spawn(process.execPath, [join(repo, 'bin', 'my-workbench.js'), '--upgrade', '--codex'], {
+      cwd,
+      env: { ...process.env, CODEX_HOME: codexHome, HOME: cwd, USERPROFILE: cwd, npm_config_registry: registry },
+    })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', chunk => { stdout += chunk })
+    child.stderr.on('data', chunk => { stderr += chunk })
+    child.on('close', status => resolveRun({ status, stdout, stderr }))
+  })
+}
+
 /** A fake npx first on PATH: logs the args it was called with, optionally rewrites the
  *  project stamp (the redeploy's cwd is the project root), and exits with the given code. */
 function fakeNpx(t, { rewrite, exitCode = 0 } = {}) {
@@ -336,6 +350,20 @@ test('--upgrade exits 0 when the deployment stamp matches the registry latest', 
   assert.equal(result.status, 0, result.stderr + result.stdout)
   assert.match(result.stdout, /up-to-date/)
   assert.equal(existsSync(npx.log), false, 'npx must not run for an up-to-date deployment')
+})
+
+test('--upgrade checks the selected CODEX_HOME stamp instead of the shared home stamp', async t => {
+  const server = await registryServer(t)
+  const home = fixture(t)
+  const codexHome = join(home, 'codex-profile')
+  mkdirSync(codexHome)
+  writeFileSync(join(home, '.my-workbench.version'), '0.0.1\n')
+  writeFileSync(join(codexHome, 'my-workbench.version'), '9.9.9\n')
+  const result = await upgradeCodexRun(home, codexHome, `http://127.0.0.1:${server.address().port}`)
+  assert.equal(result.status, 0, result.stderr + result.stdout)
+  assert.match(result.stdout, /~\/codex-profile[\\/]my-workbench\.version/)
+  assert.match(result.stdout, /up-to-date/)
+  assert.doesNotMatch(result.stdout, /\.my-workbench\.version/)
 })
 
 test('--upgrade auto-upgrades an outdated stamp via npx and verifies the rewrite', async t => {

@@ -46,7 +46,7 @@ test("stdio server exposes the three tools and the MCP Apps resource", async () 
     );
 
     const resources = await client.listResources();
-    const appResource = resources.resources.find((resource) => resource.uri === "ui://subagent-config/v10.html");
+    const appResource = resources.resources.find((resource) => resource.uri === "ui://subagent-config/v11.html");
     assert.ok(appResource);
     const component = await client.readResource({ uri: appResource.uri });
     assert.equal(component.contents[0]?.mimeType, "text/html;profile=mcp-app");

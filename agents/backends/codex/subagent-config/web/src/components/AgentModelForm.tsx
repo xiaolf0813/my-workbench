@@ -13,7 +13,7 @@ type FormValues = {
 function valuesFromAgent(agent: AgentModelConfiguration): FormValues {
   return {
     model: agent.model ?? "",
-    effort: agent.modelReasoningEffort ?? "medium",
+    effort: agent.modelReasoningEffort ?? "",
     summary: agent.modelReasoningSummary ?? "",
     verbosity: agent.modelVerbosity ?? "",
   };
@@ -36,7 +36,7 @@ export function AgentModelForm({
     () => catalog?.models.find((model) => model.slug === values?.model),
     [catalog, values?.model],
   );
-  const modelChoice = selectedModel?.slug ?? "";
+  const modelChoice = values?.model ?? "";
   const loaded = agent ? valuesFromAgent(agent) : null;
   const dirty = Boolean(
     agent?.editable &&
@@ -68,13 +68,25 @@ export function AgentModelForm({
   }
 
   if (!loaded) return null;
-  const unsupportedEffort = Boolean(selectedModel?.slug && !selectedModel.supportedReasoningEfforts.includes(values?.effort ?? ""));
+  const unsupportedEffort = Boolean(
+    selectedModel?.slug && values?.effort && !selectedModel.supportedReasoningEfforts.includes(values.effort),
+  );
   const unknownModel = Boolean(values?.model && catalog && !catalog.models.some((model) => model.slug === values.model));
-  const canSave = agent.editable && dirty && !unsupportedEffort && values?.model.trim() !== "" && values?.effort !== "";
+  const canSave = agent.editable && dirty && !unsupportedEffort && !unknownModel;
   const availability = selectedModel?.available ?? null;
 
   function update<K extends keyof FormValues>(key: K, value: string) {
     setValues((current) => (current ? { ...current, [key]: value } : current));
+  }
+
+  function updateModel(model: string) {
+    setValues((current) =>
+      current
+        ? model
+          ? { ...current, model }
+          : { model: "", effort: "", summary: "", verbosity: "" }
+        : current,
+    );
   }
 
   async function save() {
@@ -121,13 +133,18 @@ export function AgentModelForm({
           <select
             id="model-choice"
             value={modelChoice}
-            onChange={(event) => update("model", event.target.value)}
+            onChange={(event) => updateModel(event.target.value)}
             disabled={!agent.editable}
             aria-describedby={unknownModel ? "model-choice-error" : undefined}
           >
-            <option value="" disabled>
-              Select a model
+            <option value="">
+              Inherit from current session
             </option>
+            {unknownModel ? (
+              <option value={values?.model} disabled>
+                Unavailable: {values?.model}
+              </option>
+            ) : null}
             {catalog?.models.map((model) => (
               <option key={model.slug} value={model.slug}>
                 {model.displayName} ({model.slug})
@@ -146,8 +163,9 @@ export function AgentModelForm({
           id="effort"
           value={values?.effort ?? ""}
           onChange={(event) => update("effort", event.target.value)}
-          disabled={!agent.editable}
+          disabled={!agent.editable || !values?.model}
         >
+          <option value="">Use model default</option>
           {(selectedModel?.supportedReasoningEfforts ?? catalog?.supportedReasoningEfforts ?? []).map((effort) => (
             <option key={effort} value={effort}>
               {effort}
@@ -160,9 +178,9 @@ export function AgentModelForm({
           id="summary"
           value={values?.summary ?? ""}
           onChange={(event) => update("summary", event.target.value)}
-          disabled={!agent.editable}
+          disabled={!agent.editable || !values?.model}
         >
-          {loaded.summary === "" ? <option value="">Not set</option> : null}
+          <option value="">Not set</option>
           {["auto", "concise", "detailed"].map((summary) => (
             <option key={summary} value={summary}>
               {summary}
@@ -175,9 +193,9 @@ export function AgentModelForm({
           id="verbosity"
           value={values?.verbosity ?? ""}
           onChange={(event) => update("verbosity", event.target.value)}
-          disabled={!agent.editable}
+          disabled={!agent.editable || !values?.model}
         >
-          {loaded.verbosity === "" ? <option value="">Not set</option> : null}
+          <option value="">Not set</option>
           {["low", "medium", "high"].map((verbosity) => (
             <option key={verbosity} value={verbosity}>
               {verbosity}
@@ -186,7 +204,7 @@ export function AgentModelForm({
         </select>
         </div>
 
-        {!unknownModel && availability === null ? (
+        {values?.model && !unknownModel && availability === null ? (
           <StatusMessage status={{ kind: "warning", message: "Model availability is unverified." }} />
         ) : null}
         {unsupportedEffort ? (

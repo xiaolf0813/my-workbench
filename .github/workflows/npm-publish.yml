@@ -28,6 +28,12 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
+      - name: Install verification dependencies
+        run: |
+          npm ci
+          npm ci --prefix agents/backends/codex/subagent-config
+          npm ci --prefix agents/backends/codex/subagent-config/web
+
       - name: Verify tag matches package version
         env:
           TAG_NAME: ${{ github.ref_name }}
@@ -39,6 +45,7 @@ jobs:
         run: |
           node --check bin/my-workbench.js
           node bin/my-workbench.js --help
+          npm run verify
           npm pack --dry-run
 
       - name: Publish to npm

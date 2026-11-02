@@ -88,7 +88,7 @@ async function readScope(
         modelReasoningEffort = modelString(parsed.fields, "model_reasoning_effort");
         modelReasoningSummary = modelString(parsed.fields, "model_reasoning_summary");
         modelVerbosity = modelString(parsed.fields, "model_verbosity");
-        if (!name || !description || developerInstructions === null) {
+        if (!name || !description || !developerInstructions) {
           throw invalid("The agent file must contain name, description, and developer_instructions.");
         }
       } catch (error) {

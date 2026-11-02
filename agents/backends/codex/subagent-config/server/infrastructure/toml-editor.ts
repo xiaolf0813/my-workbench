@@ -29,10 +29,10 @@ function unwrapMultilineString(lines: string[], startIndex: number): { value: st
 }
 
 export type ModelFields = {
-  model?: string;
-  model_reasoning_effort?: string;
-  model_reasoning_summary?: string;
-  model_verbosity?: string;
+  model?: string | null;
+  model_reasoning_effort?: string | null;
+  model_reasoning_summary?: string | null;
+  model_verbosity?: string | null;
 };
 
 export type EditableToml = {
@@ -56,6 +56,10 @@ function updateOrInsertField(lines: string[], key: string, value: string): strin
   const next = lines.slice();
   next.splice(insertAt, 0, replacement);
   return next;
+}
+
+function removeField(lines: string[], key: string): string[] {
+  return lines.filter((line) => TOP_LEVEL_ASSIGNMENT.exec(line)?.[1] !== key);
 }
 
 export function parseEditableToml(source: string): EditableToml {
@@ -94,7 +98,7 @@ export function parseEditableToml(source: string): EditableToml {
 export function replaceModelFields(source: string, updates: ModelFields): string {
   let lines = parseEditableToml(source).lines;
   for (const [key, value] of Object.entries(updates)) {
-    lines = updateOrInsertField(lines, key, value);
+    lines = value === null ? removeField(lines, key) : updateOrInsertField(lines, key, value);
   }
   return lines.join("\n");
 }

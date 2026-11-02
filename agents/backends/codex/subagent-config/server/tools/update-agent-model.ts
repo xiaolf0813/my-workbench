@@ -6,10 +6,10 @@ import { requireActiveProjectContext } from "../services/project-context-service
 export type UpdateAgentModelInput = {
   agentId: string;
   fileRevision: string;
-  model: string;
-  modelReasoningEffort: string;
-  modelReasoningSummary?: string;
-  modelVerbosity?: string;
+  model: string | null;
+  modelReasoningEffort: string | null;
+  modelReasoningSummary?: string | null;
+  modelVerbosity?: string | null;
 };
 
 export async function updateAgentModelTool(input: UpdateAgentModelInput) {

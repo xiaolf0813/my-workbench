@@ -13,7 +13,7 @@ import { getAgentConfigurationsTool } from "./tools/get-agent-configurations.js"
 import { listModelsTool } from "./tools/list-models.js";
 import { updateAgentModelTool } from "./tools/update-agent-model.js";
 
-const UI_RESOURCE_URI = "ui://subagent-config/v10.html";
+const UI_RESOURCE_URI = "ui://subagent-config/v11.html";
 
 function createMcpServer() {
   const server = new McpServer({
@@ -120,10 +120,10 @@ function createMcpServer() {
     .object({
       agentId: z.string().min(1).max(1024),
       fileRevision: z.string().regex(/^sha256:[0-9a-f]{64}$/),
-      model: z.string().min(1).max(128),
-      modelReasoningEffort: z.string().min(1).max(32),
-      modelReasoningSummary: z.string().min(1).max(32).optional(),
-      modelVerbosity: z.string().min(1).max(32).optional(),
+      model: z.string().min(1).max(128).nullable(),
+      modelReasoningEffort: z.string().min(1).max(32).nullable(),
+      modelReasoningSummary: z.string().min(1).max(32).nullable().optional(),
+      modelVerbosity: z.string().min(1).max(32).nullable().optional(),
     })
     .strict();
 
@@ -133,7 +133,7 @@ function createMcpServer() {
     {
       title: "Update agent model",
       description:
-        "Save only model, reasoning-effort, optional reasoning-summary, and optional verbosity fields to an existing custom agent TOML file.",
+        "Save or clear only model, reasoning-effort, optional reasoning-summary, and optional verbosity fields in an existing custom agent TOML file.",
       inputSchema: updateInputSchema,
       annotations: {
         destructiveHint: true,

@@ -41,7 +41,7 @@ Existing files are skipped unless `--force` is given, so re-running is safe. A `
 
 ## Version management
 
-Every install — and `assemble` in this repository — writes a small stamp file recording the version of the CLI that deployed there, **one per deployment realm**: `my-workbench.version` in the project root for project-level runs, and `~/.my-workbench.version` for user-level runs (`--user`, or the always-user-level ZCode/DSH targets). A mixed run (e.g. `npx my-workbench --claude --zcode`) stamps both. The stamp is refreshed unconditionally on every run, so it always names the running version.
+Every install — and `assemble` in this repository — writes a small stamp file recording the version of the CLI that deployed there, **one per deployment realm**: `my-workbench.version` in the project root for project-level runs, `~/.my-workbench.version` for shared user-level runs (`--user`, ZCode or DSH), and `<CODEX_HOME>/my-workbench.version` for each Codex home. A mixed run (e.g. `npx my-workbench --claude --zcode`) stamps both applicable realms. The stamp is refreshed unconditionally on every run, so it always names the running version.
 
 ```bash
 npx my-workbench --upgrade   # compare deployed versions with the npm latest
@@ -65,12 +65,12 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 `npx my-workbench --chatgpt` (alias: `--codex`) installs native local custom agents into **CODEX_HOME**, defaulting to `~/.codex/`. This targets the current ChatGPT desktop app's local Codex runtime and Codex CLI; hosted chats and custom GPTs do not read these local files.
 
-- `AGENTS.md` — a short primary-agent entrypoint that loads `my-workbench-orchestrator.md`; the full policy stays outside the automatic AGENTS.md size budget. Spawned specialists follow their own roles.
+- active global AGENTS file — deployment maintains one marked loader block in `AGENTS.override.md` when that file exists, otherwise in `AGENTS.md`; all surrounding user content is preserved. The block loads `my-workbench-orchestrator.md`, keeping the full policy outside the automatic AGENTS.md size budget.
 - `agents/*.toml` — nine specialists, each with native `name`, `description`, and `developer_instructions`, assembled from the same roster, prompts and disciplines. Models inherit from the current session unless you tune them in the deployed TOML or Subagent Config.
 - `my-workbench-plugin-marketplace/` — an offline local marketplace containing **Subagent Config**, which edits only the deployed agents' model fields. Deployment registers the marketplace and plugin through `codex plugin`; it never edits Codex plugin state directly.
 - `my-workbench-solutions/` — the platform guides, refreshed on every install.
 
-User-level only, opt-in, with no downloads or project writes. Node.js and a Codex CLI that supports `codex plugin` are required. Existing agent files skip unless `--force`; force preserves the agents' top-level `model`, `model_reasoning_effort`, `model_reasoning_summary`, and `model_verbosity` settings, while the bundled marketplace and plugin runtime refresh on every deployment. `config.toml`, authentication files, and `AGENTS.override.md` are never edited directly. A plugin registration failure fails the deployment before its version stamp. Restart ChatGPT / Codex after a successful deployment. An existing `AGENTS.md` that was skipped, a higher-priority `AGENTS.override.md`, or disabled subagents in your own settings may prevent the policy from loading or dispatching; reconcile those intentionally, then start a new session. Role instructions do not grant tools or create a separate sandbox.
+User-level only, opt-in, with no downloads or project writes. Node.js and a Codex CLI that supports `codex plugin` are required. Existing agent files skip unless `--force`; force preserves the agents' top-level `model`, `model_reasoning_effort`, `model_reasoning_summary`, and `model_verbosity` settings, while the active AGENTS loader block, bundled marketplace and plugin runtime refresh on every deployment. Plugin registration uses the official CLI, which owns the necessary `config.toml` changes. A registration failure restores the pre-deployment managed files, `config.toml`, and plugin cache and does not write the CODEX_HOME-local version stamp. Restart ChatGPT / Codex after success. Disabling subagents in your own settings can still prevent dispatch. Role instructions do not grant tools or create a separate sandbox.
 
 Schema and discovery follow official OpenAI documentation: [custom agents](https://learn.chatgpt.com/docs/agent-configuration/subagents), [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 

@@ -26,7 +26,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "test:subagent-config": "npm test --prefix agents/backends/codex/subagent-config",
+    "verify": "npm run test:subagent-config && node bin/my-workbench.js assemble --check && npm test"
   },
   "keywords": [
     "opencode",

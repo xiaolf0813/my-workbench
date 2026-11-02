@@ -19,10 +19,18 @@ function fixture(t, override = true) {
   const fakeCodex = join(root, 'fake-codex.cjs');
   mkdirSync(home); mkdirSync(project);
   writeFileSync(fakeCodex, `
-const { appendFileSync } = require('node:fs');
+const { appendFileSync, mkdirSync, writeFileSync } = require('node:fs');
+const { join } = require('node:path');
 const args = process.argv.slice(2);
 appendFileSync(process.env.MY_WORKBENCH_TEST_CODEX_LOG, JSON.stringify(args) + '\\n');
-if (process.env.MY_WORKBENCH_FAIL_PLUGIN_INSTALL === '1' && args[0] === 'plugin' && args[1] === 'add') process.exit(42);
+if (process.env.MY_WORKBENCH_FAIL_PLUGIN_INSTALL === '1' && args[0] === 'plugin' && args[1] === 'add') {
+  mkdirSync(process.env.CODEX_HOME, { recursive: true });
+  writeFileSync(join(process.env.CODEX_HOME, 'config.toml'), 'partial plugin registration\\n');
+  const cache = join(process.env.CODEX_HOME, 'plugins', 'cache', 'my-workbench', 'subagent-config', '0.1.8');
+  mkdirSync(cache, { recursive: true });
+  writeFileSync(join(cache, 'plugin.json'), '{"partial":true}');
+  process.exit(42);
+}
 process.stdout.write(JSON.stringify({ ok: true }));
 `);
   const env = { ...process.env, HOME: home, USERPROFILE: home, APPDATA: join(home, 'AppData'), XDG_CONFIG_HOME: join(home, '.config') };
@@ -61,6 +69,7 @@ test('ChatGPT alias deploys native agents into CODEX_HOME without changing confi
   }
   const entry = readFileSync(join(f.config, 'AGENTS.md'), 'utf8');
   assert.ok(Buffer.byteLength(entry) < 2048);
+  assert.equal(entry.match(/my-workbench Codex orchestrator \(managed block/g)?.length, 1);
   assert.ok(entry.includes(join(f.config, 'my-workbench-orchestrator.md').split(sep).join('/')));
   assert.ok(existsSync(join(f.config, 'my-workbench-solutions/toolkit-gui-test.md')));
   const marketplace = join(f.config, 'my-workbench-plugin-marketplace');
@@ -70,7 +79,8 @@ test('ChatGPT alias deploys native agents into CODEX_HOME without changing confi
   const pluginCalls = readFileSync(f.codexLog, 'utf8').trim().split('\n').map(JSON.parse);
   assert.deepEqual(pluginCalls.at(-2), ['plugin', 'marketplace', 'add', marketplace, '--json']);
   assert.deepEqual(pluginCalls.at(-1), ['plugin', 'add', 'subagent-config@my-workbench', '--json']);
-  assert.ok(existsSync(join(f.home, '.my-workbench.version')));
+  assert.ok(existsSync(join(f.config, 'my-workbench.version')));
+  assert.equal(existsSync(join(f.home, '.my-workbench.version')), false);
   assert.deepEqual(readdirSync(f.project), []);
 });
 
@@ -83,15 +93,25 @@ test('Codex defaults to the sandbox home; dry-run writes nothing', t => {
   assert.equal(existsSync(join(f.home, '.my-workbench.version')), false);
   f.run('--codex', '--user');
   assert.ok(existsSync(join(f.config, 'agents/fixer.toml')));
+  assert.ok(existsSync(join(f.config, 'my-workbench.version')));
 });
 
-test('Codex plugin install failure prevents the user version stamp', t => {
+test('Codex plugin install failure rolls back files, config, cache, and the CODEX_HOME stamp', t => {
   const f = fixture(t);
+  mkdirSync(f.config);
+  const config = '[agents]\nenabled = true\n';
+  writeFileSync(join(f.config, 'config.toml'), config);
   f.env.MY_WORKBENCH_FAIL_PLUGIN_INSTALL = '1';
   const result = f.runRaw('--codex');
   assert.notEqual(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stderr, /codex plugin add subagent-config@my-workbench --json failed/);
-  assert.equal(existsSync(join(f.home, '.my-workbench.version')), false);
+  assert.match(result.stderr, /rollback\s+restored Codex files and plugin registration state/);
+  assert.equal(readFileSync(join(f.config, 'config.toml'), 'utf8'), config);
+  assert.equal(existsSync(join(f.config, 'agents/fixer.toml')), false);
+  assert.equal(existsSync(join(f.config, 'AGENTS.md')), false);
+  assert.equal(existsSync(join(f.config, 'my-workbench-orchestrator.md')), false);
+  assert.equal(existsSync(join(f.config, 'plugins/cache/my-workbench/subagent-config/0.1.8/plugin.json')), false);
+  assert.equal(existsSync(join(f.config, 'my-workbench.version')), false);
 });
 
 test('Codex reruns skip owned files, refresh guides, and preserve model knobs on force', t => {
@@ -105,7 +125,9 @@ test('Codex reruns skip owned files, refresh guides, and preserve model knobs on
   writeFileSync(join(f.config, 'AGENTS.md'), 'user instructions');
   f.run('--codex');
   assert.equal(readFileSync(agent, 'utf8'), previous);
-  assert.equal(readFileSync(join(f.config, 'AGENTS.md'), 'utf8'), 'user instructions');
+  const entry = readFileSync(join(f.config, 'AGENTS.md'), 'utf8');
+  assert.ok(entry.startsWith('user instructions\n\n'));
+  assert.equal(entry.match(/my-workbench Codex orchestrator \(managed block/g)?.length, 1);
   assert.notEqual(readFileSync(guide, 'utf8'), 'stale');
   f.run('--codex', '--force');
   const repaired = readFileSync(agent, 'utf8');
@@ -115,6 +137,34 @@ test('Codex reruns skip owned files, refresh guides, and preserve model knobs on
   assert.match(repaired, /^name = "observer"$/m);
   f.run('--codex', '--force');
   assert.equal(readFileSync(agent, 'utf8'), repaired, 'force is idempotent');
+  assert.equal(readFileSync(join(f.config, 'AGENTS.md'), 'utf8'), entry, 'managed block is idempotent and preserves user text');
+});
+
+test('Codex maintains the loader block in AGENTS.override.md when it is active', t => {
+  const f = fixture(t);
+  mkdirSync(f.config);
+  writeFileSync(join(f.config, 'AGENTS.md'), 'fallback user instructions\n');
+  writeFileSync(join(f.config, 'AGENTS.override.md'), 'active override instructions\n');
+  f.run('--codex');
+  assert.equal(readFileSync(join(f.config, 'AGENTS.md'), 'utf8'), 'fallback user instructions\n');
+  const override = readFileSync(join(f.config, 'AGENTS.override.md'), 'utf8');
+  assert.ok(override.startsWith('active override instructions\n\n'));
+  assert.equal(override.match(/my-workbench Codex orchestrator \(managed block/g)?.length, 1);
+  f.run('--codex');
+  assert.equal(readFileSync(join(f.config, 'AGENTS.override.md'), 'utf8'), override);
+});
+
+test('Codex rejects a malformed managed block and rolls back earlier writes', t => {
+  const f = fixture(t);
+  mkdirSync(f.config);
+  const malformed = 'user instructions\n\n<!-- >>> my-workbench Codex orchestrator (managed block - regenerated by `my-workbench --codex`) >>>\n';
+  writeFileSync(join(f.config, 'AGENTS.md'), malformed);
+  const result = f.runRaw('--codex');
+  assert.notEqual(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stderr, /opening marker but not its closing marker/);
+  assert.equal(readFileSync(join(f.config, 'AGENTS.md'), 'utf8'), malformed);
+  assert.equal(existsSync(join(f.config, 'agents/fixer.toml')), false);
+  assert.equal(existsSync(join(f.config, 'my-workbench.version')), false);
 });
 
 test('TOML preservation ignores prompt text and nested keys, and retains multiline settings', () => {

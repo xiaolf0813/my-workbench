@@ -53,12 +53,24 @@ test("rejects arbitrary update paths and edits only the scanned agent id", async
     const updated = await fs.readFile(filePath, "utf8");
     assert.match(updated, /# keep/);
     assert.match(updated, /other = 1/);
+    const inherited = await updateAgentModel(resolver, models, {
+      agentId: "personal:planner",
+      fileRevision: result.fileRevision,
+      model: null,
+      modelReasoningEffort: null,
+      modelReasoningSummary: null,
+      modelVerbosity: null,
+    });
+    assert.equal(inherited.saved, true);
+    const restored = await fs.readFile(filePath, "utf8");
+    assert.doesNotMatch(restored, /^model(?:_|\s*=)/m);
+    assert.match(restored, /# keep/);
     assert.equal(resolver.resolveAgentPath("personal:..%2Fsecret"), null);
     assert.equal(resolver.resolveAgentPath("personal:%"), null);
     await assert.rejects(
       updateAgentModel(resolver, models, {
         agentId: "personal:planner",
-        fileRevision: revision,
+        fileRevision: result.fileRevision,
         model: "gpt-6-luna",
         modelReasoningEffort: "high",
       }),

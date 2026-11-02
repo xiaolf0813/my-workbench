@@ -9,10 +9,10 @@ import type { ModelCatalog } from "../domain/model-option.js";
 export type UpdateAgentModelInput = {
   agentId: string;
   fileRevision: string;
-  model: string;
-  modelReasoningEffort: string;
-  modelReasoningSummary?: string;
-  modelVerbosity?: string;
+  model: string | null;
+  modelReasoningEffort: string | null;
+  modelReasoningSummary?: string | null;
+  modelVerbosity?: string | null;
 };
 
 function invalid(message: string): Error {
@@ -66,9 +66,24 @@ export async function updateAgentModel(
     ? resolver.validateScannedAgentPath(input.agentId, scannedFilePath)
     : resolver.resolveAgentPath(input.agentId);
   if (!filePath) throw invalid("Unknown or read-only agent.");
-  validateModel(input.model, models);
-  validateEffort(input.modelReasoningEffort, models);
-  const availability = validateSelectedEffort(input.model, input.modelReasoningEffort, models);
+  let availability: { available: boolean | null } = { available: null };
+  if (input.model === null) {
+    if (
+      input.modelReasoningEffort !== null ||
+      input.modelReasoningSummary != null ||
+      input.modelVerbosity != null
+    ) {
+      throw invalid("Inherited model configuration cannot pin reasoning or verbosity fields.");
+    }
+  } else {
+    validateModel(input.model, models);
+    if (input.modelReasoningEffort !== null) {
+      validateEffort(input.modelReasoningEffort, models);
+      availability = validateSelectedEffort(input.model, input.modelReasoningEffort, models);
+    } else {
+      availability = { available: models.models.find((entry) => entry.slug === input.model)?.available ?? null };
+    }
+  }
 
   const currentRevision = await readFileRevision(filePath);
   if (currentRevision !== input.fileRevision) {
@@ -77,12 +92,22 @@ export async function updateAgentModel(
 
   const source = await fs.readFile(filePath, "utf8");
   validateExistingAgent(source, filePath, resolver, input.agentId);
-  const updated = replaceModelFields(source, {
-    model: input.model,
-    model_reasoning_effort: input.modelReasoningEffort,
-    ...(input.modelReasoningSummary === undefined ? {} : { model_reasoning_summary: input.modelReasoningSummary }),
-    ...(input.modelVerbosity === undefined ? {} : { model_verbosity: input.modelVerbosity }),
-  });
+  const updated = replaceModelFields(
+    source,
+    input.model === null
+      ? {
+          model: null,
+          model_reasoning_effort: null,
+          model_reasoning_summary: null,
+          model_verbosity: null,
+        }
+      : {
+          model: input.model,
+          model_reasoning_effort: input.modelReasoningEffort,
+          ...(input.modelReasoningSummary === undefined ? {} : { model_reasoning_summary: input.modelReasoningSummary }),
+          ...(input.modelVerbosity === undefined ? {} : { model_verbosity: input.modelVerbosity }),
+        },
+  );
 
   const temporaryPath = await fs.mkdtemp(path.join(path.dirname(filePath), ".subagent-config-"));
   const candidatePath = path.join(temporaryPath, "candidate.toml");
