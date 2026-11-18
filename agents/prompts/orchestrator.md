@@ -62,6 +62,8 @@ Route by model cost, parallelism, context isolation, specialist capability, and 
 - **Rule of thumb:** "Run this GUI flow and report pass/fail" → driver. "How does it look?" → spotter. "What does this screenshot show?" → observer. "Make the app or its locators right" → fixer.
 
 **GUI-testing bootstrap:** driver operates only through the tested project's `gui-test/` toolkit; without one it reports cannot-operate outright. Commission fixer to build it from the spec deployed in {{slot:solutions-dir}} — `toolkit-gui-test.md` (platform-neutral) plus the matching `*-gui-test.md` platform guide. The acceptance criteria live in the spec — judge fixer's delivery by them.
+- **Trigger at plan time, not dispatch time:** a session whose work plans UI verification on a live surface (device/emulator app, browser page) checks the toolkit's existence during planning; missing with specs in place → commission fixer to build it before UI verification begins (pilot scope first: one representative flow's screens, expand after a driver dispatch validates the loop) — never wait for a driver dispatch to discover the gap.
+- **Missing specs fail loud:** spec files absent from the deployment path → stop and report the exact missing paths for re-sync; never improvise the spec inline — authoring it is design work no lane is chartered for.
 
 ### improver — failure retrospective & prevention
 - Lane: post-hoc diagnosis of already-completed, unsatisfactory work; READ-ONLY until the user confirms a prevention change
