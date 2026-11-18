@@ -9,7 +9,7 @@
     gui-test/
       README.md                  # 配方：如何启动、取树、操作本应用
       registry/<screen>.yaml     # 每屏：alias -> 定位链 + 界面签名
-      gui                        # 薄 CLI：locate / assert-screen / dump
+      gui                        # 薄 CLI：locate / assert-screen / dump / coverage
 
 - **`README.md`**——一页：启动应用、取树命令、动作命令、表面事实（adb 序列号、dev-server URL、调试端口）。验收：agent 仅凭此文件即可从"启动应用"走到"dump + 按身份操作"。
 - **`registry/<screen>.yaml`**——每屏一份，alias → 定位链（平台身份键优先，其次 text，再 content-desc，最后层级路径；列表行带 scope），外加**界面签名**（预期身份集合，用于走错屏检测）。先对被测屏幕手写；自动化后置。
@@ -26,7 +26,7 @@
       locate: { id: "order_row/{biz_id}" }   # Compose testTag 中的运行时参数
   ```
 
-- **`gui` CLI**——薄脚本，文本进出：`locate <screen> <alias> [--scope k=v]` 现算并打印 bounds + 中心；`assert-screen <screen>` 离屏非零、在屏为零退出；`dump` 打印文本树（每节点身份 + bounds）。
+- **`gui` CLI**——薄脚本，文本进出：`locate <screen> <alias> [--scope k=v]` 现算并打印 bounds + 中心；`assert-screen <screen>` 离屏非零、在屏为零退出；`dump` 打印文本树（每节点身份 + bounds）；`coverage <screen>...` 逐屏列出已覆盖或点名缺失的登记表条目，任一缺失即非零退出——规划期覆盖检查的机械钩子。
 
 ## 铁律
 
@@ -38,7 +38,7 @@
 
 1. **配方**（`gui-test/README.md`）——见上方验收。
 2. **身份标记**：加到测试需要的交互节点上（按对应平台指南）。验收：手动 dump 能看到这些节点上的身份。
-3. **登记表 + `gui` CLI**。验收：`assert-screen` 离屏非零、在屏为零退出；`locate` 打印 bounds + 中心。
+3. **登记表 + `gui` CLI**。验收：`assert-screen` 离屏非零、在屏为零退出；`locate` 打印 bounds + 中心；`coverage` 点名所询屏幕的全部缺失登记表条目。
 4. **生成器 + CI 漂移检查**——从源码再生成登记表；CI 在出现悬空 alias 时失败并点名。验收：改名一个 locator，CI 失败并点名悬空 alias。
 5. **可选**——应用内语义 dump 钩子作为真值后端。
 

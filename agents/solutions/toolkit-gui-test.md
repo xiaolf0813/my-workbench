@@ -10,7 +10,7 @@ acquisition, identity keys, and action channel.
     gui-test/
       README.md                  # the recipe: how to launch, dump, and act on THIS app
       registry/<screen>.yaml     # per screen: alias -> locator chain + screen signature
-      gui                        # thin CLI: locate / assert-screen / dump
+      gui                        # thin CLI: locate / assert-screen / dump / coverage
 
 - **`README.md`** — one page: launching the app, the tree acquisition
   command(s), the action commands, and surface facts (adb serial, dev-server
@@ -37,7 +37,10 @@ acquisition, identity keys, and action channel.
 - **`gui` CLI** — thin, text-in/text-out:
   `locate <screen> <alias> [--scope k=v]` prints bounds + center resolved
   fresh; `assert-screen <screen>` exits nonzero off-screen and zero on-screen;
-  `dump` prints the text tree (identity + bounds per node).
+  `dump` prints the text tree (identity + bounds per node); `coverage
+  <screen>...` lists each named screen as covered or names its missing
+  registry entries and exits nonzero when any are missing — the mechanical
+  hook for plan-time coverage checks.
 
 ## Iron rules
 
@@ -55,7 +58,8 @@ acquisition, identity keys, and action channel.
 2. **Identity tags** on the interactive nodes tests need (per the matching
    platform guide). Acceptance: a manual dump shows the identity on those nodes.
 3. **Registry + `gui` CLI**. Acceptance: `assert-screen` exits nonzero
-   off-screen and zero on-screen; `locate` prints bounds + center.
+   off-screen and zero on-screen; `locate` prints bounds + center;
+   `coverage` names every missing registry entry for the screens asked.
 4. **Generator + CI drift check** — regenerate the registry from source; CI
    fails naming dangling aliases. Acceptance: renaming a locator fails CI
    with the dangling alias named.
