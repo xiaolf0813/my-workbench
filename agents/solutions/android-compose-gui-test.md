@@ -60,7 +60,9 @@ library cannot reference the app's `BuildConfig`, and that module needs
 `BuildConfig.DEBUG == false` skips the branch; in the artifact,
 `BuildConfig.DEBUG` is not a compile-time constant, so `inline` alone does not
 delete the branch or its tag strings. Enable R8 (`isMinifyEnabled = true`)
-for physical stripping and verify the tag strings are gone (or use a
+for physical stripping — R8 can only strip literals that live inside the
+gated branch, which makes the shape rule below a hard requirement — and
+verify the tag strings are gone (or use a
 `buildConfigField` compile-time boolean — `debug` = `true`,
 `release` = `false` — instead):
 
@@ -75,6 +77,32 @@ inline fun Modifier.debugTestTagWithMerge(tag: String): Modifier =
         this
     }
 ```
+
+**Shape rule (hard requirement):** the tag literal must appear **directly as
+the argument of a `debugTestTag(...)` call** (or otherwise inside an
+`if (BuildConfig.DEBUG)` branch). Only in that shape is the string referenced
+solely from the dead branch after inlining, and R8 removes it together with
+the branch. Never route the literal through a map entry, a constant object,
+or a named parameter constructed outside a debug condition — in those shapes
+the string is referenced from live code, R8 cannot prove it dead, and it
+survives in the release artifact. Both escape shapes below have been caught
+in a real release APK:
+
+```kotlin
+// FORBIDDEN — map unconditionally built at file level; the literal lives in
+// live code even though the consumer is debug-gated:
+private val tabTags = mapOf(Tab.Home to "main_shell/tab_home")
+
+// FORBIDDEN — named parameter constructed outside the debug condition,
+// gated only in the callee:
+MyScreen(testTag = "profile/edit_button")
+
+// REQUIRED — the literal sits directly inside the gated call:
+Modifier.debugTestTag("main_shell/tab_home")
+```
+
+A key- or enum-driven lookup works only when the map itself is gated:
+`private val tabTags = if (BuildConfig.DEBUG) mapOf(...) else emptyMap()`.
 
 An index-based variant `debugTestTag(prefix, index)` → `user_item_3` exists in
 the wild, but indexes drift as rows are inserted/removed and off-screen rows
@@ -137,11 +165,17 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 // testTagsAsResourceId is experimental — add
 // @OptIn(ExperimentalComposeUiApi::class) to the enclosing declaration.
 setContent {
-    Box(Modifier.semantics { testTagsAsResourceId = true }) {
+    Box(
+        // Same debug gate as the tags: no test wiring ships in release.
+        if (BuildConfig.DEBUG) Modifier.semantics { testTagsAsResourceId = true } else Modifier
+    ) {
         AppRoot()
     }
 }
 ```
+
+The bridge follows the same rule as the tag literals: gate it with
+`BuildConfig.DEBUG` — the release artifact carries no test wiring at all.
 
 After this, `adb shell uiautomator dump` carries each tag as
 `resource-id="login/submit_button"` — the registry matches the raw tag.
@@ -152,7 +186,7 @@ This is the [Compose UiAutomator mapping](https://developer.android.com/develop/
 
 - **Build variant**: tests only see tags on the debug build type
   (`BuildConfig.DEBUG == true`); a release-variant run finds nothing (see
-  step 2).
+  steps 2 and 4).
 - **uiautomator channel**: grep the dump for `resource-id="login/submit_button"`,
   parse `bounds`, tap the center. Stale/empty dump → re-run once before
   concluding.

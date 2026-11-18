@@ -31,7 +31,7 @@ android {
 
 ## 步骤二 —— Debug 专用标签修饰符
 
-公共模块（如 `:core:ui`）封装 debug 专用 `testTag`。“Release 不注入”指运行时 `BuildConfig.DEBUG == false`、分支不执行、不写 tag；但该字段非编译期常量，`inline` 只做内联、不删分支与 tag 字符串，未开 R8 时 Release 包内仍有死代码。`BuildConfig` 用所在模块的（library 不能引用 App 的），并开启 `buildConfig`。要物理零残留：Release 开 R8（`isMinifyEnabled = true`）并验证字符串不残留；或不依赖 R8，改用 `buildConfigField` 生成 debug `true` / release `false` 的编译期常量代替 `BuildConfig.DEBUG`：
+公共模块（如 `:core:ui`）封装 debug 专用 `testTag`。“Release 不注入”指运行时 `BuildConfig.DEBUG == false`、分支不执行、不写 tag；但该字段非编译期常量，`inline` 只做内联、不删分支与 tag 字符串，未开 R8 时 Release 包内仍有死代码。`BuildConfig` 用所在模块的（library 不能引用 App 的），并开启 `buildConfig`。要物理零残留：Release 开 R8（`isMinifyEnabled = true`）——R8 只能剥掉活在被门控分支内的字面量，故下方形态铁律为硬性要求——并验证字符串不残留；或不依赖 R8，改用 `buildConfigField` 生成 debug `true` / release `false` 的编译期常量代替 `BuildConfig.DEBUG`：
 
 ```kotlin
 inline fun Modifier.debugTestTag(tag: String): Modifier =
@@ -40,6 +40,21 @@ inline fun Modifier.debugTestTag(tag: String): Modifier =
 inline fun Modifier.debugTestTagWithMerge(tag: String): Modifier =
     if (BuildConfig.DEBUG) this.semantics(mergeDescendants = true) { }.testTag(tag) else this
 ```
+
+**形态铁律（硬性要求）：** tag 字面量必须**直接作为 `debugTestTag(...)` 调用的实参**出现（或位于某个 `if (BuildConfig.DEBUG)` 分支之内）。只有这种形态下，内联后字符串才只被死分支引用，R8 才能随分支一起消除。绝不经由 map 条目、常量对象、或在 debug 条件之外构造的命名参数传递字面量——那些形态下字符串被活代码引用，R8 无法证明其可消，release 产物中必然幸存。以下两种漏网形态均在实际 release APK 中抓到过：
+
+```kotlin
+// 禁止——文件级 map 无条件构造；字面量活在活代码里，即便消费端有 debug 门控：
+private val tabTags = mapOf(Tab.Home to "main_shell/tab_home")
+
+// 禁止——命名参数在 debug 条件之外构造，仅在 callee 内门控：
+MyScreen(testTag = "profile/edit_button")
+
+// 要求——字面量直接落在被门控的调用里：
+Modifier.debugTestTag("main_shell/tab_home")
+```
+
+按枚举/键查表的用法只有在 map 本身被门控时才成立：`private val tabTags = if (BuildConfig.DEBUG) mapOf(...) else emptyMap()`。
 
 按下标的 `debugTestTag(prefix, index)` 变体（如 `user_item_3`）会随列表增删漂移、离屏行不被组合；**仅在行无稳定业务 id 时使用**，优先 `debugTestTag("order_row/ORD-123")` 用真实业务 id（登记表行定位器所需）。
 
@@ -79,15 +94,20 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 
 // testTagsAsResourceId 为实验 API：所在声明需加 @OptIn(ExperimentalComposeUiApi::class)
 setContent {
-    Box(Modifier.semantics { testTagsAsResourceId = true }) { AppRoot() }
+    Box(
+        // 与 tag 同一 debug 门控：release 产物不携带任何测试接线。
+        if (BuildConfig.DEBUG) Modifier.semantics { testTagsAsResourceId = true } else Modifier
+    ) { AppRoot() }
 }
 ```
+
+桥接与 tag 字面量同规：用 `BuildConfig.DEBUG` 门控——release 构件不携带任何测试接线。
 
 此后 dump 中每个 tag 即 `resource-id="login/submit_button"`，登记表匹配原始 tag。[Compose 官方 UiAutomator 映射](https://developer.android.com/develop/ui/compose/testing/interoperability#uiautomator)使用 `By.res("login/submit_button")`，不额外添加包名前缀。
 
 ## 步骤五 —— 验证与排障（live 通道）
 
-- **构建变体**：仅 debug 可见 tag；release 下标签不注入（见步骤二）。
+- **构建变体**：仅 debug 可见 tag；release 下标签不注入（见步骤二、步骤四）。
 - **uiautomator**：dump 中 grep `resource-id="login/submit_button"`，解析 `bounds` 点中心；陈旧/空 dump 先重跑一次。
 - **合并节点内部**：合并会隐藏后代——Compose 测试可用未合并树：`onNodeWithTag("cart/delete_icon", useUnmergedTree = true)`；uiautomator dump 无未合并树，后代文本并入父节点、子节点从 XML 消失。**⚠️ 最高优先级避坑**：要点击内部小按钮时不要整体合并，须保持不合并/缩小合并范围，或改用坐标点击。
 - **懒列表**：树中只有屏上行——先滚到该行，再按业务 id tag 定位。
