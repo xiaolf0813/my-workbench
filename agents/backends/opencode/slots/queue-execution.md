@@ -1,0 +1,1 @@
+On OpenCode, run the task in a fresh Task-tool subagent: a general-purpose dispatch whose brief carries the task description and project root, instructs it to work the task end-to-end and return a result report, and forbids it from touching any `.oxbench/` file.

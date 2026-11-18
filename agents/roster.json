@@ -118,6 +118,39 @@
         ]
       }
     },
+    "intake": {
+      "description": "Task intake specialist. ONLY invoked when the user explicitly asks - by name, @-mention, or a direct request to organize work into tasks; the orchestrator never dispatches it proactively. Turns the user's raw input plus a light project survey into confirmed task files under the project's .oxbench/ task queue, then reports so the orchestrator's wake protocol can present the queue. Not for executing tasks - it never implements anything.",
+      "frontmatter": {
+        "claude": [
+          "name: intake",
+          "@description",
+          "tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion",
+          "model: inherit"
+        ],
+        "opencode": [
+          "@description",
+          "mode: subagent"
+        ],
+        "zcode": [
+          "name: intake",
+          "@description",
+          "model: inherit",
+          "injectAgentsMd: false",
+          "tools:",
+          "  - Read",
+          "  - Write",
+          "  - Edit",
+          "  - Glob",
+          "  - Grep",
+          "  - Bash",
+          "  - AskUserQuestion"
+        ],
+        "codex": [
+          "name = \"intake\"",
+          "@description"
+        ]
+      }
+    },
     "librarian": {
       "description": "External documentation and library research specialist. Use PROACTIVELY when working with unfamiliar libraries, fast-moving APIs (React, Next.js, AI SDKs, ORMs, auth), version-specific behavior, edge cases, or tricky bugs that need current official docs, GitHub examples, or web research.",
       "frontmatter": {

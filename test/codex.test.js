@@ -55,7 +55,7 @@ test('ChatGPT alias deploys native agents into CODEX_HOME without changing confi
   f.run('--chatgpt');
   assert.equal(readFileSync(join(f.config, 'config.toml'), 'utf8'), config);
   const files = readdirSync(join(f.config, 'agents'));
-  assert.equal(files.length, 9);
+  assert.equal(files.length, 10);
   for (const file of files) {
     assert.ok(file.endsWith('.toml'));
     const fields = new Map(rootStatements(readFileSync(join(f.config, 'agents', file), 'utf8')).map(({ key, raw }) => [key, raw]));

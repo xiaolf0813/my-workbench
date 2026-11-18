@@ -1,0 +1,1 @@
+On DSH, run the task by dispatching a lane through its `subagent_*` tool per normal routing — the fresh lane dispatch is the independent session. The brief carries the task description and instructs the lane to report its result and never touch any `.oxbench/` file. No lane fits the task? Report that to the user instead of running it inline.

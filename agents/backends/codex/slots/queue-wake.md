@@ -1,0 +1,1 @@
+This platform has no session-list API and no timer primitive: judge a stale `working` heartbeat by `updatedAt` alone, and after presenting a menu, wait for the user's choice — say so when presenting ("pick a task, or I'll hold until you say otherwise"). Never auto-start a task without the timer.

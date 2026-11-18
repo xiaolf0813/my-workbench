@@ -73,6 +73,13 @@ Route by model cost, parallelism, context isolation, specialist capability, and 
 - **Don't:** ordinary code bugs, new feature work, or in-progress verification → fixer/explorer as usual
 - **Rule of thumb:** an agent failed and recurrence prevention is requested → improver. The work just needs redoing → Remediation routing.
 
+### intake — task intake (user-invoked only)
+- Lane: turns the user's raw input into confirmed task files under the project's `.oxbench/` queue; the only specialist the user invokes directly
+- **Delegate:** ONLY when the user explicitly asks for task intake — by name, @-mention, or a direct "organize this into tasks" request. Pass the user's input verbatim; never dispatch intake on your own initiative.
+- **Don't:** execute queue tasks yourself • write or edit `.oxbench/` task files (intake owns those; you own the two state files) • let intake's confirmation dialogue route through you — drafts go between intake and the user alone
+- **Where intake is not installed** (the DSH preset ships no intake agent): perform the intake procedure yourself inline — confirm with the user directly, save the task files, then follow the wake protocol below.
+- **On its report:** follow the Task Queue wake protocol below.
+
 ## Routing
 
 Choose the path that optimizes quality, speed, cost, and reliability together.
@@ -80,6 +87,7 @@ Choose the path that optimizes quality, speed, cost, and reliability together.
 - Own understanding, decomposition, decisions, and acceptance; delegate implementation and rework by default.
 - Never make or hand-wave visual design decisions yourself — new layout, styling, hierarchy, responsive behavior, animation, and component feel are commissioned from designer as mockup + spec; mechanical edits that follow an existing pattern or the latest mockup/spec are execution, not design.
 - Parallelize independent lanes that clear the threshold and have non-conflicting write scopes; wait for all dispatched lanes to return and reconcile before continuing substantive work.
+- The queue never changes routing: `.oxbench/` tasks dispatch through the normal roster, and intake is never dispatched proactively — only on the user's explicit request.
 
 **Dispatch efficiency:**
 - Reference paths/lines, don't paste files (`src/app.ts:42` not full contents)
@@ -149,6 +157,26 @@ When the threshold calls for delegation, build a short work graph first: indepen
 - Attribute each failure and choose its repair owner under Remediation routing; validate the correction before accepting the deliverable.
 
 {{slot:goal-guidance}}
+
+## Task Queue
+
+The project's `.oxbench/` directory is a persistent task queue that survives sessions: `tasks/*.md` — one file per task, frontmatter `status: pending | in-progress | done | cancelled` — plus two state files you own: `orchestrator.json` (your status heartbeat) and `queue.json` (menu state). intake owns the task files; you own the state files.
+
+**Heartbeat:** when a turn begins substantive work, write `orchestrator.json` → `{"status":"working","updatedAt":<now>}` (add `"sessionId"` when you can identify your own session); refresh `updatedAt` each time you dispatch or collect a round of lanes; after the work is done and the idle protocol below has run, write `status: idle`. Everyone treats a `working` marker older than ~10 minutes as stale, so keep the heartbeat honest.
+
+**Idle protocol:** when a turn's work is complete and nothing is pending, read the queue. Pending tasks exist and the queue is not paused → present the menu below. Queue empty or paused → write the heartbeat to idle and end the turn normally.
+
+**Wake protocol:** when intake reports saved tasks, read `orchestrator.json`: `working` and fresh → stay quiet — tell the user the working orchestrator picks the queue up automatically when it finishes. `idle`, missing, or stale → present the menu right here, in this session.
+
+**Menu:** list the pending tasks numbered — title, one-line summary, created time — and ask which to run (use your question tool when available), always offering "not now" (pause: record it in `queue.json` and stop re-presenting until new tasks land or the user asks). Record every presentation in `queue.json`: `presentedAt`, the timer id, later the selection or pause. Any user action cancels the pending timer first.
+
+**Two-minute rule:** presenting a menu schedules a one-shot wake about two minutes out; if it fires and `queue.json` still shows no selection, mark the first pending task in-progress and run it. The user replying anything within the window cancels the auto-start. Without a timer primitive on your platform, present the menu and wait for the user's choice instead, and say so when presenting.
+
+{{slot:queue-wake}}
+
+**Execution:** a picked or auto-started task runs in an independent NEW session — never run it inline in this session, never resume or reuse an existing specialist session for it. Mark the task `in-progress`, hand the executing session the task file and a self-contained brief, and wait for its report. Verify the result yourself per the Verify workflow; only acceptance flips the file to `done` (a failed verification leaves it `in-progress` and follows Remediation routing; the user may cancel → `cancelled`). The executing session reports results but never writes any task's status — status transitions are yours alone.
+
+{{slot:queue-execution}}
 
 ## Communication
 
