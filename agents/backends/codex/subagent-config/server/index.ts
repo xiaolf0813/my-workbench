@@ -13,12 +13,12 @@ import { getAgentConfigurationsTool } from "./tools/get-agent-configurations.js"
 import { listModelsTool } from "./tools/list-models.js";
 import { updateAgentModelTool } from "./tools/update-agent-model.js";
 
-const UI_RESOURCE_URI = "ui://subagent-config/v11.html";
+const UI_RESOURCE_URI = "ui://subagent-config/v12.html";
 
 function createMcpServer() {
   const server = new McpServer({
     name: "subagent-config",
-    version: "0.1.8",
+    version: "0.1.9",
   });
 
   registerAppResource(server, "subagent-config", UI_RESOURCE_URI, {}, async () => {

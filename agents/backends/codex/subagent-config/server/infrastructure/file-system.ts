@@ -2,9 +2,9 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-export async function readFileRevision(filePath: string): Promise<string> {
-  const bytes = await fs.readFile(filePath);
-  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
+export function revisionForFile(filePath: string, source: string): string {
+  const digest = createHash("sha256").update(path.resolve(filePath)).update("\0").update(source).digest("hex");
+  return `sha256:${digest}`;
 }
 
 export async function readUtf8(filePath: string): Promise<string> {

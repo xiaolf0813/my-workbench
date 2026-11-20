@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { parse as parseToml } from "smol-toml";
-import { readFileRevision } from "../infrastructure/file-system.js";
+import { revisionForFile } from "../infrastructure/file-system.js";
 import { normalizeAgentName, PathResolver } from "../infrastructure/path-resolver.js";
 import { parseEditableToml, replaceModelFields } from "../infrastructure/toml-editor.js";
 import type { ModelCatalog } from "../domain/model-option.js";
@@ -35,13 +34,12 @@ function validateSelectedEffort(
   modelSlug: string,
   effort: string,
   models: ModelCatalog,
-): { available: boolean | null } {
+): void {
   const model = models.models.find((entry) => entry.slug === modelSlug);
   if (!model) throw invalid("Model must be selected from the available model list.");
   if (!model.supportedReasoningEfforts.includes(effort)) {
     throw invalid("The selected model does not support this reasoning effort.");
   }
-  return { available: model.available ?? null };
 }
 
 function validateExistingAgent(source: string, filePath: string, resolver: PathResolver, agentId: string): void {
@@ -66,81 +64,54 @@ export async function updateAgentModel(
     ? resolver.validateScannedAgentPath(input.agentId, scannedFilePath)
     : resolver.resolveAgentPath(input.agentId);
   if (!filePath) throw invalid("Unknown or read-only agent.");
-  let availability: { available: boolean | null } = { available: null };
-  if (input.model === null) {
-    if (
-      input.modelReasoningEffort !== null ||
-      input.modelReasoningSummary != null ||
-      input.modelVerbosity != null
-    ) {
-      throw invalid("Inherited model configuration cannot pin reasoning or verbosity fields.");
-    }
-  } else {
-    validateModel(input.model, models);
-    if (input.modelReasoningEffort !== null) {
-      validateEffort(input.modelReasoningEffort, models);
-      availability = validateSelectedEffort(input.model, input.modelReasoningEffort, models);
-    } else {
-      availability = { available: models.models.find((entry) => entry.slug === input.model)?.available ?? null };
-    }
+  if (input.model !== null) validateModel(input.model, models);
+  if (input.modelReasoningEffort !== null) {
+    validateEffort(input.modelReasoningEffort, models);
+    if (input.model !== null) validateSelectedEffort(input.model, input.modelReasoningEffort, models);
   }
-
-  const currentRevision = await readFileRevision(filePath);
-  if (currentRevision !== input.fileRevision) {
-    throw invalid("The file changed after it was loaded. Refresh and try again.");
-  }
-
-  const source = await fs.readFile(filePath, "utf8");
-  validateExistingAgent(source, filePath, resolver, input.agentId);
-  const updated = replaceModelFields(
-    source,
-    input.model === null
-      ? {
-          model: null,
-          model_reasoning_effort: null,
-          model_reasoning_summary: null,
-          model_verbosity: null,
-        }
-      : {
-          model: input.model,
-          model_reasoning_effort: input.modelReasoningEffort,
-          ...(input.modelReasoningSummary === undefined ? {} : { model_reasoning_summary: input.modelReasoningSummary }),
-          ...(input.modelVerbosity === undefined ? {} : { model_verbosity: input.modelVerbosity }),
-        },
-  );
-
-  const temporaryPath = await fs.mkdtemp(path.join(path.dirname(filePath), ".subagent-config-"));
-  const candidatePath = path.join(temporaryPath, "candidate.toml");
+  const lock = filePath + ".subagent-config-lock";
   try {
-    const candidate = await fs.open(candidatePath, "wx", 0o600);
-    try {
-      await candidate.writeFile(updated, "utf8");
-      await candidate.sync();
-    } finally {
-      await candidate.close();
-    }
-    const candidateSource = await fs.readFile(candidatePath, "utf8");
-    try {
-      parseToml(candidateSource);
-    } catch {
-      throw invalid("Updated TOML validation failed; the original file was not changed.");
-    }
-    await fs.rename(candidatePath, filePath);
+    await fs.mkdir(lock);
   } catch (error) {
-    try {
-      await fs.rm(temporaryPath, { recursive: true, force: true });
-    } catch {
-      // The original file remains untouched if replacement failed.
-    }
-    throw error;
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    throw invalid(`Another save is in progress. Refresh and retry. If all writers have stopped, remove ${lock}.`);
   }
-  await fs.rm(temporaryPath, { recursive: true, force: true });
 
-  return {
-    saved: true,
-    agentId: input.agentId,
-    fileRevision: await readFileRevision(filePath),
-    requiresNewChat: true,
-    modelAvailability: availability.available,
-  };
+  try {
+    const source = await fs.readFile(filePath, "utf8");
+    if (revisionForFile(filePath, source) !== input.fileRevision) {
+      throw invalid("The file changed after it was loaded. Refresh and try again.");
+    }
+    validateExistingAgent(source, filePath, resolver, input.agentId);
+    // Existing clients clear all model settings by sending null for model and
+    // effort and omitting the two optional fields.
+    const clearOptional = input.model === null && input.modelReasoningEffort === null;
+    const updated = replaceModelFields(source, {
+      model: input.model,
+      model_reasoning_effort: input.modelReasoningEffort,
+      ...(clearOptional || input.modelReasoningSummary !== undefined ? { model_reasoning_summary: input.modelReasoningSummary ?? null } : {}),
+      ...(clearOptional || input.modelVerbosity !== undefined ? { model_verbosity: input.modelVerbosity ?? null } : {}),
+    });
+    const candidate = path.join(lock, "candidate.toml");
+    const handle = await fs.open(candidate, "wx", 0o600);
+    try {
+      await handle.writeFile(updated, "utf8");
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    if (await fs.readFile(filePath, "utf8") !== source) {
+      throw invalid("The file changed after it was loaded. Refresh and try again.");
+    }
+    await fs.rename(candidate, filePath);
+    return {
+      saved: true,
+      agentId: input.agentId,
+      fileRevision: revisionForFile(filePath, updated),
+      requiresNewChat: true,
+      modelAvailability: models.models.find((model) => model.slug === input.model)?.available ?? null,
+    };
+  } finally {
+    await fs.rm(lock, { recursive: true, force: true });
+  }
 }

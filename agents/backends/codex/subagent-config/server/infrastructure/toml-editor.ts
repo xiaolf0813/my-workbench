@@ -1,32 +1,6 @@
-const TOP_LEVEL_ASSIGNMENT = /^([A-Za-z0-9_-]+)(\s*)=(?!=)(.*)$/;
-
-function scalarToToml(value: string): string {
-  return JSON.stringify(value);
-}
-
-function unwrapBasicString(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith('"') || !trimmed.endsWith('"')) return null;
-  try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    return typeof parsed === "string" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function unwrapMultilineString(lines: string[], startIndex: number): { value: string; nextIndex: number } | null {
-  const body: string[] = [];
-  let index = startIndex + 1;
-  while (index < lines.length) {
-    if (lines[index].trim() === '"""') {
-      return { value: body.join("\n"), nextIndex: index + 1 };
-    }
-    body.push(lines[index]);
-    index += 1;
-  }
-  return null;
-}
+import { isDeepStrictEqual } from "node:util";
+import { parse } from "smol-toml";
+import { rootStatements } from "./root-statements.js";
 
 export type ModelFields = {
   model?: string | null;
@@ -35,70 +9,49 @@ export type ModelFields = {
   model_verbosity?: string | null;
 };
 
-export type EditableToml = {
-  lines: string[];
-  fields: Map<string, string>;
-};
-
-function updateOrInsertField(lines: string[], key: string, value: string): string[] {
-  const replacement = `${key} = ${scalarToToml(value)}`;
-  let insertAt = lines.length;
-  for (let index = 0; index < lines.length; index += 1) {
-    const match = TOP_LEVEL_ASSIGNMENT.exec(lines[index]);
-    if (!match) continue;
-    if (match[1] === key) {
-      const next = lines.slice();
-      next[index] = replacement;
-      return next;
-    }
-    insertAt = index + 1;
-  }
-  const next = lines.slice();
-  next.splice(insertAt, 0, replacement);
-  return next;
-}
-
-function removeField(lines: string[], key: string): string[] {
-  return lines.filter((line) => TOP_LEVEL_ASSIGNMENT.exec(line)?.[1] !== key);
-}
-
-export function parseEditableToml(source: string): EditableToml {
-  const lines = source.split(/\r?\n/);
+export function parseEditableToml(source: string) {
   const fields = new Map<string, string>();
-  let index = 0;
-  while (index < lines.length) {
-    const line = lines[index];
-    const trimmed = line.trim();
-    if (trimmed.startsWith("#") || trimmed === "") {
-      index += 1;
-      continue;
-    }
-    const match = TOP_LEVEL_ASSIGNMENT.exec(line);
-    if (!match) {
-      index += 1;
-      continue;
-    }
-    const key = match[1];
-    const right = match[3].trim();
-    if (right === '"""') {
-      const multiline = unwrapMultilineString(lines, index);
-      if (multiline) {
-        fields.set(key, multiline.value);
-        index = multiline.nextIndex;
-        continue;
-      }
-    }
-    const scalar = unwrapBasicString(right);
-    if (scalar !== null) fields.set(key, scalar);
-    index += 1;
+  for (const [key, value] of Object.entries(parse(source))) {
+    if (typeof value === "string") fields.set(key, value);
   }
-  return { lines, fields };
+  return { fields };
 }
 
 export function replaceModelFields(source: string, updates: ModelFields): string {
-  let lines = parseEditableToml(source).lines;
-  for (const [key, value] of Object.entries(updates)) {
-    lines = value === null ? removeField(lines, key) : updateOrInsertField(lines, key, value);
+  const expected = parse(source);
+  const pending = new Map(Object.entries(updates));
+  for (const [key, value] of pending) {
+    if (value === null) delete expected[key];
+    else expected[key] = value;
   }
-  return lines.join("\n");
+
+  // Edit from the end so offsets always refer to the original document.
+  let result = source;
+  for (const { start, end, raw, commentStart, key } of rootStatements(source).reverse()) {
+    // The parser also recognizes escaped quoted keys, e.g. "mo\u0064el".
+    const name = key ?? Object.keys(parse(raw))[0];
+    const value = pending.get(name);
+    if (value === undefined) continue;
+    pending.delete(name);
+    const equals = raw.indexOf("=");
+    const valueStart = equals + 1 + (raw.slice(equals + 1).match(/^[ \t]*/)?.[0].length ?? 0);
+    const valueEnd = source.slice(start, commentStart < start ? end : commentStart).trimEnd().length + start;
+    if (value === null) {
+      // Keep an inline comment as a standalone comment.
+      const after = commentStart >= start ? commentStart : Math.min(source.length, end + 1);
+      result = result.slice(0, start) + result.slice(after);
+    } else {
+      result = result.slice(0, start + valueStart) + JSON.stringify(value) + result.slice(valueEnd);
+    }
+  }
+
+  const newline = source.includes("\r\n") ? "\r\n" : "\n";
+  const prefix = [...pending].filter(([, value]) => value !== null)
+    .map(([key, value]) => `${key} = ${JSON.stringify(value)}${newline}`).join("");
+  const bomLength = source.startsWith("\ufeff") ? 1 : 0;
+  result = result.slice(0, bomLength) + prefix + result.slice(bomLength);
+  if (!isDeepStrictEqual(parse(result), expected)) {
+    throw new Error("Could not update only the requested top-level model settings.");
+  }
+  return result;
 }

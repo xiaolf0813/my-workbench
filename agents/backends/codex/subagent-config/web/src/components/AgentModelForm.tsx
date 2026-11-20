@@ -79,25 +79,12 @@ export function AgentModelForm({
     setValues((current) => (current ? { ...current, [key]: value } : current));
   }
 
-  function updateModel(model: string) {
-    setValues((current) =>
-      current
-        ? model
-          ? { ...current, model }
-          : { model: "", effort: "", summary: "", verbosity: "" }
-        : current,
-    );
-  }
-
   async function save() {
     if (!agent.editable || !values || !agent.fileRevision) return;
     setStatus({ kind: "info", message: "Saving..." });
     try {
       await onSave(agent, values);
-      setStatus({
-        kind: "success",
-        message: `Saved ${agent.name}'s model configuration. New chats will use the new configuration.`,
-      });
+      setStatus({ kind: "idle", message: "" });
     } catch (error) {
       setStatus({ kind: "error", message: `Save failed: ${error instanceof Error ? error.message : "Unknown error."}` });
     }
@@ -133,7 +120,7 @@ export function AgentModelForm({
           <select
             id="model-choice"
             value={modelChoice}
-            onChange={(event) => updateModel(event.target.value)}
+            onChange={(event) => update("model", event.target.value)}
             disabled={!agent.editable}
             aria-describedby={unknownModel ? "model-choice-error" : undefined}
           >
@@ -163,9 +150,9 @@ export function AgentModelForm({
           id="effort"
           value={values?.effort ?? ""}
           onChange={(event) => update("effort", event.target.value)}
-          disabled={!agent.editable || !values?.model}
+          disabled={!agent.editable}
         >
-          <option value="">Use model default</option>
+          <option value="">Inherit reasoning effort</option>
           {(selectedModel?.supportedReasoningEfforts ?? catalog?.supportedReasoningEfforts ?? []).map((effort) => (
             <option key={effort} value={effort}>
               {effort}
@@ -178,7 +165,7 @@ export function AgentModelForm({
           id="summary"
           value={values?.summary ?? ""}
           onChange={(event) => update("summary", event.target.value)}
-          disabled={!agent.editable || !values?.model}
+          disabled={!agent.editable}
         >
           <option value="">Not set</option>
           {["auto", "concise", "detailed"].map((summary) => (
@@ -193,7 +180,7 @@ export function AgentModelForm({
           id="verbosity"
           value={values?.verbosity ?? ""}
           onChange={(event) => update("verbosity", event.target.value)}
-          disabled={!agent.editable || !values?.model}
+          disabled={!agent.editable}
         >
           <option value="">Not set</option>
           {["low", "medium", "high"].map((verbosity) => (

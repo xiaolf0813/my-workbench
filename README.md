@@ -67,7 +67,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 `npx my-workbench --chatgpt` (alias: `--codex`) installs native local custom agents into **CODEX_HOME**, defaulting to `~/.codex/`. This targets the current ChatGPT desktop app's local Codex runtime and Codex CLI; hosted chats and custom GPTs do not read these local files.
 
-- active global AGENTS file — deployment maintains one marked loader block in `AGENTS.override.md` when that file exists, otherwise in `AGENTS.md`; all surrounding user content is preserved. The block loads `my-workbench-orchestrator.md`, keeping the full policy outside the automatic AGENTS.md size budget.
+- active global AGENTS file — deployment maintains one marked loader block in `AGENTS.override.md` when that file contains user instructions, otherwise in `AGENTS.md`; all surrounding user content is preserved. The block loads `my-workbench-orchestrator.md`, keeping the full policy outside the automatic AGENTS.md size budget.
 - `agents/*.toml` — ten specialists, each with native `name`, `description`, and `developer_instructions`, assembled from the same roster, prompts and disciplines. Models inherit from the current session unless you tune them in the deployed TOML or Subagent Config.
 - `my-workbench-plugin-marketplace/` — an offline local marketplace containing **Subagent Config**, which edits only the deployed agents' model fields. Deployment registers the marketplace and plugin through `codex plugin`; it never edits Codex plugin state directly.
 - `my-workbench-solutions/` — the platform guides, refreshed on every install.

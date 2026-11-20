@@ -7,7 +7,7 @@ import { modelCatalogFromRows } from "../dist/services/model-catalog-service.js"
 
 test("parses multiline developer instructions", () => {
   const parsed = parseEditableToml('name = "planner"\ndeveloper_instructions = """\nline one\nline two\n"""\n');
-  assert.equal(parsed.fields.get("developer_instructions"), "line one\nline two");
+  assert.equal(parsed.fields.get("developer_instructions"), "line one\nline two\n");
 });
 
 test("updates model fields while preserving layout and other values", async () => {
@@ -27,7 +27,7 @@ test("updates model fields while preserving layout and other values", async () =
   assert.equal(fields.get("model_reasoning_summary"), "auto");
   assert.equal(fields.get("model_verbosity"), "low");
   assert.equal(fields.get("name"), "planner");
-  assert.equal(fields.get("developer_instructions"), "Create an implementation plan before coding.");
+  assert.equal(fields.get("developer_instructions"), "Create an implementation plan before coding.\n");
   assert.match(updated, /# preserve this comment/);
   assert.match(updated, /\[metadata\]/);
 });
@@ -77,3 +77,23 @@ test("maps the Codex picker catalog and disallows custom slugs", () => {
   );
 });
 import { fileURLToPath } from "node:url";
+
+test("edits root fields while preserving BOM, CRLF, inline comments, prompts and tables", () => {
+  const body = [
+    'name = "reviewer"',
+    'developer_instructions = """',
+    'model = "this is prose"',
+    '[features]',
+    '"""',
+    '["features"]',
+    'model = "nested"',
+    '',
+  ].join("\r\n");
+  const source = "\ufeff" + body;
+  const pinned = replaceModelFields(source, { model: "chosen" });
+  assert.equal(pinned, '\ufeffmodel = "chosen"\r\n' + body);
+  assert.equal(replaceModelFields(pinned, { model: null }), source);
+  const quoted = "\ufeff  'model'  =  '''old'''  # keep\r\n" + body;
+  assert.equal(replaceModelFields(quoted, { model: "new" }), "\ufeff  'model'  =  \"new\"  # keep\r\n" + body);
+  assert.equal(replaceModelFields(quoted, { model: null }), "\ufeff# keep\r\n" + body);
+});

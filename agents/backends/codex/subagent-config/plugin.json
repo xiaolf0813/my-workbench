@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "subagent-config",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Configure models for existing Codex custom subagents from a desktop-only MCP app.",
   "license": "MIT",
   "extensions": {

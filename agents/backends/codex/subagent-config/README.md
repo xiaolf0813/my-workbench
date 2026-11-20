@@ -16,11 +16,11 @@ subagent TOML files.
   matches the current desktop chat composer; custom model slugs remain disabled.
 - Edits only `model`, `model_reasoning_effort`, `model_reasoning_summary`, and
   `model_verbosity`.
-- Can clear those fields to restore inheritance from the current session; custom
+- Supports inheriting the session model while pinning reasoning effort. Clear individual fields to restore inheritance; custom
   model slugs are never accepted.
 - Shows `developer_instructions` read-only.
 - Preserves TOML comments, ordering, unknown fields, formatting.
-- Refuses stale saves by comparing a SHA-256 file revision.
+- Each save is bound to the scanned file and revision. Concurrent plugin writes to that file are serialized or rejected.
 - Uses same-directory temporary-file validation plus atomic replacement.
 
 ## Install and run

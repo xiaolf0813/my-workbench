@@ -29,7 +29,7 @@ test("stdio server exposes the three tools and the MCP Apps resource", async () 
     path.join(isolatedRuntime, "component.html"),
   );
 
-  const client = new Client({ name: "subagent-config-test", version: "0.1.8" });
+  const client = new Client({ name: "subagent-config-test", version: "0.1.9" });
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [path.join(isolatedRuntime, "server.mjs")],
@@ -46,7 +46,7 @@ test("stdio server exposes the three tools and the MCP Apps resource", async () 
     );
 
     const resources = await client.listResources();
-    const appResource = resources.resources.find((resource) => resource.uri === "ui://subagent-config/v11.html");
+    const appResource = resources.resources.find((resource) => resource.uri === "ui://subagent-config/v12.html");
     assert.ok(appResource);
     const component = await client.readResource({ uri: appResource.uri });
     assert.equal(component.contents[0]?.mimeType, "text/html;profile=mcp-app");

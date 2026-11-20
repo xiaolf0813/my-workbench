@@ -184,7 +184,7 @@ async function loadModelsFromAppServer(): Promise<unknown[]> {
         clientInfo: {
           name: "subagent_config",
           title: "Subagent Config",
-          version: "0.1.8",
+          version: "0.1.9",
         },
       },
     });

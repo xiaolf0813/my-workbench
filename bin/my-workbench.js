@@ -216,7 +216,7 @@ ZCode target (opt-in only; user-level, writes to your home directory)
 
 ChatGPT / Codex target (opt-in only; local runtime, always user-level)
   --codex, --chatgpt       install native agents and the orchestration policy
-                          (CODEX_HOME, otherwise ~/.codex); config.toml is untouched
+                          (CODEX_HOME, otherwise ~/.codex); registers Subagent Config via codex plugin
 
 DSH target (opt-in only; user-level, writes to your DSH home)
   --dsh                   install the agent preset ~/.dsh/.agent-presets/
@@ -1815,13 +1815,28 @@ function codexAgentsBlock(root) {
   return [CODEX_AGENTS_BLOCK_BEGIN, codexEntrypoint(root), CODEX_AGENTS_BLOCK_END].join("\n");
 }
 
-function activeCodexAgentsFile(root) {
+function activeCodexAgentsFile(root, opts, counts) {
+  const fallback = join(root, "AGENTS.md");
   const override = join(root, "AGENTS.override.md");
-  return existsSync(override) ? override : join(root, "AGENTS.md");
+  if (!existsSync(override)) return fallback;
+  const text = readFileSync(override, "utf8");
+  if (!text.trim()) return fallback;
+
+  // Older installs could make an empty override active by adding only our block.
+  const trimmed = text.trim();
+  if (trimmed.startsWith(CODEX_AGENTS_BLOCK_BEGIN) && trimmed.endsWith(CODEX_AGENTS_BLOCK_END)
+      && trimmed.indexOf(CODEX_AGENTS_BLOCK_BEGIN, 1) === -1
+      && trimmed.indexOf(CODEX_AGENTS_BLOCK_END) === trimmed.length - CODEX_AGENTS_BLOCK_END.length) {
+    if (!opts.dryRun) writeFileSync(override, text.replace(trimmed, ""));
+    counts.overwritten++;
+    console.log(`  restore    ${override}  (empty user override)${opts.dryRun ? "  (dry-run)" : ""}`);
+    return fallback;
+  }
+  return override;
 }
 
 function writeCodexAgentsBlock(root, display, opts, counts) {
-  const file = activeCodexAgentsFile(root);
+  const file = activeCodexAgentsFile(root, opts, counts);
   const existing = existsSync(file) ? readFileSync(file, "utf8") : null;
   const block = codexAgentsBlock(root);
   const begin = existing?.indexOf(CODEX_AGENTS_BLOCK_BEGIN) ?? -1;
@@ -1931,9 +1946,16 @@ function installCodexPluginFiles(root, display, opts, counts) {
     counts,
   );
   for (const rel of CODEX_PLUGIN_FILES) {
+    let content = readFileSync(join(CODEX_PLUGIN_SOURCE, rel), "utf8");
+    if (rel === "mcp.json") {
+      const manifest = JSON.parse(content);
+      const server = manifest.mcpServers[CODEX_PLUGIN_NAME];
+      server.env = { ...server.env, CODEX_HOME: root };
+      content = JSON.stringify(manifest, null, 2) + "\n";
+    }
     writeAgent(
       join(marketplaceRoot, "plugins", CODEX_PLUGIN_NAME, rel),
-      readFileSync(join(CODEX_PLUGIN_SOURCE, rel), "utf8"),
+      content,
       always,
       counts,
     );

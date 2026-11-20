@@ -1,6 +1,6 @@
 import path from "node:path";
 import type { AgentModelConfiguration, AgentScope } from "../domain/agent-config.js";
-import { listTomlFiles, readFileRevision, readUtf8 } from "../infrastructure/file-system.js";
+import { listTomlFiles, revisionForFile, readUtf8 } from "../infrastructure/file-system.js";
 import { PathResolver, normalizeAgentName } from "../infrastructure/path-resolver.js";
 import { parseEditableToml } from "../infrastructure/toml-editor.js";
 
@@ -62,7 +62,7 @@ async function readScope(
     let readError: string | null = null;
     try {
       source = await readUtf8(filePath);
-      fileRevision = await readFileRevision(filePath);
+      fileRevision = revisionForFile(filePath, source);
     } catch (error) {
       source = "";
       readError = error instanceof Error ? error.message : "Unable to read the agent file.";

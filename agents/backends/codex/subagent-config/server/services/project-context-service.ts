@@ -1,21 +1,25 @@
-import { PathResolver } from "../infrastructure/path-resolver.js";
+import type { AgentModelConfiguration } from "../domain/agent-config.js";
+import type { PathResolver } from "../infrastructure/path-resolver.js";
 
-let activeProjectContext: PathResolver | null = null;
+// Keep the latest snapshot per file. Revisions include the path, so identical
+// templates in separate projects can be edited independently in the same server.
+type ScanTarget = { resolver: PathResolver; agentId: string; filePath: string; fileRevision: string };
+const scanned = new Map<string, ScanTarget>();
 
-export function createProjectContext(input: {
-  explicitCodexHome?: string | null;
-  explicitProjectRoot?: string | null;
-}): PathResolver {
-  return new PathResolver(input.explicitCodexHome, input.explicitProjectRoot);
-}
-
-export function activateProjectContext(resolver: PathResolver): void {
-  activeProjectContext = resolver;
-}
-
-export function requireActiveProjectContext(): PathResolver {
-  if (!activeProjectContext) {
-    throw new Error("Load the agent configurations before saving changes.");
+export function rememberScan(resolver: PathResolver, agents: AgentModelConfiguration[]) {
+  for (const agent of agents) {
+    if (!agent.filePath) continue;
+    if (!agent.editable || !agent.fileRevision) {
+      scanned.delete(agent.filePath);
+      continue;
+    }
+    scanned.set(agent.filePath, { resolver, agentId: agent.id, filePath: agent.filePath, fileRevision: agent.fileRevision });
   }
-  return activeProjectContext;
+}
+
+export function requireScanTarget(agentId: string, fileRevision: string): ScanTarget {
+  for (const target of scanned.values()) {
+    if (target.agentId === agentId && target.fileRevision === fileRevision) return target;
+  }
+  throw new Error("This agent snapshot is stale or unknown. Refresh before saving.");
 }

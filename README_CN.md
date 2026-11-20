@@ -69,7 +69,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 `npx my-workbench --chatgpt`（别名 `--codex`）把原生本地子智能体安装到 **CODEX_HOME**，默认 `~/.codex/`。适用于当前 ChatGPT 桌面程序的本地 Codex 运行时及 Codex CLI；云端聊天和自定义 GPT 不读取这些本地文件。
 
-- 当前生效的全局 AGENTS 文件：存在 `AGENTS.override.md` 时在其中维护一个带标记的加载块，否则维护在 `AGENTS.md`；块外用户内容原样保留。该加载块指向 `my-workbench-orchestrator.md`，避免完整策略挤占 AGENTS.md 自动发现的大小预算。
+- 当前生效的全局 AGENTS 文件：`AGENTS.override.md` 含有用户指令时在其中维护一个带标记的加载块，否则维护在 `AGENTS.md`；块外用户内容原样保留。该加载块指向 `my-workbench-orchestrator.md`，避免完整策略挤占 AGENTS.md 自动发现的大小预算。
 - `agents/*.toml`：十个原生专家子智能体，使用 `name`、`description`、`developer_instructions`，从同一 roster、提示词和通用纪律组装。默认继承当前会话模型，也可通过已部署 TOML 或 Subagent Config 调整。
 - `my-workbench-plugin-marketplace/`：包含 **Subagent Config** 的离线本地 marketplace；插件只编辑已部署子智能体的模型字段。部署通过 `codex plugin` 注册 marketplace 与插件，不直接编辑 Codex 插件状态。
 - `my-workbench-solutions/`：每次安装刷新的平台指南。

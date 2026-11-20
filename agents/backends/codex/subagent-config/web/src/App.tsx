@@ -113,13 +113,14 @@ export function App() {
         agentId: agent.id,
         fileRevision: agent.fileRevision,
         model: values.model || null,
-        modelReasoningEffort: values.model && values.effort ? values.effort : null,
-        modelReasoningSummary: values.model && values.summary ? values.summary : null,
-        modelVerbosity: values.model && values.verbosity ? values.verbosity : null,
+        modelReasoningEffort: values.effort || null,
+        modelReasoningSummary: values.summary || null,
+        modelVerbosity: values.verbosity || null,
       });
       if (!result.saved) throw new Error(result.error || "The server rejected the save.");
       await refresh();
       setSelectedId(agent.id);
+      setStatus({ kind: "success", message: `Saved ${agent.name}’s model settings for new chats.` });
     },
     [refresh],
   );
@@ -150,7 +151,7 @@ export function App() {
             });
           }}
         />
-        <AgentModelForm key={selectedId} agent={selected} catalog={catalog} onSave={save} onDirtyChange={setHasUnsavedChanges} />
+        <AgentModelForm key={selected?.fileRevision ?? selected?.filePath ?? selectedId} agent={selected} catalog={catalog} onSave={save} onDirtyChange={setHasUnsavedChanges} />
       </div>
       {discardDialogOpen ? (
         <div className="dialog-backdrop">

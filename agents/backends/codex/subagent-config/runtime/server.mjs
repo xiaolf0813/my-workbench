@@ -35128,45 +35128,20 @@ function G(B, Q, F, V, q) {
   return B.registerResource(Q, F, { mimeType: L, ...V }, q);
 }
 
-// server/services/agent-config-service.ts
-import path3 from "node:path";
-
-// server/infrastructure/file-system.ts
-import { createHash } from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
-async function readFileRevision(filePath) {
-  const bytes = await fs.readFile(filePath);
-  return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
-}
-async function readUtf8(filePath) {
-  return await fs.readFile(filePath, "utf8");
-}
-async function listTomlFiles(directory) {
-  try {
-    const entries = await fs.readdir(directory, { withFileTypes: true });
-    return entries.filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".toml")).map((entry) => path.join(directory, entry.name)).sort((left, right) => left.localeCompare(right, void 0, { sensitivity: "base" }));
-  } catch (error62) {
-    if (error62.code === "ENOENT") return [];
-    if (error62.code === "ENOTDIR") return [];
-    throw error62;
-  }
-}
-
 // server/infrastructure/path-resolver.ts
 import { homedir } from "node:os";
-import path2 from "node:path";
+import path from "node:path";
 var WINDOWS_ABSOLUTE = /^[A-Za-z]:[\\/]/;
 function normalize(inputPath) {
-  return path2.normalize(inputPath.trim());
+  return path.normalize(inputPath.trim());
 }
 function isSafeConfiguredPath(inputPath) {
   const normalized = normalize(inputPath);
-  return normalized !== "." && (path2.isAbsolute(normalized) || WINDOWS_ABSOLUTE.test(normalized));
+  return normalized !== "." && (path.isAbsolute(normalized) || WINDOWS_ABSOLUTE.test(normalized));
 }
 function isInside(parent, child) {
-  const relative = path2.relative(parent, child);
-  return relative === "" || !(relative.startsWith("..") && !path2.isAbsolute(relative)) && relative !== "";
+  const relative = path.relative(parent, child);
+  return relative === "" || !(relative.startsWith("..") && !path.isAbsolute(relative)) && relative !== "";
 }
 function normalizeAgentName(name) {
   return name.trim().toLowerCase();
@@ -35175,7 +35150,7 @@ var PathResolver = class {
   codexHome;
   projectRoot;
   constructor(explicitCodexHome, explicitProjectRoot) {
-    const candidates = [explicitCodexHome, process.env.CODEX_HOME, path2.join(homedir(), ".codex")];
+    const candidates = [explicitCodexHome, process.env.CODEX_HOME, path.join(homedir(), ".codex")];
     const home = candidates.find(
       (candidate) => Boolean(candidate && isSafeConfiguredPath(candidate))
     );
@@ -35184,10 +35159,10 @@ var PathResolver = class {
     this.projectRoot = explicitProjectRoot && isSafeConfiguredPath(explicitProjectRoot) ? normalize(explicitProjectRoot) : null;
   }
   get personalAgentsDirectory() {
-    return path2.join(this.codexHome, "agents");
+    return path.join(this.codexHome, "agents");
   }
   get projectAgentsDirectory() {
-    return this.projectRoot ? path2.join(this.projectRoot, ".codex", "agents") : null;
+    return this.projectRoot ? path.join(this.projectRoot, ".codex", "agents") : null;
   }
   validateScannedAgentPath(agentId, filePath) {
     const separator = agentId.indexOf(":");
@@ -35195,10 +35170,10 @@ var PathResolver = class {
     const scope = agentId.slice(0, separator);
     const directory = scope === "personal" ? this.personalAgentsDirectory : scope === "project" ? this.projectAgentsDirectory : null;
     if (!directory) return null;
-    const normalizedDirectory = path2.resolve(directory);
-    const normalizedFile = path2.resolve(filePath);
-    if (path2.dirname(normalizedFile) !== normalizedDirectory) return null;
-    if (path2.extname(normalizedFile).toLowerCase() !== ".toml") return null;
+    const normalizedDirectory = path.resolve(directory);
+    const normalizedFile = path.resolve(filePath);
+    if (path.dirname(normalizedFile) !== normalizedDirectory) return null;
+    if (path.extname(normalizedFile).toLowerCase() !== ".toml") return null;
     return isInside(normalizedDirectory, normalizedFile) ? normalizedFile : null;
   }
   resolveAgentPath(agentId) {
@@ -35217,464 +35192,42 @@ var PathResolver = class {
       return null;
     }
     if (scope === "personal") {
-      const filePath2 = path2.join(this.personalAgentsDirectory, `${encodedName}.toml`);
+      const filePath2 = path.join(this.personalAgentsDirectory, `${encodedName}.toml`);
       return isInside(this.personalAgentsDirectory, filePath2) ? filePath2 : null;
     }
     if (!this.projectAgentsDirectory) return null;
-    const filePath = path2.join(this.projectAgentsDirectory, `${encodedName}.toml`);
+    const filePath = path.join(this.projectAgentsDirectory, `${encodedName}.toml`);
     return isInside(this.projectAgentsDirectory, filePath) ? filePath : null;
   }
 };
 
-// server/infrastructure/toml-editor.ts
-var TOP_LEVEL_ASSIGNMENT = /^([A-Za-z0-9_-]+)(\s*)=(?!=)(.*)$/;
-function scalarToToml(value) {
-  return JSON.stringify(value);
-}
-function unwrapBasicString(raw) {
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith('"') || !trimmed.endsWith('"')) return null;
-  try {
-    const parsed = JSON.parse(trimmed);
-    return typeof parsed === "string" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-function unwrapMultilineString(lines, startIndex) {
-  const body = [];
-  let index = startIndex + 1;
-  while (index < lines.length) {
-    if (lines[index].trim() === '"""') {
-      return { value: body.join("\n"), nextIndex: index + 1 };
-    }
-    body.push(lines[index]);
-    index += 1;
-  }
-  return null;
-}
-function updateOrInsertField(lines, key, value) {
-  const replacement = `${key} = ${scalarToToml(value)}`;
-  let insertAt = lines.length;
-  for (let index = 0; index < lines.length; index += 1) {
-    const match = TOP_LEVEL_ASSIGNMENT.exec(lines[index]);
-    if (!match) continue;
-    if (match[1] === key) {
-      const next2 = lines.slice();
-      next2[index] = replacement;
-      return next2;
-    }
-    insertAt = index + 1;
-  }
-  const next = lines.slice();
-  next.splice(insertAt, 0, replacement);
-  return next;
-}
-function removeField(lines, key) {
-  return lines.filter((line) => TOP_LEVEL_ASSIGNMENT.exec(line)?.[1] !== key);
-}
-function parseEditableToml(source) {
-  const lines = source.split(/\r?\n/);
-  const fields = /* @__PURE__ */ new Map();
-  let index = 0;
-  while (index < lines.length) {
-    const line = lines[index];
-    const trimmed = line.trim();
-    if (trimmed.startsWith("#") || trimmed === "") {
-      index += 1;
-      continue;
-    }
-    const match = TOP_LEVEL_ASSIGNMENT.exec(line);
-    if (!match) {
-      index += 1;
-      continue;
-    }
-    const key = match[1];
-    const right = match[3].trim();
-    if (right === '"""') {
-      const multiline = unwrapMultilineString(lines, index);
-      if (multiline) {
-        fields.set(key, multiline.value);
-        index = multiline.nextIndex;
-        continue;
-      }
-    }
-    const scalar = unwrapBasicString(right);
-    if (scalar !== null) fields.set(key, scalar);
-    index += 1;
-  }
-  return { lines, fields };
-}
-function replaceModelFields(source, updates) {
-  let lines = parseEditableToml(source).lines;
-  for (const [key, value] of Object.entries(updates)) {
-    lines = value === null ? removeField(lines, key) : updateOrInsertField(lines, key, value);
-  }
-  return lines.join("\n");
-}
-
 // server/services/agent-config-service.ts
-var BUILTIN_AGENTS = [
-  {
-    name: "default",
-    description: "Built-in Codex agent. Uses parent or global default model settings."
-  },
-  {
-    name: "worker",
-    description: "Built-in Codex worker agent. Uses parent or global default model settings."
-  },
-  {
-    name: "explorer",
-    description: "Built-in Codex explorer agent. Uses parent or global default model settings."
-  }
-];
-function deriveNameFromFile(filePath) {
-  return path3.basename(filePath, path3.extname(filePath));
-}
-function modelString(fields, key) {
-  return fields.get(key) ?? null;
-}
-function invalid(message) {
-  return new Error(message);
-}
-function markNameConflicts(agents) {
-  const byName = /* @__PURE__ */ new Map();
-  for (const agent of agents) {
-    const key = normalizeAgentName(agent.name);
-    const group = byName.get(key) ?? [];
-    group.push(agent);
-    byName.set(key, group);
-  }
-  for (const group of byName.values()) {
-    if (group.length <= 1) continue;
-    for (const agent of group) {
-      agent.editable = false;
-      agent.parseError = "Duplicate agent name in this scope. Fix the duplicate name manually before editing.";
-      agent.developerInstructions = null;
-    }
-  }
-}
-async function readScope(scope, directory, projectRoot) {
-  const files = await listTomlFiles(directory);
-  const agents = [];
-  for (const filePath of files) {
-    let fileRevision = null;
-    let source;
-    let readError = null;
-    try {
-      source = await readUtf8(filePath);
-      fileRevision = await readFileRevision(filePath);
-    } catch (error62) {
-      source = "";
-      readError = error62 instanceof Error ? error62.message : "Unable to read the agent file.";
-    }
-    const editable = readError === null;
-    let name = deriveNameFromFile(filePath);
-    let description = "";
-    let developerInstructions = null;
-    let parseError = readError;
-    let model = null;
-    let modelReasoningEffort = null;
-    let modelReasoningSummary = null;
-    let modelVerbosity = null;
-    if (editable) {
-      try {
-        const parsed = parseEditableToml(source);
-        name = parsed.fields.get("name")?.trim() ?? "";
-        description = parsed.fields.get("description")?.trim() ?? "";
-        developerInstructions = parsed.fields.get("developer_instructions")?.trim() ?? "";
-        model = modelString(parsed.fields, "model");
-        modelReasoningEffort = modelString(parsed.fields, "model_reasoning_effort");
-        modelReasoningSummary = modelString(parsed.fields, "model_reasoning_summary");
-        modelVerbosity = modelString(parsed.fields, "model_verbosity");
-        if (!name || !description || !developerInstructions) {
-          throw invalid("The agent file must contain name, description, and developer_instructions.");
-        }
-      } catch (error62) {
-        parseError = error62 instanceof Error ? error62.message : "Unable to parse the agent file.";
-      }
-    }
-    agents.push({
-      id: `${scope}:${encodeURIComponent(normalizeAgentName(name))}`,
-      name,
-      description,
-      scope,
-      editable: editable && parseError === null,
-      filePath,
-      projectRoot: scope === "project" ? projectRoot : null,
-      model,
-      modelReasoningEffort,
-      modelReasoningSummary,
-      modelVerbosity,
-      developerInstructions,
-      fileRevision,
-      parseError
-    });
-  }
-  markNameConflicts(agents);
-  return agents;
-}
-function builtinConfigurations(resolver) {
-  return BUILTIN_AGENTS.map((agent) => ({
-    id: `builtin:${agent.name}`,
-    name: agent.name,
-    description: agent.description,
-    scope: "builtin",
-    editable: false,
-    filePath: null,
-    projectRoot: null,
-    model: null,
-    modelReasoningEffort: null,
-    modelReasoningSummary: null,
-    modelVerbosity: null,
-    developerInstructions: null,
-    fileRevision: null,
-    parseError: null
-  }));
-}
-async function getAgentConfigurations(resolver) {
-  const personal = await readScope("personal", resolver.personalAgentsDirectory, null);
-  const project = resolver.projectAgentsDirectory ? await readScope("project", resolver.projectAgentsDirectory, resolver.projectRoot) : [];
-  return {
-    agents: [...personal, ...project, ...builtinConfigurations(resolver)]
-  };
-}
+import path3 from "node:path";
 
-// server/services/project-context-service.ts
-var activeProjectContext = null;
-function createProjectContext(input2) {
-  return new PathResolver(input2.explicitCodexHome, input2.explicitProjectRoot);
+// server/infrastructure/file-system.ts
+import { createHash } from "node:crypto";
+import fs from "node:fs/promises";
+import path2 from "node:path";
+function revisionForFile(filePath, source) {
+  const digest = createHash("sha256").update(path2.resolve(filePath)).update("\0").update(source).digest("hex");
+  return `sha256:${digest}`;
 }
-function activateProjectContext(resolver) {
-  activeProjectContext = resolver;
+async function readUtf8(filePath) {
+  return await fs.readFile(filePath, "utf8");
 }
-function requireActiveProjectContext() {
-  if (!activeProjectContext) {
-    throw new Error("Load the agent configurations before saving changes.");
-  }
-  return activeProjectContext;
-}
-
-// server/tools/get-agent-configurations.ts
-async function getAgentConfigurationsTool(input2) {
-  const resolver = createProjectContext({ explicitProjectRoot: input2.projectRoot ?? null });
-  const result = await getAgentConfigurations(resolver);
-  activateProjectContext(resolver);
-  return result;
-}
-
-// server/services/model-catalog-service.ts
-import { execFile, spawn } from "node:child_process";
-import { createInterface } from "node:readline";
-import { promisify } from "node:util";
-
-// server/domain/model-option.ts
-var SUPPORTED_MODEL_REASONING_EFFORTS = [
-  "none",
-  "minimal",
-  "low",
-  "medium",
-  "high",
-  "xhigh",
-  "max",
-  "ultra"
-];
-
-// server/services/model-catalog-service.ts
-var execFileAsync = promisify(execFile);
-var CODEX_COMMAND = process.env.CODEX_CLI_PATH?.trim() || "codex";
-var APP_SERVER_TIMEOUT_MS = 15e3;
-var FALLBACK_MODELS = [
-  {
-    slug: "gpt-6.1-sol",
-    displayName: "GPT-6.1-Sol",
-    supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
-    available: null
-  },
-  {
-    slug: "gpt-6-luna",
-    displayName: "GPT-6-Luna",
-    supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max"],
-    available: null
-  }
-];
-function record2(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value) ? value : null;
-}
-function stringValue(value) {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-function orderedEfforts(efforts) {
-  const unique = new Set(efforts);
-  const known = SUPPORTED_MODEL_REASONING_EFFORTS.filter((effort) => unique.delete(effort));
-  return [...known, ...unique];
-}
-function modelCatalogFromRows(rows) {
-  const bySlug = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    const model = record2(row);
-    if (!model || model.hidden === true || model.visibility === "hide") continue;
-    const slug = stringValue(model.model) ?? stringValue(model.id) ?? stringValue(model.slug);
-    if (!slug) continue;
-    const rawEfforts = Array.isArray(model.supportedReasoningEfforts) ? model.supportedReasoningEfforts : Array.isArray(model.supported_reasoning_levels) ? model.supported_reasoning_levels : [];
-    const efforts = orderedEfforts(
-      rawEfforts.map((entry) => {
-        if (typeof entry === "string") return entry;
-        const item = record2(entry);
-        return item ? stringValue(item.reasoningEffort) ?? stringValue(item.effort) : null;
-      }).filter((effort) => effort !== null)
-    );
-    if (efforts.length === 0) continue;
-    bySlug.set(slug, {
-      slug,
-      displayName: stringValue(model.displayName) ?? stringValue(model.display_name) ?? slug,
-      supportedReasoningEfforts: efforts,
-      available: null
-    });
-  }
-  const models = [...bySlug.values()];
-  if (models.length === 0) throw new Error("Codex returned an empty model catalog.");
-  return {
-    models,
-    supportedReasoningEfforts: orderedEfforts(models.flatMap((model) => model.supportedReasoningEfforts)),
-    allowCustomSlug: false
-  };
-}
-async function loadModelsFromAppServer() {
-  return await new Promise((resolve, reject) => {
-    const child = spawn(CODEX_COMMAND, ["app-server"], {
-      stdio: ["pipe", "pipe", "pipe"],
-      windowsHide: true
-    });
-    const lines = createInterface({ input: child.stdout });
-    const rows = [];
-    let stderr = "";
-    let nextRequestId = 1;
-    let pendingPageId = null;
-    let finishing = false;
-    let settled = false;
-    const timer = setTimeout(() => finish(new Error("Timed out while loading the Codex model catalog.")), APP_SERVER_TIMEOUT_MS);
-    function cleanup() {
-      clearTimeout(timer);
-      lines.close();
-      child.stdin.end();
-    }
-    function finish(error62) {
-      if (settled || finishing) return;
-      finishing = true;
-      cleanup();
-      child.once("close", () => {
-        settled = true;
-        if (error62) reject(error62);
-        else resolve(rows);
-      });
-      child.kill();
-    }
-    function send(message) {
-      child.stdin.write(`${JSON.stringify(message)}
-`);
-    }
-    function requestPage(cursor) {
-      const id = nextRequestId++;
-      pendingPageId = id;
-      send({
-        method: "model/list",
-        id,
-        params: { limit: 100, includeHidden: false, ...cursor ? { cursor } : {} }
-      });
-    }
-    child.stderr.setEncoding("utf8");
-    child.stderr.on("data", (chunk) => {
-      stderr = `${stderr}${chunk}`.slice(-8192);
-    });
-    child.on("error", (error62) => finish(error62));
-    child.on("exit", (code) => {
-      if (!settled && !finishing) {
-        finish(new Error(`Codex app-server exited before returning models (code ${code ?? "unknown"}). ${stderr}`.trim()));
-      }
-    });
-    lines.on("line", (line) => {
-      let message = null;
-      try {
-        message = record2(JSON.parse(line));
-      } catch {
-        return;
-      }
-      if (!message) return;
-      if (message.id === 0) {
-        const error63 = record2(message.error);
-        if (error63) {
-          finish(new Error(stringValue(error63.message) ?? "Codex app-server initialization failed."));
-          return;
-        }
-        send({ method: "initialized", params: {} });
-        requestPage();
-        return;
-      }
-      if (message.id !== pendingPageId) return;
-      const error62 = record2(message.error);
-      if (error62) {
-        finish(new Error(stringValue(error62.message) ?? "Codex model/list failed."));
-        return;
-      }
-      const result = record2(message.result);
-      if (!result || !Array.isArray(result.data)) {
-        finish(new Error("Codex model/list returned an invalid response."));
-        return;
-      }
-      rows.push(...result.data);
-      const nextCursor = stringValue(result.nextCursor);
-      if (nextCursor) requestPage(nextCursor);
-      else finish();
-    });
-    send({
-      method: "initialize",
-      id: 0,
-      params: {
-        clientInfo: {
-          name: "subagent_config",
-          title: "Subagent Config",
-          version: "0.1.8"
-        }
-      }
-    });
-  });
-}
-async function loadModelsFromDebugCommand() {
-  const { stdout } = await execFileAsync(CODEX_COMMAND, ["debug", "models"], {
-    encoding: "utf8",
-    maxBuffer: 8 * 1024 * 1024,
-    timeout: APP_SERVER_TIMEOUT_MS,
-    windowsHide: true
-  });
-  const result = record2(JSON.parse(stdout));
-  if (!result || !Array.isArray(result.models)) throw new Error("Codex debug models returned an invalid response.");
-  return result.models;
-}
-async function listModels() {
+async function listTomlFiles(directory) {
   try {
-    return modelCatalogFromRows(await loadModelsFromAppServer());
-  } catch {
-    try {
-      return modelCatalogFromRows(await loadModelsFromDebugCommand());
-    } catch {
-      return {
-        models: FALLBACK_MODELS,
-        supportedReasoningEfforts: SUPPORTED_MODEL_REASONING_EFFORTS,
-        allowCustomSlug: false
-      };
-    }
+    const entries = await fs.readdir(directory, { withFileTypes: true });
+    return entries.filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".toml")).map((entry) => path2.join(directory, entry.name)).sort((left, right) => left.localeCompare(right, void 0, { sensitivity: "base" }));
+  } catch (error62) {
+    if (error62.code === "ENOENT") return [];
+    if (error62.code === "ENOTDIR") return [];
+    throw error62;
   }
 }
 
-// server/tools/list-models.ts
-async function listModelsTool() {
-  return await listModels();
-}
-
-// server/services/agent-write-service.ts
-import fs2 from "node:fs/promises";
-import path4 from "node:path";
+// server/infrastructure/toml-editor.ts
+import { isDeepStrictEqual } from "node:util";
 
 // node_modules/smol-toml/dist/error.js
 function getLineColFromPtr(string4, ptr) {
@@ -36434,7 +35987,456 @@ function parse3(toml, options = {}) {
 // node_modules/smol-toml/dist/stringify.js
 var HAS_WELLFORMED = !!"".isWellFormed;
 
+// server/infrastructure/root-statements.js
+function rootStatements(text) {
+  const statements = [];
+  let start = text.charCodeAt(0) === 65279 ? 1 : 0, quote = "", triple = false, depth = 0, comment = false;
+  let commentStart = -1;
+  for (let i = start; i <= text.length; i++) {
+    const c = text[i];
+    if (comment) {
+      if (c !== "\n" && c !== void 0) continue;
+      comment = false;
+    } else if (quote) {
+      if (quote === '"' && c === "\\") {
+        i++;
+        continue;
+      }
+      if (triple ? text.slice(i, i + 3) === quote.repeat(3) : c === quote) {
+        if (triple) while (text[i + 1] === quote) i++;
+        quote = "";
+      }
+      continue;
+    } else if (c === '"' || c === "'") {
+      quote = c;
+      triple = text.slice(i, i + 3) === c.repeat(3);
+      if (triple) i += 2;
+      continue;
+    } else if (c === "#") {
+      commentStart = i;
+      comment = true;
+      continue;
+    } else if (c === "[" || c === "{") depth++;
+    else if (c === "]" || c === "}") depth--;
+    if ((c === "\n" || c === void 0) && depth === 0) {
+      const raw = text.slice(start, i).replace(/\r$/, "");
+      if (/^[ \t]*\[/.test(raw)) break;
+      const match = /^[ \t]*(?:([\w-]+)|"([\w-]+)"|'([\w-]+)')[ \t]*=/.exec(raw);
+      if (raw.trim()) statements.push({ start, end: i, commentStart, key: match ? match[1] ?? match[2] ?? match[3] : null, raw });
+      start = i + 1;
+      commentStart = -1;
+    }
+  }
+  return statements;
+}
+
+// server/infrastructure/toml-editor.ts
+function parseEditableToml(source) {
+  const fields = /* @__PURE__ */ new Map();
+  for (const [key, value] of Object.entries(parse3(source))) {
+    if (typeof value === "string") fields.set(key, value);
+  }
+  return { fields };
+}
+function replaceModelFields(source, updates) {
+  const expected = parse3(source);
+  const pending = new Map(Object.entries(updates));
+  for (const [key, value] of pending) {
+    if (value === null) delete expected[key];
+    else expected[key] = value;
+  }
+  let result = source;
+  for (const { start, end, raw, commentStart, key } of rootStatements(source).reverse()) {
+    const name = key ?? Object.keys(parse3(raw))[0];
+    const value = pending.get(name);
+    if (value === void 0) continue;
+    pending.delete(name);
+    const equals = raw.indexOf("=");
+    const valueStart = equals + 1 + (raw.slice(equals + 1).match(/^[ \t]*/)?.[0].length ?? 0);
+    const valueEnd = source.slice(start, commentStart < start ? end : commentStart).trimEnd().length + start;
+    if (value === null) {
+      const after = commentStart >= start ? commentStart : Math.min(source.length, end + 1);
+      result = result.slice(0, start) + result.slice(after);
+    } else {
+      result = result.slice(0, start + valueStart) + JSON.stringify(value) + result.slice(valueEnd);
+    }
+  }
+  const newline = source.includes("\r\n") ? "\r\n" : "\n";
+  const prefix = [...pending].filter(([, value]) => value !== null).map(([key, value]) => `${key} = ${JSON.stringify(value)}${newline}`).join("");
+  const bomLength = source.startsWith("\uFEFF") ? 1 : 0;
+  result = result.slice(0, bomLength) + prefix + result.slice(bomLength);
+  if (!isDeepStrictEqual(parse3(result), expected)) {
+    throw new Error("Could not update only the requested top-level model settings.");
+  }
+  return result;
+}
+
+// server/services/agent-config-service.ts
+var BUILTIN_AGENTS = [
+  {
+    name: "default",
+    description: "Built-in Codex agent. Uses parent or global default model settings."
+  },
+  {
+    name: "worker",
+    description: "Built-in Codex worker agent. Uses parent or global default model settings."
+  },
+  {
+    name: "explorer",
+    description: "Built-in Codex explorer agent. Uses parent or global default model settings."
+  }
+];
+function deriveNameFromFile(filePath) {
+  return path3.basename(filePath, path3.extname(filePath));
+}
+function modelString(fields, key) {
+  return fields.get(key) ?? null;
+}
+function invalid(message) {
+  return new Error(message);
+}
+function markNameConflicts(agents) {
+  const byName = /* @__PURE__ */ new Map();
+  for (const agent of agents) {
+    const key = normalizeAgentName(agent.name);
+    const group = byName.get(key) ?? [];
+    group.push(agent);
+    byName.set(key, group);
+  }
+  for (const group of byName.values()) {
+    if (group.length <= 1) continue;
+    for (const agent of group) {
+      agent.editable = false;
+      agent.parseError = "Duplicate agent name in this scope. Fix the duplicate name manually before editing.";
+      agent.developerInstructions = null;
+    }
+  }
+}
+async function readScope(scope, directory, projectRoot) {
+  const files = await listTomlFiles(directory);
+  const agents = [];
+  for (const filePath of files) {
+    let fileRevision = null;
+    let source;
+    let readError = null;
+    try {
+      source = await readUtf8(filePath);
+      fileRevision = revisionForFile(filePath, source);
+    } catch (error62) {
+      source = "";
+      readError = error62 instanceof Error ? error62.message : "Unable to read the agent file.";
+    }
+    const editable = readError === null;
+    let name = deriveNameFromFile(filePath);
+    let description = "";
+    let developerInstructions = null;
+    let parseError = readError;
+    let model = null;
+    let modelReasoningEffort = null;
+    let modelReasoningSummary = null;
+    let modelVerbosity = null;
+    if (editable) {
+      try {
+        const parsed = parseEditableToml(source);
+        name = parsed.fields.get("name")?.trim() ?? "";
+        description = parsed.fields.get("description")?.trim() ?? "";
+        developerInstructions = parsed.fields.get("developer_instructions")?.trim() ?? "";
+        model = modelString(parsed.fields, "model");
+        modelReasoningEffort = modelString(parsed.fields, "model_reasoning_effort");
+        modelReasoningSummary = modelString(parsed.fields, "model_reasoning_summary");
+        modelVerbosity = modelString(parsed.fields, "model_verbosity");
+        if (!name || !description || !developerInstructions) {
+          throw invalid("The agent file must contain name, description, and developer_instructions.");
+        }
+      } catch (error62) {
+        parseError = error62 instanceof Error ? error62.message : "Unable to parse the agent file.";
+      }
+    }
+    agents.push({
+      id: `${scope}:${encodeURIComponent(normalizeAgentName(name))}`,
+      name,
+      description,
+      scope,
+      editable: editable && parseError === null,
+      filePath,
+      projectRoot: scope === "project" ? projectRoot : null,
+      model,
+      modelReasoningEffort,
+      modelReasoningSummary,
+      modelVerbosity,
+      developerInstructions,
+      fileRevision,
+      parseError
+    });
+  }
+  markNameConflicts(agents);
+  return agents;
+}
+function builtinConfigurations(resolver) {
+  return BUILTIN_AGENTS.map((agent) => ({
+    id: `builtin:${agent.name}`,
+    name: agent.name,
+    description: agent.description,
+    scope: "builtin",
+    editable: false,
+    filePath: null,
+    projectRoot: null,
+    model: null,
+    modelReasoningEffort: null,
+    modelReasoningSummary: null,
+    modelVerbosity: null,
+    developerInstructions: null,
+    fileRevision: null,
+    parseError: null
+  }));
+}
+async function getAgentConfigurations(resolver) {
+  const personal = await readScope("personal", resolver.personalAgentsDirectory, null);
+  const project = resolver.projectAgentsDirectory ? await readScope("project", resolver.projectAgentsDirectory, resolver.projectRoot) : [];
+  return {
+    agents: [...personal, ...project, ...builtinConfigurations(resolver)]
+  };
+}
+
+// server/services/project-context-service.ts
+var scanned = /* @__PURE__ */ new Map();
+function rememberScan(resolver, agents) {
+  for (const agent of agents) {
+    if (!agent.filePath) continue;
+    if (!agent.editable || !agent.fileRevision) {
+      scanned.delete(agent.filePath);
+      continue;
+    }
+    scanned.set(agent.filePath, { resolver, agentId: agent.id, filePath: agent.filePath, fileRevision: agent.fileRevision });
+  }
+}
+function requireScanTarget(agentId, fileRevision) {
+  for (const target of scanned.values()) {
+    if (target.agentId === agentId && target.fileRevision === fileRevision) return target;
+  }
+  throw new Error("This agent snapshot is stale or unknown. Refresh before saving.");
+}
+
+// server/tools/get-agent-configurations.ts
+async function getAgentConfigurationsTool(input2) {
+  const resolver = new PathResolver(null, input2.projectRoot);
+  const result = await getAgentConfigurations(resolver);
+  rememberScan(resolver, result.agents);
+  return result;
+}
+
+// server/services/model-catalog-service.ts
+import { execFile, spawn } from "node:child_process";
+import { createInterface } from "node:readline";
+import { promisify } from "node:util";
+
+// server/domain/model-option.ts
+var SUPPORTED_MODEL_REASONING_EFFORTS = [
+  "none",
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+  "ultra"
+];
+
+// server/services/model-catalog-service.ts
+var execFileAsync = promisify(execFile);
+var CODEX_COMMAND = process.env.CODEX_CLI_PATH?.trim() || "codex";
+var APP_SERVER_TIMEOUT_MS = 15e3;
+var FALLBACK_MODELS = [
+  {
+    slug: "gpt-6.1-sol",
+    displayName: "GPT-6.1-Sol",
+    supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max", "ultra"],
+    available: null
+  },
+  {
+    slug: "gpt-6-luna",
+    displayName: "GPT-6-Luna",
+    supportedReasoningEfforts: ["low", "medium", "high", "xhigh", "max"],
+    available: null
+  }
+];
+function record2(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value : null;
+}
+function stringValue(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+function orderedEfforts(efforts) {
+  const unique = new Set(efforts);
+  const known = SUPPORTED_MODEL_REASONING_EFFORTS.filter((effort) => unique.delete(effort));
+  return [...known, ...unique];
+}
+function modelCatalogFromRows(rows) {
+  const bySlug = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const model = record2(row);
+    if (!model || model.hidden === true || model.visibility === "hide") continue;
+    const slug = stringValue(model.model) ?? stringValue(model.id) ?? stringValue(model.slug);
+    if (!slug) continue;
+    const rawEfforts = Array.isArray(model.supportedReasoningEfforts) ? model.supportedReasoningEfforts : Array.isArray(model.supported_reasoning_levels) ? model.supported_reasoning_levels : [];
+    const efforts = orderedEfforts(
+      rawEfforts.map((entry) => {
+        if (typeof entry === "string") return entry;
+        const item = record2(entry);
+        return item ? stringValue(item.reasoningEffort) ?? stringValue(item.effort) : null;
+      }).filter((effort) => effort !== null)
+    );
+    if (efforts.length === 0) continue;
+    bySlug.set(slug, {
+      slug,
+      displayName: stringValue(model.displayName) ?? stringValue(model.display_name) ?? slug,
+      supportedReasoningEfforts: efforts,
+      available: null
+    });
+  }
+  const models = [...bySlug.values()];
+  if (models.length === 0) throw new Error("Codex returned an empty model catalog.");
+  return {
+    models,
+    supportedReasoningEfforts: orderedEfforts(models.flatMap((model) => model.supportedReasoningEfforts)),
+    allowCustomSlug: false
+  };
+}
+async function loadModelsFromAppServer() {
+  return await new Promise((resolve, reject) => {
+    const child = spawn(CODEX_COMMAND, ["app-server"], {
+      stdio: ["pipe", "pipe", "pipe"],
+      windowsHide: true
+    });
+    const lines = createInterface({ input: child.stdout });
+    const rows = [];
+    let stderr = "";
+    let nextRequestId = 1;
+    let pendingPageId = null;
+    let finishing = false;
+    let settled = false;
+    const timer = setTimeout(() => finish(new Error("Timed out while loading the Codex model catalog.")), APP_SERVER_TIMEOUT_MS);
+    function cleanup() {
+      clearTimeout(timer);
+      lines.close();
+      child.stdin.end();
+    }
+    function finish(error62) {
+      if (settled || finishing) return;
+      finishing = true;
+      cleanup();
+      child.once("close", () => {
+        settled = true;
+        if (error62) reject(error62);
+        else resolve(rows);
+      });
+      child.kill();
+    }
+    function send(message) {
+      child.stdin.write(`${JSON.stringify(message)}
+`);
+    }
+    function requestPage(cursor) {
+      const id = nextRequestId++;
+      pendingPageId = id;
+      send({
+        method: "model/list",
+        id,
+        params: { limit: 100, includeHidden: false, ...cursor ? { cursor } : {} }
+      });
+    }
+    child.stderr.setEncoding("utf8");
+    child.stderr.on("data", (chunk) => {
+      stderr = `${stderr}${chunk}`.slice(-8192);
+    });
+    child.on("error", (error62) => finish(error62));
+    child.on("exit", (code) => {
+      if (!settled && !finishing) {
+        finish(new Error(`Codex app-server exited before returning models (code ${code ?? "unknown"}). ${stderr}`.trim()));
+      }
+    });
+    lines.on("line", (line) => {
+      let message = null;
+      try {
+        message = record2(JSON.parse(line));
+      } catch {
+        return;
+      }
+      if (!message) return;
+      if (message.id === 0) {
+        const error63 = record2(message.error);
+        if (error63) {
+          finish(new Error(stringValue(error63.message) ?? "Codex app-server initialization failed."));
+          return;
+        }
+        send({ method: "initialized", params: {} });
+        requestPage();
+        return;
+      }
+      if (message.id !== pendingPageId) return;
+      const error62 = record2(message.error);
+      if (error62) {
+        finish(new Error(stringValue(error62.message) ?? "Codex model/list failed."));
+        return;
+      }
+      const result = record2(message.result);
+      if (!result || !Array.isArray(result.data)) {
+        finish(new Error("Codex model/list returned an invalid response."));
+        return;
+      }
+      rows.push(...result.data);
+      const nextCursor = stringValue(result.nextCursor);
+      if (nextCursor) requestPage(nextCursor);
+      else finish();
+    });
+    send({
+      method: "initialize",
+      id: 0,
+      params: {
+        clientInfo: {
+          name: "subagent_config",
+          title: "Subagent Config",
+          version: "0.1.9"
+        }
+      }
+    });
+  });
+}
+async function loadModelsFromDebugCommand() {
+  const { stdout } = await execFileAsync(CODEX_COMMAND, ["debug", "models"], {
+    encoding: "utf8",
+    maxBuffer: 8 * 1024 * 1024,
+    timeout: APP_SERVER_TIMEOUT_MS,
+    windowsHide: true
+  });
+  const result = record2(JSON.parse(stdout));
+  if (!result || !Array.isArray(result.models)) throw new Error("Codex debug models returned an invalid response.");
+  return result.models;
+}
+async function listModels() {
+  try {
+    return modelCatalogFromRows(await loadModelsFromAppServer());
+  } catch {
+    try {
+      return modelCatalogFromRows(await loadModelsFromDebugCommand());
+    } catch {
+      return {
+        models: FALLBACK_MODELS,
+        supportedReasoningEfforts: SUPPORTED_MODEL_REASONING_EFFORTS,
+        allowCustomSlug: false
+      };
+    }
+  }
+}
+
+// server/tools/list-models.ts
+async function listModelsTool() {
+  return await listModels();
+}
+
 // server/services/agent-write-service.ts
+import fs2 from "node:fs/promises";
+import path4 from "node:path";
 function invalid2(message) {
   return new Error(message);
 }
@@ -36454,7 +36456,6 @@ function validateSelectedEffort(modelSlug, effort, models) {
   if (!model.supportedReasoningEfforts.includes(effort)) {
     throw invalid2("The selected model does not support this reasoning effort.");
   }
-  return { available: model.available ?? null };
 }
 function validateExistingAgent(source, filePath, resolver, agentId) {
   const parsed = parseEditableToml(source);
@@ -36470,92 +36471,72 @@ function validateExistingAgent(source, filePath, resolver, agentId) {
 async function updateAgentModel(resolver, models, input2, scannedFilePath) {
   const filePath = scannedFilePath ? resolver.validateScannedAgentPath(input2.agentId, scannedFilePath) : resolver.resolveAgentPath(input2.agentId);
   if (!filePath) throw invalid2("Unknown or read-only agent.");
-  let availability = { available: null };
-  if (input2.model === null) {
-    if (input2.modelReasoningEffort !== null || input2.modelReasoningSummary != null || input2.modelVerbosity != null) {
-      throw invalid2("Inherited model configuration cannot pin reasoning or verbosity fields.");
-    }
-  } else {
-    validateModel(input2.model, models);
-    if (input2.modelReasoningEffort !== null) {
-      validateEffort(input2.modelReasoningEffort, models);
-      availability = validateSelectedEffort(input2.model, input2.modelReasoningEffort, models);
-    } else {
-      availability = { available: models.models.find((entry) => entry.slug === input2.model)?.available ?? null };
-    }
+  if (input2.model !== null) validateModel(input2.model, models);
+  if (input2.modelReasoningEffort !== null) {
+    validateEffort(input2.modelReasoningEffort, models);
+    if (input2.model !== null) validateSelectedEffort(input2.model, input2.modelReasoningEffort, models);
   }
-  const currentRevision = await readFileRevision(filePath);
-  if (currentRevision !== input2.fileRevision) {
-    throw invalid2("The file changed after it was loaded. Refresh and try again.");
+  const lock = filePath + ".subagent-config-lock";
+  try {
+    await fs2.mkdir(lock);
+  } catch (error62) {
+    if (error62.code !== "EEXIST") throw error62;
+    throw invalid2(`Another save is in progress. Refresh and retry. If all writers have stopped, remove ${lock}.`);
   }
-  const source = await fs2.readFile(filePath, "utf8");
-  validateExistingAgent(source, filePath, resolver, input2.agentId);
-  const updated = replaceModelFields(
-    source,
-    input2.model === null ? {
-      model: null,
-      model_reasoning_effort: null,
-      model_reasoning_summary: null,
-      model_verbosity: null
-    } : {
+  try {
+    const source = await fs2.readFile(filePath, "utf8");
+    if (revisionForFile(filePath, source) !== input2.fileRevision) {
+      throw invalid2("The file changed after it was loaded. Refresh and try again.");
+    }
+    validateExistingAgent(source, filePath, resolver, input2.agentId);
+    const clearOptional = input2.model === null && input2.modelReasoningEffort === null;
+    const updated = replaceModelFields(source, {
       model: input2.model,
       model_reasoning_effort: input2.modelReasoningEffort,
-      ...input2.modelReasoningSummary === void 0 ? {} : { model_reasoning_summary: input2.modelReasoningSummary },
-      ...input2.modelVerbosity === void 0 ? {} : { model_verbosity: input2.modelVerbosity }
-    }
-  );
-  const temporaryPath = await fs2.mkdtemp(path4.join(path4.dirname(filePath), ".subagent-config-"));
-  const candidatePath = path4.join(temporaryPath, "candidate.toml");
-  try {
-    const candidate = await fs2.open(candidatePath, "wx", 384);
+      ...clearOptional || input2.modelReasoningSummary !== void 0 ? { model_reasoning_summary: input2.modelReasoningSummary ?? null } : {},
+      ...clearOptional || input2.modelVerbosity !== void 0 ? { model_verbosity: input2.modelVerbosity ?? null } : {}
+    });
+    const candidate = path4.join(lock, "candidate.toml");
+    const handle = await fs2.open(candidate, "wx", 384);
     try {
-      await candidate.writeFile(updated, "utf8");
-      await candidate.sync();
+      await handle.writeFile(updated, "utf8");
+      await handle.sync();
     } finally {
-      await candidate.close();
+      await handle.close();
     }
-    const candidateSource = await fs2.readFile(candidatePath, "utf8");
-    try {
-      parse3(candidateSource);
-    } catch {
-      throw invalid2("Updated TOML validation failed; the original file was not changed.");
+    if (await fs2.readFile(filePath, "utf8") !== source) {
+      throw invalid2("The file changed after it was loaded. Refresh and try again.");
     }
-    await fs2.rename(candidatePath, filePath);
-  } catch (error62) {
-    try {
-      await fs2.rm(temporaryPath, { recursive: true, force: true });
-    } catch {
-    }
-    throw error62;
+    await fs2.rename(candidate, filePath);
+    return {
+      saved: true,
+      agentId: input2.agentId,
+      fileRevision: revisionForFile(filePath, updated),
+      requiresNewChat: true,
+      modelAvailability: models.models.find((model) => model.slug === input2.model)?.available ?? null
+    };
+  } finally {
+    await fs2.rm(lock, { recursive: true, force: true });
   }
-  await fs2.rm(temporaryPath, { recursive: true, force: true });
-  return {
-    saved: true,
-    agentId: input2.agentId,
-    fileRevision: await readFileRevision(filePath),
-    requiresNewChat: true,
-    modelAvailability: availability.available
-  };
 }
 
 // server/tools/update-agent-model.ts
 async function updateAgentModelTool(input2) {
-  const resolver = requireActiveProjectContext();
-  const { agents } = await getAgentConfigurations(resolver);
-  const scannedAgent = agents.find((agent) => agent.id === input2.agentId);
-  if (!scannedAgent?.editable || !scannedAgent.filePath) {
-    throw new Error("Unknown, conflicted, invalid, or read-only agent.");
-  }
-  const models = await listModels();
-  return await updateAgentModel(resolver, models, input2, scannedAgent.filePath);
+  const target = requireScanTarget(input2.agentId, input2.fileRevision);
+  const { agents } = await getAgentConfigurations(target.resolver);
+  const agent = agents.find((entry) => entry.id === input2.agentId && entry.filePath === target.filePath);
+  if (!agent?.editable) throw new Error("Unknown, conflicted, invalid, or read-only agent.");
+  const result = await updateAgentModel(target.resolver, await listModels(), input2, target.filePath);
+  target.fileRevision = result.fileRevision;
+  return result;
 }
 
 // server/index.ts
-var UI_RESOURCE_URI = "ui://subagent-config/v11.html";
+var UI_RESOURCE_URI = "ui://subagent-config/v12.html";
 function createMcpServer() {
   const server = new McpServer({
     name: "subagent-config",
-    version: "0.1.8"
+    version: "0.1.9"
   });
   G(server, "subagent-config", UI_RESOURCE_URI, {}, async () => {
     const uiBundle = readFileSync(path5.join(path5.dirname(fileURLToPath(import.meta.url)), "component.html"), "utf8");
