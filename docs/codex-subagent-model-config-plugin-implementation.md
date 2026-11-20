@@ -624,12 +624,11 @@ none, minimal, low, medium, high, xhigh, max, ultra
 
 ### 阶段四：集成验证
 
-1. 执行 `npx my-workbench --codex`，同时部署 Codex 智能体和 Subagent Config 本地 marketplace。
-2. 确认部署通过 `codex plugin` 注册 `subagent-config@my-workbench`，然后重启 ChatGPT / Codex。
-3. 验证个人级 Agent 加载和保存。
-4. 验证项目级 Agent 加载和保存。
-5. 新建 Codex 聊天，验证配置被实际读取。
-6. 验证插件没有加载 Hooks 或读取运行时会话数据。
+1. 在已加载 Subagent Config 的本地 Codex 聊天中打开插件。
+2. 验证个人级 Agent 加载和保存。
+3. 验证项目级 Agent 加载和保存。
+4. 新建 Codex 聊天，验证配置被实际读取。
+5. 验证插件没有加载 Hooks 或读取运行时会话数据。
 
 ## 18. 验收标准
 

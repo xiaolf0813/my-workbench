@@ -2,7 +2,7 @@
 
 # my-workbench
 
-可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex 智能体配置，一条命令即可安装。OpenCode 仅支持项目级安装；Claude Code 支持项目级安装或用 `--user` 安装到用户级；ZCode 与 Codex 恒为用户级。
+可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode 智能体配置，一条命令即可安装。OpenCode 仅支持项目级安装；Claude Code 支持项目级安装或用 `--user` 安装到用户级；ZCode 恒为用户级。
 
 已停止维护的自研 Tauri 桌面应用保留在 [`desktop`](https://github.com/xiaolf0813/my-workbench/tree/desktop) 分支，`main` 不再维护它。
 
@@ -17,7 +17,6 @@ npx my-workbench
 - **`.opencode/`** — OpenCode 核心配置与原生 `.opencode/agents/` 子智能体：十一个智能体 — `orchestrator`、`explorer`、`librarian`、`oracle`、`designer`、`fixer`、`observer`、`spotter`、`driver`、`improver`、`intake`。
 - **`.claude/`** — 同一批专家智能体的 Claude Code 原生子智能体形态（`.claude/agents/*.md`）。所有目标中安装内容完全一致。
 - **`~/.zcode/`** — 可选的 ZCode 支持（`--zcode`）：用户级全局指令，外加各专家子智能体作为 ZCode 用户级 agents（`~/.zcode/agents/*.md`）。不在项目内写入任何内容。
-- **`~/.codex/`** — 可选的本地 ChatGPT / Codex 支持（`--chatgpt` 或 `--codex`）：全局短入口、编排策略、十个原生 TOML 子智能体、方案指南及内置的 **Subagent Config** 插件；支持 `CODEX_HOME`。
 
 orchestrator 提示词还内置一条持久任务队列：`intake` 专家 —— 仅当你明确点名或 @-提及时才被调用 —— 把你的原始输入整理为确认后的任务文件，存入项目的 `.oxbench/` 目录；orchestrator 在完成工作、空闲或被唤醒时展示该队列。你选一条任务执行，或（在带定时器的平台上，即 ZCode）两分钟后自动开始第一条；每条任务都在独立的新会话中执行，且只有 orchestrator 验收通过后才标记为已完成。
 
@@ -42,7 +41,7 @@ npx my-workbench assemble [--check] # 本仓库内：重新生成 .claude/agents
 
 ## 版本管理
 
-每次安装（以及本仓库内的 `assemble`）都会写入一个小的标记文件，记录部署该处的 CLI 版本，**每个部署域（realm）一个**：项目级运行写在项目根目录的 `my-workbench.version`，共享用户级运行（`--user` 或 ZCode）写在 `~/.my-workbench.version`，每个 Codex home 则写在 `<CODEX_HOME>/my-workbench.version`。混合运行会写入所有适用的部署域。该标记每次运行都会无条件刷新，因此始终是当前运行版本。
+每次安装（以及本仓库内的 `assemble`）都会写入一个小的标记文件，记录部署该处的 CLI 版本，**每个部署域（realm）一个**：项目级运行写在项目根目录的 `my-workbench.version`，共享用户级运行（`--user` 或 ZCode）写在 `~/.my-workbench.version`。混合运行会写入所有适用的部署域。该标记每次运行都会无条件刷新，因此始终是当前运行版本。
 
 ```bash
 npx my-workbench --upgrade   # compare deployed versions with the npm latest
@@ -52,7 +51,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 ## 用户级安装
 
-`npx my-workbench --user` 仅将 Claude Code 资产安装到 `~/.claude/`（`settings.json` + `agents/*.md`）。OpenCode 仅支持项目级安装；`--opencode` 与 `--user` 同时使用会报错，搭配 `--upgrade` 时也一样。用户级文件对所有项目生效，不用于版本控制；命名冲突时项目级 agents 优先于用户级。ZCode 与 Codex 恒为用户级，忽略 `--user`。
+`npx my-workbench --user` 仅将 Claude Code 资产安装到 `~/.claude/`（`settings.json` + `agents/*.md`）。OpenCode 仅支持项目级安装；`--opencode` 与 `--user` 同时使用会报错，搭配 `--upgrade` 时也一样。用户级文件对所有项目生效，不用于版本控制；命名冲突时项目级 agents 优先于用户级。ZCode 恒为用户级，忽略 `--user`。
 
 ## ZCode 目标
 
@@ -61,19 +60,6 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 - 全局文件就是 `agents/prompts/orchestrator.md` — orchestrator 提示词驱动主智能体，其中 ZCode 的派发约定由 `agents/backends/zcode/slots/dispatch.md` 填入。
 - 子智能体以 `injectAgentsMd: false` 运行：全局文件不会注入它们，因此每个委派简报必须自带完整上下文。
 - 仅按需启用（`--zcode` 或 `zcode`）— 默认目标仍是 `.opencode/` + `.claude/`。不下载任何东西。已存在的文件除非 `--force` 否则跳过。重启 ZCode 会话以生效。
-
-## ChatGPT / Codex 目标
-
-`npx my-workbench --chatgpt`（别名 `--codex`）把原生本地子智能体安装到 **CODEX_HOME**，默认 `~/.codex/`。适用于当前 ChatGPT 桌面程序的本地 Codex 运行时及 Codex CLI；云端聊天和自定义 GPT 不读取这些本地文件。
-
-- 当前生效的全局 AGENTS 文件：`AGENTS.override.md` 含有用户指令时在其中维护一个带标记的加载块，否则维护在 `AGENTS.md`；块外用户内容原样保留。该加载块指向 `my-workbench-orchestrator.md`，避免完整策略挤占 AGENTS.md 自动发现的大小预算。
-- `agents/*.toml`：十个原生专家子智能体，使用 `name`、`description`、`developer_instructions`，从同一 roster、提示词和通用纪律组装。默认继承当前会话模型，也可通过已部署 TOML 或 Subagent Config 调整。
-- `my-workbench-plugin-marketplace/`：包含 **Subagent Config** 的离线本地 marketplace；插件只编辑已部署子智能体的模型字段。部署通过 `codex plugin` 注册 marketplace 与插件，不直接编辑 Codex 插件状态。
-- `my-workbench-solutions/`：每次安装刷新的平台指南。
-
-仅用户级，按需启用，不下载、不写项目文件；要求 PATH 中存在 Node.js 以及支持 `codex plugin` 的 Codex CLI。已有智能体文件默认跳过；`--force` 保留子智能体顶层的 `model`、`model_reasoning_effort`、`model_reasoning_summary`、`model_verbosity` 设置，而当前生效的 AGENTS 加载块、内置 marketplace 与插件运行时每次部署都会刷新。插件注册通过官方 CLI 完成，由该 CLI 管理必要的 `config.toml` 变更；注册失败会恢复部署前的受管文件、`config.toml` 与插件缓存，也不会写入 CODEX_HOME 本地版本戳。成功后需要重启 ChatGPT / Codex。用户设置禁用子智能体时仍可能无法委派。职责指令不会授予工具权限，也不会建立独立沙箱。
-
-格式及发现规则依据 OpenAI 官方文档：[自定义智能体](https://learn.chatgpt.com/docs/agent-configuration/subagents)、[AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)。
 
 ## 单一来源，组装输出
 

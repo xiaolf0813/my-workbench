@@ -1,1 +1,0 @@
-Before designing, inspect the skills available in this session and follow any matching design skill. Use the host's supported skill-loading mechanism. If no applicable skill is available, proceed from the brief and the project's design conventions.

@@ -23,15 +23,7 @@ subagent TOML files.
 - Each save is bound to the scanned file and revision. Concurrent plugin writes to that file are serialized or rejected.
 - Uses same-directory temporary-file validation plus atomic replacement.
 
-## Install and run
-
-`npx my-workbench --codex` (or `--chatgpt`) builds the complete Codex target and
-installs this plugin with it. The deployment copies the checked-in runtime into
-`<CODEX_HOME>/my-workbench-plugin-marketplace/`, registers that local marketplace,
-then installs `subagent-config@my-workbench` through the official `codex plugin`
-CLI. Restart ChatGPT / Codex afterward.
-
-For local development:
+## Local development
 
 ```sh
 cd agents/backends/codex/subagent-config
@@ -45,8 +37,7 @@ npm test
 `runtime/server.mjs` and `runtime/component.html`; those two files are checked in
 and are the only runtime payload beside `plugin.json` and `mcp.json`.
 
-For ChatGPT desktop testing, deploy the Codex target, restart ChatGPT, and open
-**Subagent Config** in a local Codex chat. The final acceptance pass is:
+With **Subagent Config** loaded in a local Codex chat, verify the following behaviors.
 
 1. Load and save a personal agent.
 2. Open the plugin from a project chat, confirm its read-only project root, then
