@@ -29,7 +29,10 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Install verification dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm ci --prefix agents/backends/codex/subagent-config
+          npm ci --prefix agents/backends/codex/subagent-config/web
 
       - name: Verify tag matches package version
         env:

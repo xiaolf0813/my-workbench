@@ -17,7 +17,7 @@ function fixture(t) {
   mkdirSync(home)
   const run = args => spawnSync(process.execPath, [join(repo, 'bin', 'my-workbench.js'), ...args], {
     cwd: project,
-    env: { ...process.env, HOME: home, USERPROFILE: home, CODEX_HOME: join(home, 'codex-profile'), PATH: '' },
+    env: { ...process.env, HOME: home, USERPROFILE: home, PATH: '' },
     encoding: 'utf8',
   })
   return { project, home, run }
@@ -53,19 +53,5 @@ test('explicit user-level OpenCode requests fail before prerequisites, writes, o
     assert.equal(result.stdout, '')
     assert.deepEqual(readdirSync(project), [])
     assert.deepEqual(readdirSync(home), [])
-  }
-})
-
-test('retired Codex and ChatGPT targets fail before install or upgrade', t => {
-  const { project, home, run } = fixture(t)
-  for (const target of ['--codex', 'codex', '--chatgpt', 'chatgpt']) {
-    for (const args of [[target], ['--user', '--claude', '--upgrade', target]]) {
-      const result = run(args)
-      assert.equal(result.status, 1, result.stderr + result.stdout)
-      assert.ok(result.stderr.startsWith(`error: unknown argument: ${target}\n`))
-      assert.equal(result.stdout, '')
-      assert.deepEqual(readdirSync(project), [])
-      assert.deepEqual(readdirSync(home), [])
-    }
   }
 })

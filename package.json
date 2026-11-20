@@ -19,6 +19,14 @@
     "agents/roster.json",
     "agents/prompts/",
     "agents/disciplines.md",
+    "agents/backends/codex/AGENTS.md",
+    "agents/backends/codex/leaf.md",
+    "agents/backends/codex/slots/",
+    "agents/backends/codex/subagent-config-marketplace/.agents/plugins/marketplace.json",
+    "agents/backends/codex/subagent-config/plugin.json",
+    "agents/backends/codex/subagent-config/mcp.json",
+    "agents/backends/codex/subagent-config/runtime/",
+    "agents/backends/codex/subagent-config/server/infrastructure/root-statements.js",
     "agents/backends/claude/",
     "agents/backends/opencode/",
     "agents/backends/zcode/",
@@ -30,7 +38,7 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "test:subagent-config": "npm test --prefix agents/backends/codex/subagent-config",
-    "verify": "node bin/my-workbench.js assemble --check && npm test"
+    "verify": "npm run test:subagent-config && node bin/my-workbench.js assemble --check && npm test"
   },
   "keywords": [
     "opencode",
