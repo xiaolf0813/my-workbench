@@ -2,7 +2,14 @@
 
 # gui-test 工具链——构建规格
 
-这是项目 `gui-test/` 工具链的构建规格：建什么、按什么顺序建、每步如何验收。平台无关：配合对应的 `*-gui-test.md` 平台指南使用，该指南承载所属平台的取树方式、身份键与动作通道。
+本规格规定 `gui-test/` 工具链的构建顺序与验收方式。有对应平台指南时配合使用。
+
+| 平台 | 身份键 | 取树与操作 |
+| --- | --- | --- |
+| Web / Electron / Tauri | DOM test ID | 用 Playwright 或 CDP 操作目标页面或 WebView |
+| Android Views | View 资源 ID | UiAutomator 层级树与设备操作 |
+| Windows 原生 | AutomationId / Name | UI Automation 树及控件模式 |
+| iOS | accessibilityIdentifier | XCUITest 或 idb 无障碍树与操作 |
 
 ## 布局
 

@@ -109,11 +109,13 @@ test('DSH install renders host, page, and prompts from one lane record', t => {
   assert.match(readFileSync(patchOf('solo'), 'utf8'), /my-workbench-lanes-ui/)
   assert.match(result.stdout, /the only profile directory/)
   const preset = join(home, '.agent-presets', 'my-workbench')
+  assert.match(readFileSync(join(preset, 'agent.cordis.yml'), 'utf8'), /add <slug>/)
   const roster = readFileSync(join(preset, 'lane-plugin', 'src', 'roster.generated.js'), 'utf8')
   const host = readFileSync(join(preset, 'lane-plugin', 'src', 'index.js'), 'utf8')
   const prompts = readFileSync(join(preset, 'lane-plugin', 'src', 'prompts.generated.js'), 'utf8')
   const page = readFileSync(join(preset, 'lane-plugin-ui', 'lib', 'client.js'), 'utf8')
   for (const file of [
+    join(preset, 'my-workbench-solutions', 'task-queue.mjs'),
     join(preset, 'lane-plugin', 'src', 'index.js'),
     join(preset, 'lane-plugin', 'src', 'roster.generated.js'),
     join(preset, 'lane-plugin', 'src', 'prompts.generated.js'),

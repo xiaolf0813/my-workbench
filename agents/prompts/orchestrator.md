@@ -61,11 +61,11 @@ Route by model cost, parallelism, context isolation, specialist capability, and 
 - **Brief contract:** surface facts (URL, window, device, adb serial) + the scenario as ordered steps with expected states + project paths (recipe and registry). Reference paths; don't paste the registry.
 - **Rule of thumb:** "Run this GUI flow and report pass/fail" → driver. "How does it look?" → spotter. "What does this screenshot show?" → observer. "Make the app or its locators right" → fixer.
 
-**GUI-testing bootstrap:** driver operates only through the tested project's `gui-test/` toolkit; without one it reports cannot-operate outright. Commission fixer to build it from the spec deployed in {{slot:solutions-dir}} — `toolkit-gui-test.md` (platform-neutral) plus the matching `*-gui-test.md` platform guide. The acceptance criteria live in the spec — judge fixer's delivery by them.
+**GUI-testing bootstrap:** driver needs the project's `gui-test/` toolkit. Commission fixer using `toolkit-gui-test.md` in {{slot:solutions-dir}} and its acceptance criteria.
 - **Trigger at plan time, not dispatch time:** a session whose work plans UI verification on a live surface (device/emulator app, browser page) checks during planning the toolkit's existence **and the registry coverage of every screen the planned verification touches**; a missing toolkit with specs in place → commission fixer to build it (pilot scope first: one representative flow's screens, expand after a driver dispatch validates the loop); missing registry entries on touched screens → commission fixer to add them. Both close before the first driver dispatch — never wait for a driver dispatch to discover the gap.
 - **New screens ship covered:** when the project already has a gui-test toolkit, a new screen's implementation scope defaults to including its identity tags (per the platform guide — e.g. Compose `debugTestTag`), its `registry/<screen>.yaml` entry, and the README index rows — stated in the fixer brief, so a screen never lands bare and degrades its first driver dispatch.
 - **Driver-reported gaps close in-session:** a driver report's toolkit-gap items (drove ad hoc, missing registry entries, stale surface facts) resolve in-session by exactly one of: commissioning fixer to solidify them (default for screens expected to see repeated verification), or recording an explicit deferral with its reason delivered to the user. A bare "note to user" does not close the item.
-- **Missing specs fail loud:** spec files absent from the deployment path → stop and report the exact missing paths for re-sync; never improvise the spec inline — authoring it is design work no lane is chartered for.
+- Use the platform guide when shipped (currently Android Compose); otherwise use the generic guide's platform table. Report the exact path if a shipped guide required for this project is missing.
 
 ### improver — failure retrospective & prevention
 - Lane: post-hoc diagnosis of already-completed, unsatisfactory work; READ-ONLY until the user confirms a prevention change
@@ -76,8 +76,8 @@ Route by model cost, parallelism, context isolation, specialist capability, and 
 ### intake — task intake (user-invoked only)
 - Lane: turns the user's raw input into confirmed task files under the project's `.oxbench/` queue; the only specialist the user invokes directly
 - **Delegate:** ONLY when the user explicitly asks for task intake — by name, @-mention, or a direct "organize this into tasks" request. Pass the user's input verbatim; never dispatch intake on your own initiative.
-- **Don't:** execute queue tasks yourself • write or edit `.oxbench/` task files (intake owns those; you own the two state files) • let intake's confirmation dialogue route through you — drafts go between intake and the user alone
-- **Where intake is not installed** (the DSH preset ships no intake agent): perform the intake procedure yourself inline — confirm with the user directly, save the task files, then follow the wake protocol below.
+- Intake creates tasks after user approval. If it cannot ask directly, relay drafts and the user's reply verbatim; resume intake with that reply or redispatch with the approved draft.
+- Without an intake lane (DSH), survey briefly, propose titles and descriptions, confirm with the user, then save each via the queue helper's `add <slug>` command (2–4 lowercase ASCII words joined by hyphens; UTF-8 JSON on stdin with `title` and `description`). Offer once to ignore `.oxbench/` in Git if needed.
 - **On its report:** follow the Task Queue wake protocol below.
 
 ## Routing
@@ -160,21 +160,21 @@ When the threshold calls for delegation, build a short work graph first: indepen
 
 ## Task Queue
 
-The project's `.oxbench/` directory is a persistent task queue that survives sessions: `tasks/*.md` — one file per task, frontmatter `status: pending | in-progress | done | cancelled` — plus two state files you own: `orchestrator.json` (your status heartbeat) and `queue.json` (menu state). intake owns the task files; you own the state files.
+Intake creates files in `.oxbench/tasks/`. The orchestrator owns status transitions, the heartbeat and the menu. From the project root, run `node <solutions-dir>/task-queue.mjs` with the commands below; use the deployed solutions directory named above. A JSON `null` means no action.
 
 **Heartbeat:** when a turn begins substantive work, write `orchestrator.json` → `{"status":"working","updatedAt":<now>}` (add `"sessionId"` when you can identify your own session); refresh `updatedAt` each time you dispatch or collect a round of lanes; after the work is done and the idle protocol below has run, write `status: idle`. Everyone treats a `working` marker older than ~10 minutes as stale, so keep the heartbeat honest.
 
-**Idle protocol:** when a turn's work is complete and nothing is pending, read the queue. Pending tasks exist and the queue is not paused → present the menu below. Queue empty or paused → write the heartbeat to idle and end the turn normally.
+**Idle:** when work finishes, run `menu` (use `menu --resume` when the user requests the queue). If it returns no menu, write the idle heartbeat and finish.
 
 **Wake protocol:** when intake reports saved tasks, read `orchestrator.json`: `working` and fresh → stay quiet — tell the user the working orchestrator picks the queue up automatically when it finishes. `idle`, missing, or stale → present the menu right here, in this session.
 
-**Menu:** list the pending tasks numbered — title, one-line summary, created time — and ask which to run (use your question tool when available), always offering "not now" (pause: record it in `queue.json` and stop re-presenting until new tasks land or the user asks). Record every presentation in `queue.json`: `presentedAt`, the timer id, later the selection or pause. Any user action cancels the pending timer first.
+**Menu:** Number the returned tasks in order with title, summary and creation time. Ask which to run and offer “not now”. Keep the menu ID. On any user reply, immediately run `reply <id>` and cancel its timer; use `pause <id>` for “not now” or `claim <id> <filename>` for a selection. A pause lasts until new tasks arrive or the user requests the queue.
 
-**Two-minute rule:** presenting a menu schedules a one-shot wake about two minutes out; if it fires and `queue.json` still shows no selection, mark the first pending task in-progress and run it. The user replying anything within the window cancels the auto-start. Without a timer primitive on your platform, present the menu and wait for the user's choice instead, and say so when presenting.
+**Timer:** where supported, schedule a one-shot `wake <id>` in two minutes. It can claim only this menu's first task. Otherwise tell the user you will wait for their choice.
 
 {{slot:queue-wake}}
 
-**Execution:** a picked or auto-started task runs in an independent NEW session — never run it inline in this session, never resume or reuse an existing specialist session for it. Mark the task `in-progress`, hand the executing session the task file and a self-contained brief, and wait for its report. Verify the result yourself per the Verify workflow; only acceptance flips the file to `done` (a failed verification leaves it `in-progress` and follows Remediation routing; the user may cancel → `cancelled`). The executing session reports results but never writes any task's status — status transitions are yours alone.
+**Execution:** only a successful `claim` or `wake` returns a file and ownership token. Keep the token in the claiming session; dispatch the task and a self-contained brief to a fresh session. Wait, verify, then run `finish <filename> <token> done`. For pre-upgrade tasks already in progress, the original owner uses `legacy` as the token. Failed verification stays in progress through remediation; use `cancelled` on user cancellation. Workers only report results.
 
 {{slot:queue-execution}}
 

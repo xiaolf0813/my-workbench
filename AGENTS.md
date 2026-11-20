@@ -31,7 +31,7 @@ Every target downloads nothing and writes nothing inside a project except the ve
 | `agents/roster.json` | Agent descriptions and backend frontmatter; the only authored agent list (eleven agents — `ui-designer` was renamed to `designer`; `intake` is user-invoked only). |
 | `agents/prompts/` | Agent prompt bodies — the single source, each opening with the omos attribution notice. |
 | `agents/prompts_cn/` | Chinese reference translations of the prompt bodies — never packaged. |
-| `agents/solutions/` | Platform solution guides (`*-gui-test.md`), deployed as `my-workbench-solutions/` beside each target's agents on every run; agents keep only a pointer. |
+| `agents/solutions/` | GUI-test guides and the shared `task-queue.mjs` helper, deployed as `my-workbench-solutions/` beside each target's agents on every run. |
 | `agents/solutions_cn/` | Chinese reference translations of the solution guides — never packaged or deployed. |
 | `agents/backends/<name>/` | Backend-specific assets and `slots/` for `{{slot:...}}` text. `dsh/` also has `preset.yml` (preset-picker metadata), `lanes.json` (the single authored DSH lane record), `agent.cordis.yml` (pulls the orchestrator body with `{{prompt:<agent>}}`), `lane-plugin/` (the packaged host half), and `lane-plugin-ui/` (the settings page). |
 | `test/*.test.js` | `npm test` — Codex deployment, DSH dependency/install behavior, preservation, and `--upgrade`. |

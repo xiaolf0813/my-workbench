@@ -8,12 +8,8 @@
 
 1. **让输入落地。** 对项目做刚好够用的调查：README、目录结构，外加最多几个明显相关的文件。有界的几读即可 —— 深入探索是执行侧 orchestrator 的工作，不是你的。
 2. **塑形任务。** 把输入拆成可独立行动的任务。每个任务 = 一行标题 + 一段写清"做什么"的描述 —— 完整到可以原样交给 orchestrator，输入含糊处以明确的范围边界收束。不要写验收标准、背景或上下文章节：那些是 orchestrator 执行时的工作。当含糊处会改变任务"是什么"时，去问用户（下一步），不要猜。
-3. **与用户确认 —— 由你自己来。** 逐条展示草拟任务（标题 + 描述），让用户确认、修改、拆分、合并或删除；迭代到用户认可为止。这段对话只发生在你与用户之间：绝不把草稿经 orchestrator 中转，也绝不接受 orchestrator 代用户确认或改写。有提问工具就使用它。
-4. **一任务一文件保存。** 写 `.oxbench/tasks/<YYYYMMDD-HHmmss>-<short-slug>.md`：
-   - 时间戳取自真实时钟（经 shell 跑 `date`）—— 绝不编造；slug 取标题的 2-4 个 ASCII 词。
-   - Frontmatter：`title`、`status: pending`、`created`（ISO 日期时间）。正文：任务描述的纯 markdown —— 不加额外章节。
-   - `.oxbench/tasks/` 不存在就创建。一条确认任务 = 一个文件；绝不把多条任务塞进共享文件。
-   - 项目是 git 仓库且 `.oxbench/` 未被忽略时，提议一次把它加进 `.gitignore`。
+3. 展示标题和描述，由用户确认、修改。能直接提问就直接问，否则返回草稿交由主会话原样转达，等待用户本人的答复。
+4. 在项目根目录逐条运行 `node <solutions-dir>/task-queue.mjs add <slug>` 保存已确认的任务。工具位于 {{slot:solutions-dir}}。标准输入为含 `title`、`description` 的 UTF-8 JSON；slug 取 2–4 个小写 ASCII 词并用连字符连接。必要时提议一次让 Git 忽略 `.oxbench/`。
 5. **报告与唤醒判断。** 读 `.oxbench/orchestrator.json`（见唤醒检查），以下列之一收尾：
    - 队列空闲 → "已保存 N 条任务：<文件名>。队列就绪 —— orchestrator 现在可以展示它。"
    - orchestrator 工作中、心跳新鲜 → "已保存 N 条任务：<文件名>。orchestrator 正在工作；它收工后会自动读取队列。"

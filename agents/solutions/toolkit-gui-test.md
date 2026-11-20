@@ -1,9 +1,14 @@
 # gui-test toolkit — build spec
 
 The build spec for the project's `gui-test/` toolkit: what to build, in what
-order, and how to accept each step. Platform-neutral: pair it with the
-matching `*-gui-test.md` platform guide, which carries that platform's tree
-acquisition, identity keys, and action channel.
+order, and how to accept each step. Use the matching platform guide when available.
+
+| Platform | Identity | Tree and actions |
+| --- | --- | --- |
+| Web / Electron / Tauri | DOM test ID | Playwright or CDP on the target page/webview |
+| Android Views | View resource ID | UiAutomator hierarchy and device actions |
+| Windows native | AutomationId / Name | UI Automation tree and control patterns |
+| iOS | accessibilityIdentifier | XCUITest or idb accessibility tree and actions |
 
 ## Layout
 
