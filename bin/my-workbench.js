@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // my-workbench CLI — copy the OpenCode / Claude Code agent setup into the current
-// project (or, with --user, into the tools' user-level config roots), plus
+// project (or, for Claude Code with --user, into ~/.claude), plus
 // opt-in user-level ZCode support (~/.zcode).
 // Zero dependencies. Project targets use the current working directory;
 // user-level targets always use the home directory.
@@ -100,7 +100,7 @@ const SLOT_RE = /\{\{slot:([\w-]+)\}\}/g;
 
 
 const HELP = `my-workbench — scaffold the OpenCode / Claude Code agent setup into the current
-project (or at user level with --user), plus opt-in user-level ZCode,
+project (or Claude Code at user level with --user), plus opt-in user-level ZCode,
 ChatGPT / Codex support
 
 Usage
@@ -111,8 +111,8 @@ Commands
   assemble [--check]      regenerate this repository's .claude/agents/ from the
                           agents/ single-source prompts (--check verifies only)
 
-Targets (default: both)
-  --opencode              set up .opencode/ (core config + native agents)
+Targets (default: both; with --user: Claude Code only)
+  --opencode              set up .opencode/ (project-only; core config + native agents)
   --claude                set up .claude/ (Claude Code agents + shared settings)
 
 ZCode target (opt-in only; user-level, writes to your home directory)
@@ -124,9 +124,9 @@ ChatGPT / Codex target (opt-in only; local runtime, always user-level)
                           (CODEX_HOME, otherwise ~/.codex); registers Subagent Config via codex plugin
 
 Options
-  --user                  install at user level instead of the current project:
-                          OpenCode assets go to ~/.config/opencode/,
-                          Claude Code assets to ~/.claude/ (ZCode and Codex are
+  --user                  install Claude Code assets to ~/.claude/ instead of
+                          the current project; cannot combine with --opencode
+                          (ZCode and Codex are
                           always user-level and ignore this flag)
   --force                 overwrite files that already exist (default: skip them)
   --dry-run               print what would be copied without writing anything
@@ -177,7 +177,7 @@ Examples
   npx my-workbench                    # copy both .opencode/ and .claude/
   npx my-workbench --opencode         # OpenCode setup only
   npx my-workbench claude --force     # positional target form, overwrite existing files
-  npx my-workbench --user             # user-level: ~/.config/opencode/ + ~/.claude/
+  npx my-workbench --user             # Claude Code user-level setup (~/.claude/)
   npx my-workbench --zcode            # ZCode user-level setup only (~/.zcode)
   npx my-workbench --chatgpt          # local ChatGPT / Codex native agents (~/.codex)
   npx my-workbench --upgrade          # compare deployed versions, auto-upgrade when outdated
@@ -250,8 +250,11 @@ function parseArgs(argv) {
   // default set and an explicit target re-deploys exactly that target.
   const explicitTargets = new Set(targets);
   if (targets.size === 0) {
-    targets.add("opencode");
+    if (!user) targets.add("opencode");
     targets.add("claude");
+  }
+  if (user && targets.has("opencode")) {
+    throw new UserError("OpenCode only supports project-level installation; --opencode cannot be combined with --user");
   }
   return { targets, explicitTargets, force, dryRun, user, upgrade };
 }
@@ -290,8 +293,7 @@ const OPENCODE_AGENT_KEYS = ["model"];
  * Which user-retuned model settings a destination file carries, if any: the
  * per-backend key lines of every `<...>/agents/<name>.md` destination, keyed
  * by the grandparent directory (`.zcode` → model + thoughtLevel; `.claude` →
- * model + effort; `.opencode`/`opencode` — the latter is the user-level
- * `~/.config/opencode/agents/` layout — → model). The two JSON
+ * model + effort; `.opencode` → model). The two JSON
  * stubs (`.claude/settings.json`, `opencode.jsonc`) are NOT preservation
  * destinations — see the stub-ownership section below.
  */
@@ -303,7 +305,7 @@ function modelSettingsRule(dest) {
     const keys =
       grandparent === ".zcode" ? ZCODE_AGENT_KEYS
       : grandparent === ".claude" ? CLAUDE_AGENT_KEYS
-      : grandparent === ".opencode" || grandparent === "opencode" ? OPENCODE_AGENT_KEYS
+      : grandparent === ".opencode" ? OPENCODE_AGENT_KEYS
       : null;
     if (keys !== null) return { kind: "frontmatter", keys };
   }
@@ -512,14 +514,13 @@ function parseJsoncRoot(text) {
 /**
  * The two JSON stub destinations whose owned keys an install reconciles on
  * force: `settings.json` inside a `.claude/` directory (project and
- * `~/.claude/`) and `opencode.jsonc` in the opencode config roots (project
- * `.opencode/` and `~/.config/opencode/`).
+ * `~/.claude/`) and `opencode.jsonc` in the project `.opencode/` directory.
  */
 function isJsonStubDest(dest) {
   const base = basename(dest);
   const parent = basename(dirname(dest));
   if (base === "settings.json" && parent === ".claude") return true;
-  return base === "opencode.jsonc" && (parent === ".opencode" || parent === "opencode");
+  return base === "opencode.jsonc" && parent === ".opencode";
 }
 
 /**
@@ -1618,9 +1619,8 @@ async function main() {
   }
 
   // Per-target install scope. Project level (default) nests under the current
-  // directory; --user installs into each tool's user-level config root instead
-  // (OpenCode reads ~/.config/opencode, Claude Code reads ~/.claude). ZCode is
-  // always user-level and ignores --user.
+  // directory; --user installs Claude Code into ~/.claude instead. OpenCode
+  // is project-only; ZCode and Codex are always user-level and ignore --user.
   // Model-setting preservation rides this install path only: the writers below
   // get `preserve` here, and the assemble command (which renders this repo's
   // own artifacts) never sets it, so it stays a pure render.
@@ -1632,7 +1632,6 @@ async function main() {
   };
   if (installOpts.user) {
     const userScope = (root, display) => ({ root, dest: "", display });
-    scopes.opencode = userScope(join(homedir(), ".config", "opencode"), "~/.config/opencode/");
     scopes.claude = userScope(join(homedir(), ".claude"), "~/.claude/");
   }
   // User-level destinations live outside the CWD; display them relative to home.
@@ -1650,7 +1649,7 @@ async function main() {
     projectTargets.length === 0
       ? `my-workbench: installing ${userLevelOnly.map((name) => userLevelLabels[name]).join(" + ")} agent setup (user-level)${dry}`
       : opts.user
-        ? `my-workbench: installing agent setup at user level (~/.config/opencode, ~/.claude)${dry}`
+        ? `my-workbench: installing Claude Code agent setup at user level (~/.claude)${dry}`
         : `my-workbench: installing agent setup into ${targetRoot}${dry}`,
   );
 
@@ -1682,7 +1681,7 @@ async function main() {
     if (projectTargets.length > 0) {
       console.log(
         opts.user
-          ? "next: restart OpenCode / Claude Code so the user-level config is picked up."
+          ? "next: restart Claude Code so the user-level config is picked up."
           : "next: restart OpenCode / Claude Code so the new config is picked up, then commit the copied files.",
       );
     }

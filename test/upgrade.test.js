@@ -29,12 +29,12 @@ function registryServer(t) {
  *  path, when given, replaces PATH so a fake npx can shadow the real one.
  *  Async spawn, not spawnSync: the registry server lives in this process, and a
  *  sync spawn would freeze the event loop it answers on. */
-function upgradeRun(cwd, stamp, registry, path) {
+function upgradeRun(cwd, stamp, registry, path, { targets = ['--claude'], env = {} } = {}) {
   if (stamp !== undefined) writeFileSync(join(cwd, 'my-workbench.version'), stamp)
   return new Promise(resolveRun => {
-    const child = spawn(process.execPath, [cli, '--upgrade', '--claude'], {
+    const child = spawn(process.execPath, [cli, '--upgrade', ...targets], {
       cwd,
-      env: { ...process.env, npm_config_registry: registry, ...(path === undefined ? {} : { PATH: path }) },
+      env: { ...process.env, npm_config_registry: registry, ...(path === undefined ? {} : { PATH: path }), ...env },
     })
     let stdout = ''
     let stderr = ''
@@ -60,7 +60,7 @@ function upgradeCodexRun(cwd, codexHome, registry) {
 
 /** A fake npx first on PATH: logs the args it was called with, optionally rewrites
  *  the project stamp (the redeploy's cwd is the project root), and exits with the given code. */
-function fakeNpx(t, { rewrite, exitCode = 0 } = {}) {
+function fakeNpx(t, { rewrite, rewriteFile = 'my-workbench.version', exitCode = 0 } = {}) {
   const bin = join(mkdtempSync(join(tmpdir(), 'my-workbench-npx-')), 'bin')
   t.after(() => rmSync(dirname(bin), { recursive: true, force: true }))
   const log = join(bin, 'npx.log')
@@ -71,12 +71,12 @@ function fakeNpx(t, { rewrite, exitCode = 0 } = {}) {
     // and without this it falls through to the real npx.cmd in the npm directory.
     // Redirection comes first so a trailing digit in %* can never read as "2>".
     const script = ['@echo off', `>"${log}" echo(%*`]
-    if (rewrite !== undefined) script.push(`>"my-workbench.version" echo ${rewrite}`)
+    if (rewrite !== undefined) script.push(`>"${rewriteFile}" echo ${rewrite}`)
     script.push(`exit /b ${exitCode}`)
     writeFileSync(join(bin, 'npx.cmd'), script.join('\r\n') + '\r\n')
   } else {
     const script = ['#!/bin/sh', `printf '%s\\n' "$*" >> ${JSON.stringify(log)}`]
-    if (rewrite !== undefined) script.push(`printf '%s\\n' ${JSON.stringify(rewrite)} > my-workbench.version`)
+    if (rewrite !== undefined) script.push(`printf '%s\\n' ${JSON.stringify(rewrite)} > ${JSON.stringify(rewriteFile)}`)
     script.push(`exit ${exitCode}`)
     writeFileSync(join(bin, 'npx'), script.join('\n') + '\n')
     chmodSync(join(bin, 'npx'), 0o755)
@@ -128,6 +128,21 @@ test('--upgrade fails when the npx redeploy exits non-zero', async t => {
   const result = await upgradeRun(projectFixture(t), '0.0.1\n', `http://127.0.0.1:${server.address().port}`, npx.path)
   assert.equal(result.status, 1, result.stderr + result.stdout)
   assert.match(result.stderr + result.stdout, /redeploy exited with status 3/)
+})
+
+test('--user --upgrade checks the home stamp and preserves the user-level target selection', async t => {
+  const server = await registryServer(t)
+  const home = projectFixture(t)
+  writeFileSync(join(home, '.my-workbench.version'), '0.0.1\n')
+  const npx = fakeNpx(t, { rewrite: '9.9.9', rewriteFile: '.my-workbench.version' })
+  const result = await upgradeRun(home, '99.0.0\n', `http://127.0.0.1:${server.address().port}`, npx.path, {
+    targets: ['--user'],
+    env: { HOME: home, USERPROFILE: home },
+  })
+  assert.equal(result.status, 0, result.stderr + result.stdout)
+  assert.equal(readFileSync(npx.log, 'utf8').trim(), '--yes my-workbench@9.9.9 --user --force')
+  assert.equal(readFileSync(join(home, 'my-workbench.version'), 'utf8'), '99.0.0\n')
+  assert.match(result.stdout, /upgraded\s+~\/\.my-workbench\.version/)
 })
 
 test('--upgrade leaves a deployment newer than npm latest alone', async t => {

@@ -2,7 +2,7 @@
 
 # my-workbench
 
-可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex 智能体配置，一条命令安装到你的项目（或用 `--user` 安装到用户级；ZCode 与 Codex 恒为用户级）。
+可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex 智能体配置，一条命令即可安装。OpenCode 仅支持项目级安装；Claude Code 支持项目级安装或用 `--user` 安装到用户级；ZCode 与 Codex 恒为用户级。
 
 已停止维护的自研 Tauri 桌面应用保留在 [`desktop`](https://github.com/xiaolf0813/my-workbench/tree/desktop) 分支，`main` 不再维护它。
 
@@ -31,7 +31,7 @@ orchestrator 提示词还内置一条持久任务队列：`intake` 专家 ——
 npx my-workbench                    # 安装 .opencode/ 和 .claude/
 npx my-workbench --opencode         # 仅 OpenCode 配置
 npx my-workbench --claude           # 仅 Claude Code 配置
-npx my-workbench --user             # 用户级安装：~/.config/opencode/ + ~/.claude/
+npx my-workbench --user             # Claude Code 用户级安装：~/.claude/
 npx my-workbench --force            # 覆盖已存在的文件
 npx my-workbench --dry-run          # 预览，不写入
 npx my-workbench --zcode            # 仅 ZCode 用户级安装（~/.zcode）
@@ -52,7 +52,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 ## 用户级安装
 
-`npx my-workbench --user` 将同样的资产安装到用户级而非当前项目：OpenCode 资产进入 `~/.config/opencode/`（其 XDG 配置目录；全局 agents 从 `~/.config/opencode/agents/` 读取），Claude Code 资产进入 `~/.claude/`（`settings.json` + `agents/*.md`）。用户级文件对所有项目生效，不用于版本控制；命名冲突时项目级 agents 优先于用户级。ZCode 与 Codex 恒为用户级，忽略 `--user`。
+`npx my-workbench --user` 仅将 Claude Code 资产安装到 `~/.claude/`（`settings.json` + `agents/*.md`）。OpenCode 仅支持项目级安装；`--opencode` 与 `--user` 同时使用会报错，搭配 `--upgrade` 时也一样。用户级文件对所有项目生效，不用于版本控制；命名冲突时项目级 agents 优先于用户级。ZCode 与 Codex 恒为用户级，忽略 `--user`。
 
 ## ZCode 目标
 

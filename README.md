@@ -2,7 +2,7 @@
 
 English | [简体中文](README_CN.md)
 
-Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex agent setup, installed into your project (or at user level with `--user`; ZCode and Codex are always user-level) with one command.
+Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex agent setup, installed with one command. OpenCode is project-only; Claude Code supports project or user-level installation with `--user`; ZCode and Codex are always user-level.
 
 The retired first-party Tauri desktop app is preserved on the [`desktop`](https://github.com/xiaolf0813/my-workbench/tree/desktop) branch and is not maintained on `main`.
 
@@ -29,7 +29,7 @@ The orchestrator prompt also carries a persistent task queue: the `intake` speci
 npx my-workbench                    # install both .opencode/ and .claude/
 npx my-workbench --opencode         # OpenCode setup only
 npx my-workbench --claude           # Claude Code setup only
-npx my-workbench --user             # user-level install: ~/.config/opencode/ + ~/.claude/
+npx my-workbench --user             # Claude Code user-level install: ~/.claude/
 npx my-workbench --force            # overwrite files that already exist
 npx my-workbench --dry-run          # preview without writing
 npx my-workbench --zcode            # ZCode user-level setup only (~/.zcode)
@@ -50,7 +50,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 ## User-level install
 
-`npx my-workbench --user` installs the same assets at user level instead of the current project: OpenCode assets go to `~/.config/opencode/` (its XDG config directory; global agents are read from `~/.config/opencode/agents/`) and Claude Code assets to `~/.claude/` (`settings.json` + `agents/*.md`). User-level files apply to every project and are not meant for version control; on name conflicts project-level agents win over user-level ones. ZCode is always user-level and ignores `--user`.
+`npx my-workbench --user` installs only Claude Code assets to `~/.claude/` (`settings.json` + `agents/*.md`). OpenCode supports project-level installation only; combining `--opencode` with `--user` is an error, including with `--upgrade`. User-level files apply to every project and are not meant for version control; on name conflicts project-level agents win over user-level ones. ZCode and Codex are always user-level and ignore `--user`.
 
 ## ZCode target
 
