@@ -22,7 +22,7 @@ The orchestrator prompt also carries a persistent task queue: the `intake` speci
 
 ## OpenCode target
 
-- **`--opencode` (native)** — core config (`opencode.jsonc`) plus native `.opencode/agents/*.md` subagents. Requires the OpenCode app (`opencode` on PATH). Nothing is downloaded. The universal behavior rules (`agents/disciplines.md`) are appended to every agent's own prompt at assembly, so each agent carries them and the orchestrator never pastes them into a delegation brief.
+- **`--opencode` (native)** — core config (`opencode.jsonc`) plus native `.opencode/agents/*.md` subagents. Requires the OpenCode app (`opencode` on PATH). Nothing is downloaded. The universal behavior rules (`agents/disciplines.md`) are appended to every agent's own prompt at assembly, so each agent carries them and the orchestrator never pastes them into a delegation brief. New sessions start on OpenCode's built-in `build` agent — switch to `orchestrator` in the agent selector, or set `"default_agent": "orchestrator"` in `opencode.jsonc`, to run the orchestration.
 
 ## Usage
 
@@ -39,7 +39,7 @@ npx my-workbench --dsh --dsh-profile desktop  # DSH preset + the desktop profile
 npx my-workbench assemble [--check] # in this repo: regenerate .claude/agents/ and .opencode/
 ```
 
-Existing files are skipped unless `--force` is given, so re-running is safe. A `--force` overwrite snapshots and restores your model settings — the `model`/`effort`/`variant`/`thoughtLevel` lines of every `agents/*.md` (per backend) — so your retuned pins survive upgrades. The two JSON files it deploys are seed stubs, not owned files: `--force` reconciles only the stub's own keys (`agent` in `.claude/settings.json`, `$schema` in `opencode.jsonc`) into an existing file and never touches any other byte of it.
+Existing files are skipped unless `--force` is given, so re-running is safe. A `--force` overwrite snapshots and restores your model settings — the `model`/`effort`/`thoughtLevel` lines of every `agents/*.md` (per backend; on OpenCode the model reference `provider/model#variant` rides the `model:` line) — so your retuned pins survive upgrades. The two JSON files it deploys are seed stubs, not owned files: `--force` reconciles only the stub's own keys (`agent` in `.claude/settings.json`, `$schema` in `opencode.jsonc`) into an existing file and never touches any other byte of it.
 
 ## Version management
 

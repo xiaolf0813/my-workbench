@@ -1,1 +1,1 @@
-Dispatch specialists via the Task tool (`subagent_type: <name>`).
+Dispatch specialists via the `subagent` tool (`agent: <name>`); pass a finished specialist's `sessionID` to continue its session.

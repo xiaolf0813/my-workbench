@@ -11,9 +11,7 @@
         ],
         "opencode": [
           "@description",
-          "mode: subagent",
-          "tools:",
-          "  ast_grep_replace: false"
+          "mode: subagent"
         ],
         "zcode": [
           "name: designer",
@@ -47,10 +45,13 @@
         "opencode": [
           "@description",
           "mode: subagent",
-          "tools:",
-          "  write: false",
-          "  edit: false",
-          "  patch: false"
+          "permissions:",
+          "  - action: edit",
+          "    resource: \"*\"",
+          "    effect: deny",
+          "  - action: shell",
+          "    resource: \"*\"",
+          "    effect: deny"
         ],
         "zcode": [
           "name: driver",
@@ -76,10 +77,13 @@
         "opencode": [
           "@description",
           "mode: subagent",
-          "tools:",
-          "  write: false",
-          "  edit: false",
-          "  patch: false"
+          "permissions:",
+          "  - action: edit",
+          "    resource: \"*\"",
+          "    effect: deny",
+          "  - action: shell",
+          "    resource: \"*\"",
+          "    effect: deny"
         ],
         "zcode": [
           "name: explorer",
@@ -130,8 +134,10 @@
         "opencode": [
           "@description",
           "mode: subagent",
-          "permission:",
-          "  question: allow"
+          "permissions:",
+          "  - action: question",
+          "    resource: \"*\"",
+          "    effect: allow"
         ],
         "zcode": [
           "name: intake",
@@ -165,10 +171,13 @@
         "opencode": [
           "@description",
           "mode: subagent",
-          "tools:",
-          "  write: false",
-          "  edit: false",
-          "  patch: false"
+          "permissions:",
+          "  - action: edit",
+          "    resource: \"*\"",
+          "    effect: deny",
+          "  - action: shell",
+          "    resource: \"*\"",
+          "    effect: deny"
         ],
         "zcode": [
           "name: librarian",
@@ -194,11 +203,13 @@
         "opencode": [
           "@description",
           "mode: subagent",
-          "tools:",
-          "  write: false",
-          "  edit: false",
-          "  patch: false",
-          "  bash: false"
+          "permissions:",
+          "  - action: edit",
+          "    resource: \"*\"",
+          "    effect: deny",
+          "  - action: shell",
+          "    resource: \"*\"",
+          "    effect: deny"
         ],
         "zcode": [
           "name: observer",
@@ -225,10 +236,13 @@
         "opencode": [
           "@description",
           "mode: subagent",
-          "tools:",
-          "  write: false",
-          "  edit: false",
-          "  patch: false"
+          "permissions:",
+          "  - action: edit",
+          "    resource: \"*\"",
+          "    effect: deny",
+          "  - action: shell",
+          "    resource: \"*\"",
+          "    effect: deny"
         ],
         "zcode": [
           "name: spotter",
@@ -254,10 +268,13 @@
         "opencode": [
           "@description",
           "mode: subagent",
-          "tools:",
-          "  write: false",
-          "  edit: false",
-          "  patch: false"
+          "permissions:",
+          "  - action: edit",
+          "    resource: \"*\"",
+          "    effect: deny",
+          "  - action: shell",
+          "    resource: \"*\"",
+          "    effect: deny"
         ],
         "zcode": [
           "name: oracle",
@@ -297,11 +314,13 @@
         "opencode": [
           "@description",
           "mode: subagent",
-          "tools:",
-          "  write: false",
-          "  edit: false",
-          "  patch: false",
-          "  bash: false"
+          "permissions:",
+          "  - action: edit",
+          "    resource: \"*\"",
+          "    effect: deny",
+          "  - action: shell",
+          "    resource: \"*\"",
+          "    effect: deny"
         ],
         "zcode": [
           "name: improver",

@@ -66,8 +66,10 @@ test('a --force reinstall preserves the agents frontmatter and reconciles the JS
   // - opencode.jsonc, a seed stub whose only owned key is `$schema`: user
   //   comments and model keys with the $schema key DELETED — the stub
   //   re-inserts it whole;
-  // - the opencode observer agent, whose render carries neither `model:` nor
-  //   `variant:`, gaining both lines.
+  // - the opencode observer agent, whose render carries no `model:`, gaining
+  //   one — plus a stray V1 `variant:` line that must NOT come back: V2 joins
+  //   the variant into the model reference (`provider/model#variant`), so the
+  //   `model:` line is the whole pin.
   writeFileSync(oracle, readFileSync(oracle, 'utf8')
     .replace('model: inherit', 'model: custom/pinned-claude\neffort: high')
     .replace('Strategic technical advisor', 'MANGLED description'))
@@ -133,9 +135,12 @@ test('a --force reinstall preserves the agents frontmatter and reconciles the JS
     readFileSync(file('.opencode', 'opencode.jsonc'), 'utf8'),
     '{\n  // tuned by hand\n  "model": [\n    "custom/pinned-oc" // main pin\n  ],\n  "small_model": "custom/small-pin",\n  "$schema": "https://opencode.ai/config.json"\n}\n',
   )
-  // The observer's saved lines were both inserted, in saved order.
+  // The observer's saved `model:` line was inserted (as the block's last line);
+  // the V1 `variant:` line was not preserved — the render is V2 frontmatter and
+  // opencode carries the variant inside the model reference.
   const afterObserver = readFileSync(observer, 'utf8')
-  assert.match(afterObserver, /bash: false\nmodel: custom\/observer-pin\$high\nvariant: max\n---/)
+  assert.match(afterObserver, /effect: deny\nmodel: custom\/observer-pin\$high\n---/)
+  assert.doesNotMatch(afterObserver, /^variant:/m)
   assert.match(afterObserver, /Visual analysis specialist/, 'the rest of the file is the fresh render')
 })
 
@@ -151,7 +156,7 @@ test('an added model: line survives --force even when the render carries none (i
   writeFileSync(observer, installed.replace('mode: subagent', 'mode: subagent\nmodel: custom/observer-pin$high'))
   assert.equal(run(['--force']).status, 0)
   const after = readFileSync(observer, 'utf8')
-  assert.match(after, /bash: false\nmodel: custom\/observer-pin\$high\n---/)
+  assert.match(after, /effect: deny\nmodel: custom\/observer-pin\$high\n---/)
   assert.match(after, /Visual analysis specialist/, 'the rest of the file is the fresh render')
 
   // The zcode backend's second key rides the same rule at its user-level

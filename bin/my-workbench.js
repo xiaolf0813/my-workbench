@@ -458,17 +458,19 @@ function walk(root, dir, onFile) {
 
 // The per-backend key inventories, verified against each backend's actual
 // data: zcode's thinking knob is `thoughtLevel`, a Claude Code subagent's only
-// reasoning knob is `effort`, and OpenCode's reasoning selector is `variant`.
+// reasoning knob is `effort`, and OpenCode carries its reasoning variant inside
+// the model reference itself (`provider/model#variant`), so `model:` is the
+// whole pin.
 const ZCODE_AGENT_KEYS = ["model", "thoughtLevel"];
 const CLAUDE_AGENT_KEYS = ["model", "effort"];
-const OPENCODE_AGENT_KEYS = ["model", "variant"];
+const OPENCODE_AGENT_KEYS = ["model"];
 
 /**
  * Which user-retuned model settings a destination file carries, if any: the
  * per-backend key lines of every `<...>/agents/<name>.md` destination, keyed
  * by the grandparent directory (`.zcode` → model + thoughtLevel; `.claude` →
  * model + effort; `.opencode`/`opencode` — the latter is the user-level
- * `~/.config/opencode/agents/` layout — → model + variant). The two JSON
+ * `~/.config/opencode/agents/` layout — → model). The two JSON
  * stubs (`.claude/settings.json`, `opencode.jsonc`) are NOT preservation
  * destinations — see the stub-ownership section below. DSH destinations match
  * nothing — their lane pins live in `<DSH_HOME>/settings.yaml`, which this
@@ -937,15 +939,18 @@ function installSolutions(configRoot, opts, counts) {
   );
 }
 
-/** True when the OpenCode app is installed (an `opencode` binary on PATH). */
+/**
+ * True when the OpenCode app is installed: an `opencode` binary sits on PATH
+ * and answers `--version` successfully. Like every prerequisite probe it
+ * demands exit 0, so a broken shim does not pass for an install.
+ */
 function opencodeInstalled() {
   // A shell only on Windows: npm's shims there are .cmd files, which Node
   // refuses to spawn without one; POSIX keeps the direct spawn.
-  const result = spawnSync("opencode", ["--version"], { stdio: "ignore", shell: process.platform === "win32" });
-  return !(result.error && result.error.code === "ENOENT");
+  return commandSucceeds("opencode", ["--version"], { shell: process.platform === "win32" });
 }
 
-/** A read-only prerequisite probe; unlike the OpenCode compatibility probe, capability must exit successfully. */
+/** A read-only prerequisite probe: the command must run and exit successfully. */
 function commandSucceeds(command, args, options = {}) {
   const result = spawnSync(command, args, { stdio: "ignore", windowsHide: true, ...options });
   return !result.error && result.status === 0;
@@ -2159,6 +2164,19 @@ function syncOpencodeAssets({ check }) {
       }
     });
   }
+  // `slots/` is assembled into the prompts themselves and is never a runtime
+  // output under .opencode/ — an older CLI version copied it here, so prune
+  // the stale directory instead of leaving files nothing reads.
+  const staleSlots = join(destRoot, "slots");
+  if (existsSync(staleSlots)) {
+    drifted++;
+    if (check) {
+      console.log("outdated: .opencode/slots/ (stale; slots are assembled into prompts, not deployed)");
+    } else {
+      rmSync(staleSlots, { recursive: true, force: true });
+      console.log("pruned: .opencode/slots/ (stale; slots are assembled into prompts, not deployed)");
+    }
+  }
   return drifted;
 }
 
@@ -2235,10 +2253,11 @@ async function lanePromptsProblem(rendered) {
 
 /**
  * `my-workbench assemble`: regenerate this repository's generated config from
- * the single-source agents/ tree: `.claude/agents/` (claude backend) and
- * `.opencode/` (opencode backend assets), and render the user-level dsh
- * composition and lane plugin so a broken placeholder fails here. `--check` only
- * verifies.
+ * the single-source agents/ tree: `.claude/agents/` and `.opencode/agents/`
+ * (the assembled agent markdown of both markdown backends), `.opencode/`
+ * backend assets, and the platform solutions; it also renders the user-level
+ * dsh composition and lane plugin so a broken placeholder fails here.
+ * `--check` only verifies.
  */
 async function assembleCommand({ check }) {
   const outDir = join(PKG_ROOT, BACKENDS.claude);
@@ -2275,6 +2294,30 @@ async function assembleCommand({ check }) {
     }
   }
   warnUnusedSlots("claude", usedSlots);
+
+  // The opencode backend assembles beside the claude one: both markdown
+  // backends render the same roster, so a source edit reaches .opencode/agents/
+  // through this command too — a target project's documented refresh loop
+  // (edit agents/ source, run assemble) covers its whole deployment.
+  const opencodeDir = join(PKG_ROOT, BACKENDS.opencode);
+  const opencodeBackend = loadBackend("opencode");
+  const opencodeSlots = new Set();
+  for (const name of Object.keys(opencodeBackend.agents).sort()) {
+    const dest = join(opencodeDir, `${name}.md`);
+    const content = assembleAgent("opencode", name, opencodeSlots);
+    if (check) {
+      const current = existsSync(dest) ? readFileSync(dest, "utf8") : null;
+      if (current !== content) {
+        console.log(`outdated: .opencode/agents/${name}.md`);
+        outdated++;
+      }
+    } else {
+      mkdirSync(dirname(dest), { recursive: true });
+      writeFileSync(dest, content);
+      console.log(`assembled: .opencode/agents/${name}.md`);
+    }
+  }
+  warnUnusedSlots("opencode", opencodeSlots);
 
   outdated += syncOpencodeAssets({ check });
   outdated += syncSolutions({ check });

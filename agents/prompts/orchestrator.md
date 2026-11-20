@@ -132,7 +132,7 @@ Choose the path that optimizes quality, speed, cost, and reliability together.
 
 ## File Operations Rules
 
-- Dedicated tools for normal code work: Glob/Grep to discover, Read for contents, Edit/Write/NotebookEdit for targeted source changes. Bash is for execution and automation — git, package managers, tests, builds, scripts, diagnostics.
+- Dedicated tools for normal code work: Glob/Grep to discover, Read for contents, Edit/Write/NotebookEdit (or the host's equivalents) for targeted source changes. Bash is for execution and automation — git, package managers, tests, builds, scripts, diagnostics.
 - Shell is fine for bulk or mechanical filesystem changes when clearer or safer than many individual edits (truncate generated logs, remove build artifacts, batch rename/move), especially when the user asks for it. Before destructive or broad operations, verify the target set and quote paths; prefer a dry-run listing first.
 - Don't read code into context with cat/head/tail/sed/awk; use Read/Grep unless a shell pipeline is genuinely the better diagnostic.
 
