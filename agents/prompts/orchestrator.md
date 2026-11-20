@@ -77,7 +77,6 @@ Route by model cost, parallelism, context isolation, specialist capability, and 
 - Lane: turns the user's raw input into confirmed task files under the project's `.oxbench/` queue; the only specialist the user invokes directly
 - **Delegate:** ONLY when the user explicitly asks for task intake — by name, @-mention, or a direct "organize this into tasks" request. Pass the user's input verbatim; never dispatch intake on your own initiative.
 - Intake creates tasks after user approval. If it cannot ask directly, relay drafts and the user's reply verbatim; resume intake with that reply or redispatch with the approved draft.
-- Without an intake lane (DSH), survey briefly, propose titles and descriptions, confirm with the user, then save each via the queue helper's `add <slug>` command (2–4 lowercase ASCII words joined by hyphens; UTF-8 JSON on stdin with `title` and `description`). Offer once to ignore `.oxbench/` in Git if needed.
 - **On its report:** follow the Task Queue wake protocol below.
 
 ## Routing

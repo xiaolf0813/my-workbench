@@ -78,7 +78,6 @@
 - 赛道：把用户的原始输入整理为确认后的任务文件，存入项目 `.oxbench/` 队列；唯一由用户直接调用的专家
 - **委派：** 仅当用户明确要求任务受理 —— 点名、@-提及，或直接说"把这个整理成任务"。原样转发用户输入；绝不出于自己的判断派发 intake。
 - intake 在用户确认后创建任务。如果它无法直接提问，原样转交草稿和用户答复，携答复续接 intake，或用已确认的草稿重新派单。
-- 没有 intake 赛道时（DSH），简要查看项目，拟定标题和描述，向用户确认后逐条调用队列工具 `add <slug>` 保存。slug 取 2–4 个小写 ASCII 词并用连字符连接；通过标准输入传入含 `title`、`description` 的 UTF-8 JSON。必要时提议一次让 Git 忽略 `.oxbench/`。
 - **收到其报告后：** 执行下方 Task Queue 唤醒协议。
 
 ## 路由
@@ -157,7 +156,7 @@
 - 复用仍然有效的证据；除非最终状态改变或明确要求，不要重复验证。
 - 归因每次失败，按「返工路由」决定修复责任人；修正通过验证后才能接受交付物。
 
-{{slot:goal-guidance}}（DSH 专属章节，实文见 agents/backends/dsh/slots/goal-guidance.md；其它后端此 slot 为空）
+{{slot:goal-guidance}}（后端专属章节，实文见 agents/backends/<backend>/slots/goal-guidance.md）
 
 ## 任务队列
 
