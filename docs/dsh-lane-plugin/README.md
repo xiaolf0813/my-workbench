@@ -1,40 +1,71 @@
-# DSH lane plugin — design record
+# DSH target — design record
 
-Internal notes for the `--dsh` lane plugin. **Not shipped**: `package.json`'s `files` whitelist covers `bin/`, `agents/prompts/` and `agents/backends/` only, so everything here stays in the repository.
+Internal notes for `my-workbench --dsh`. **Not shipped**: `package.json`'s `files` whitelist covers `bin/`, `agents/prompts/`, `agents/backends/` and `agents/solutions/`, so everything here stays in the repository.
 
-| File | What it is |
+## What DSH 0.2.x actually reads
+
+The target was rewritten against DSH `0.2.1-rc.2`…`0.2.x` after the old design (an `<DSH_HOME>/.agent-presets/<id>/` directory with `preset.yml` + `agent.cordis.yml`) stopped working: that directory is not read by any 0.2.x code path (`@deepseek-ai/dsh-agent-preset`'s `dsh-doc` reference states it outright). Four facts shape the current shape:
+
+| Fact | Evidence in the installed harness |
 | --- | --- |
-| `FEASIBILITY.md` | The investigation behind the design: the plugin-package contract, how client halves are discovered and served, how `name:` resolves for a preset row versus a profile row, the settings-persistence contract, and how prompts ship — each claim with a file:line citation from the installed deployment. |
-| `PLAN.md` | The chosen form (preset-mounted host half + profile-mounted settings page), package layout, install/verify/rollback steps, variants, and the decisions that were left to the user. Phase-3 amendment at the end. |
-| `UPSTREAM-ISSUE.md` | Draft report for the upstream stale-remount leak: the minimal reproduction, the root cause with file:line citations, and how to post it (upstream Issues are off; Discussions Q&A is the channel). |
+| A preset is an ordinary Loader row: `@deepseek-ai/dsh-agent-preset` with `config: { id, name, description, order, plugins }` | `@deepseek-ai/dsh-agent-preset/lib/index.js` (`Config`, `agentPresets.register`); the shipped `@deepseek-ai/dsh-web-app/presets/*.patch.yml` |
+| A preset child row's `name` resolves from the **declaring tree's** base URL, not from a preset directory | `dsh-agent-preset-registry`: `mountPreset` → `prepareProfileEntries(ctx, plugins, ctx.baseUrl)` / `scope.ctx.extend({ baseUrl })` |
+| A subagent's identity and tools come from the preset it mounts; `SubagentStartRequest` has neither `persona` nor `toolFilter` | `@deepseek-ai/dsh-subagent` README ("Child presets") and the generated `SubagentStartRequest` type; upgrade guide `v0.2.1-alpha.1/subagent-preset-composition` |
+| The home-level patch layer `$DSH_HOME/cordis.patch.yml` is applied after every profile's own patch, for every profile | `@deepseek-ai/dsh-app-boot`: `readProfilePatches` concatenates the profile patch and `join(context.home, 'cordis.patch.yml')`; `profile-boot` passes `home: resolveDshHome()`; Desktop boots through the same `runProfile` |
 
-The shipped code lives beside the composition it belongs to: `agents/backends/dsh/lane-plugin/` (host half) and `agents/backends/dsh/lane-plugin-ui/` (settings page).
+The home layer is what makes one install serve `dsh web`, DSH Desktop, and any other profile: preset declarations are inert until a session selects one, so a home block adds no tool to any other preset. (A profile that does not mount the preset registry leaves the declaration row pending, which is harmless.)
 
-## Runtime mechanics that constrain edits
+## What the install writes
 
-Two deployment behaviours are not visible in the source and routinely surprise a change to the lane plugin.
+```
+<DSH_HOME>/cordis.patch.yml                     # one marked block: - insert: 8 preset rows
+<DSH_HOME>/my-workbench/presets.generated.patch.yml   # the same block, for review/hand-merge
+<DSH_HOME>/my-workbench/lane-plugin/package.json      # name my-workbench-lanes, version rendered
+<DSH_HOME>/my-workbench/lane-plugin/src/index.js      # the 7 tools; imports only its siblings
+<DSH_HOME>/my-workbench/lane-plugin/src/roster.generated.js
+<DSH_HOME>/my-workbench/lane-plugin/src/prompts.generated.js
+<DSH_HOME>/my-workbench/my-workbench-solutions/       # platform guides
+```
 
-**Reinstalling re-mounts without disposing the previous mount.** `ensureStanding` (`nm/dsh-agent-presets/lib/index.js:1768-1776`) drops a standing mount whose composition stamp changed and mounts a fresh one *without* disposing the old scope, so the previous `my-workbench-lanes` registration is still live when the new `apply()` runs. `settings.register()` therefore throws on the taken name — the shipped host half catches that, logs it, and reads through the surviving registration, whose schema and base are identical. Removing that tolerance makes `my-workbench --dsh --force` wedge the preset until a DSH restart.
+Eight presets: `my-workbench` (the orchestrator, order from `preset.json`, currently 5) and `my-workbench-<lane>` for each of the seven `lanes.json` records (order 106+), which exist only to carry a lane's persona and tool set and are selected only by the lane tools. They necessarily appear in the agent-preset picker; their names say `MyWorkbench · <lane>` and their descriptions say not to select them.
 
-**A host-half change needs a full DSH restart.** The preset row is imported once per process: Node's ESM cache holds the first import, and the loader re-imports the same specifier when it re-mounts a stale composition. So `--dsh --force` alone leaves a running DSH on the previous host code. The settings page is a browser module instead — a page reload picks up a changed bundle.
+## Why a custom plugin still exists
 
-## Where this sits against DSH's own plugin contract
+DSH's stock `@deepseek-ai/dsh-tool-subagent` is fire-and-forget: it returns `started subagent <name>` and the report arrives as a completion notice. The whole prompt architecture (orchestrator `Dispatch` rules, `slots/dispatch.md`, queue execution) is synchronous — dispatch lanes, wait for every report, reconcile in the same turn. The plugin keeps that contract by calling `ctx.subagents.startActivation()` directly: `delivery: 'parent'` for a background run, `delivery: 'caller'` plus `await activation.result` for `run_in_background: false`.
 
-Verified against the installed harness (`@deepseek-ai/dsh-agent-presets@0.1.5-rc.3`, `dsh-client-modules`, `dsh-plugin-package-inventory-deepseek`). The four load-bearing pieces are the documented contract, not conventions this repo invented:
+It also smooths over one released API difference: `0.2.1-rc.2` takes `{ provider, label, request: {...}, signal, delivery }`, and the next release flattens the task options onto the spec. The plugin tries the flat shape first, falls back to the nested one on a `TypeError`, and remembers the answer for the process. That is why the supported floor is `0.2.1-rc.2` rather than a later release.
 
-| Contract | Evidence in the deployment | Our form |
-| --- | --- | --- |
-| A user preset is a directory under `<DSH_HOME>/.agent-presets/` whose composition file is `agent.cordis.yml`, with optional `preset.yml` display metadata | `dsh-agent-presets/lib/index.js:181` (`COMPOSITION_FILE`), `:36` (`METADATA_FILE`), `:195` (`USER_PRESET_DIR`); the shipped presets are static files this package publishes as data (`package.json` `files: ["presets"]`), not plugins | identical |
-| A host plugin is an ESM module exporting `name`/`inject`/`apply`/`Config` | `dsh-tool-jobs/lib/index.js:15-26,353` | identical |
-| A client half is discovered only on a **profile** Loader entry, needs `dsh.client.platform === "web"` + `exports["./client"]`, and is a classic script registering through `window.__ModuleLoader__.load` whose `factory(require)` may only require the shell's nine seed modules | `dsh-client-modules/lib/index.js:648-655`, `:775-781`, `lib/client.js:83-101` | identical |
-| Settings persist through `ctx.settings.register(ns, schema, { base })` into `<DSH_HOME>/settings.yaml` | `dsh-settings/lib/index.js:281-315`, `dsh-settings-file/lib/index.js:32` | identical |
+## Why the plugin has no package imports
 
-**Deliberate deviations, and their cost.** These are choices with reasons, not oversights; each is the price of the project's "no downloads, no dependency command" invariant.
+A plugin mounted from a `file:` URL under `<DSH_HOME>` cannot resolve a harness package by bare name, and the earlier design solved that by baking the absolute path of one installation's `dsh-tools` + `schemastery` into the installed module. That tied the install to one DSH installation (this machine had a stale link farm and a second, older global install) and forced a `peerDependencies` range that 0.2.x's compatibility preflight would now reject (`^0.1.5-rc.2` does not match 0.2.x, and a prerelease DSH version cannot be expressed as a semver range).
 
-1. **The client half is mounted by a `cordis.patch.yml` row instead of being installed with `dsh plugin --profile <p> add <spec>`.** DSH has no manifest field for "this package contributes a client half to whatever mounts it" — a client half is only ever found by scanning the profile Loader's own entries — so a profile row is the only way to reach the browser from a preset-owned feature. `dsh plugin` is a pnpm forwarder that also writes the profile's `package.json` and `pnpm-lock.yaml` (`dsh/lib/plugin-Ddi42qoW.js:96-113`), which would break that invariant. **Cost:** the plugin never appears in DSH's bundle list, and its only trace in DSH's own reporting is the `{name, version}` package inventory described below.
-2. **The host half's two imports are baked as absolute `file:` URLs at install time instead of declared as dependencies.** A plugin under `$DSH_HOME/.agent-presets/` cannot resolve a package by bare name — Node's upward walk from there reaches no package carrying it. **Cost:** the installed `src/index.js` is machine-specific, so re-run `--dsh` after DSH is reinstalled or its launcher moves.
-3. **Manifests are rendered, not authored.** `--dsh` writes its own version into both installed `package.json` files and into the browser half's header comment, because `dsh_plugin_packages` (which follows the official DeepSeek request path) reports each active package as `{name, version}` from its nearest manifest, while a client package has no manifest field the shell reads at all. The source copies hold the same version as a placeholder so the two can be compared: `assemble --check` fails on a drift, which is the only thing keeping a release from shipping a stale literal.
+The current module imports only `./roster.generated.js` and `./prompts.generated.js`, registers plain `ToolDefinition` objects (the registry accepts a raw definition and projects `parameters` as model-facing JSON Schema), and reads its row config as-is. No dependency command ever runs, nothing lands in a `node_modules`, and the manifest declares no dependency or engine range, so the preflight has nothing to refuse.
 
-**Identity.** One name per artifact, in four places: the `LANE_HOST_PACKAGE`/`LANE_UI_PACKAGE` constants in `bin/my-workbench.js`, the source `package.json` `name`, the bundle's module `id`, and the `settings.section` occupant `id`. The occupant id was once the *host* half's settings namespace (`my-workbench-lanes`), which made one nav entry appear to belong to the other package; `assemble --check` now fails if any of the four disagree.
+## Per-lane routes
 
-**Known operational constraint.** DSH refuses profile changes while DSH Desktop runs, and a live process keeps the composition it booted with — so an install against a live DSH lands on disk without taking effect. `--dsh` reads the process table and warns before writing (`dshRunning()`); the `DSH_PROFILE_PROBE` override exists so the test suite can exercise every answer without a live DSH.
+`<DSH_HOME>/my-workbench-lanes.json` is the user's file:
+
+```json
+{ "explorer": { "provider": "deepseek-account", "model": "deepseek-flash", "reasoningEffort": "max" },
+  "fixer":   { "provider": "", "model": "", "reasoningEffort": "" } }
+```
+
+`--dsh` validates it (known lane keys only, string fields only), renders it into the lane row's `pins`, and never writes the file. Empty strings mean inherit; a lane with no usable pin inherits the session's route. The old settings page is gone: DSH 0.2.x's settings service projects **profile entry** Config fields only, a plugin can no longer register its own persisted namespace, and a preset-scoped plugin is not a profile root entry — so there is no supported way for a page to own pins that a preset-scoped plugin reads. This file is the replacement, and DSH's own Subagent settings still govern which routes a session may use.
+
+## Runtime gate
+
+`bin/dsh-version.js` reads every installation it can find — `DSH_INSTALL_DIR` (set inside a DSH session), each `dsh` launcher on `PATH`, and `<DSH_HOME>/profiles/node_modules/@deepseek-ai/dsh` — and the CLI refuses to write when none is inside `>= 0.2.1-rc.2 < 0.3.0`, warning when only some are. "No installation found" is a warning, not a refusal: a Desktop-only machine may expose no launcher, and the declarations are inert if the runtime turns out to be wrong. The ceiling is a release to stop before, so a `0.3.0-*` prerelease is refused even though semver orders it below `0.3.0`.
+
+## Migration and known costs
+
+- `--dsh` removes the pre-0.2 per-profile settings-page row (a Loader row naming the deleted `lane-plugin-ui` package would fail that profile's composition) and deletes `<DSH_HOME>/.agent-presets/my-workbench/`.
+- The managed block is ~115 KB: eight full preset compositions, dominated by the eight personas (the orchestrator prompt plus seven lane prompts with the disciplines). DSH parses it once at composition and again on patch reload; there is no way to share a prompt between two presets, because each preset's `plugins` is its complete list.
+- `--dsh --force` overwrites the plugin module, its generated modules and the solution guides; a plain re-run refreshes only the version-stamped files and renders the block (which can still change when the pin file changes). A changed plugin module needs a **DSH restart**: the module is imported once per process.
+- `no downloads` is intact: no `plugin` entry is pinned, no package is installed, nothing is executed.
+
+## Verifying a change
+
+1. `node bin/my-workbench.js assemble --check` — renders the declarations, checks the plugin's import surface/manifest, syntax-checks the module.
+2. `npm test` — the DSH suite installs into a temp home, validates the block shape, idempotency, pins, migration, the version gate, and the installed plugin against a fake context (both activation shapes, background/foreground, abort, error paths).
+3. Against a real runtime (read-only): `DSH_HOME=<temp> dsh --profile <name> --from-default-profile web --dump-config` must show the eight `preset-my-workbench*` rows and the `lanes` row's `file:` URL.
+4. In a live DSH: restart, pick **MyWorkbench** in a new session, confirm the seven `subagent_*` tools, and run one lane with `run_in_background: false` to see the final report in the same turn.

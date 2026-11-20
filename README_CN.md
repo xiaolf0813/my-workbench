@@ -18,7 +18,7 @@ npx my-workbench
 - **`.claude/`** — 同一批专家智能体的 Claude Code 原生子智能体形态（`.claude/agents/*.md`）。所有目标中安装内容完全一致。
 - **`~/.zcode/`** — 可选的 ZCode 支持（`--zcode`）：用户级全局指令，外加各专家子智能体作为 ZCode 用户级 agents（`~/.zcode/agents/*.md`）。不在项目内写入任何内容。
 - **`~/.codex/`** — 可选的本地 ChatGPT / Codex 支持（`--chatgpt` 或 `--codex`）：全局短入口、编排策略、十个原生 TOML 子智能体、方案指南及内置的 **Subagent Config** 插件；支持 `CODEX_HOME`。
-- **`~/.dsh/`** — 可选的 DeepSeek Harness 支持（`--dsh`）：在 `<DSH_HOME>/.agent-presets/my-workbench/` 安装一个 agent preset — orchestrator 提示词作为该 preset 的 persona，外加拥有七个具名专家工具与「MyWorkbench 赛道模型」设置页的打包 **lane 插件**。工具在 preset 作用域内；设置页需要在每个 DSH profile（Web GUI 的 `web`、桌面版的 `desktop`）各写一行惰性行，那是 profile 层的全部足迹。不在项目内写入任何内容。
+- **`~/.dsh/`** — 可选的 DeepSeek Harness 支持（`--dsh`）：在 `<DSH_HOME>/cordis.patch.yml` 的带标记块中声明**八个 agent preset** —— orchestrator 的 **MyWorkbench** 加每位专家一个子 preset（人格与受限工具集）—— 并在 `<DSH_HOME>/my-workbench/lane-plugin/` 安装拥有七个具名委派工具的打包 **lane 插件**。home 级补丁服务所有 DSH profile（`dsh web`、DSH Desktop 等），无需按 profile 写入；按赛道的模型固定值放在 `<DSH_HOME>/my-workbench-lanes.json`。不在项目内写入任何内容。
 
 orchestrator 提示词还内置一条持久任务队列：`intake` 专家 —— 仅当你明确点名或 @-提及时才被调用 —— 把你的原始输入整理为确认后的任务文件，存入项目的 `.oxbench/` 目录；orchestrator 在完成工作、空闲或被唤醒时展示该队列。你选一条任务执行，或（在带定时器的平台上，即 ZCode）两分钟后自动开始第一条；每条任务都在独立的新会话中执行，且只有 orchestrator 验收通过后才标记为已完成。
 
@@ -36,8 +36,7 @@ npx my-workbench --user             # 用户级安装：~/.config/opencode/ + ~/
 npx my-workbench --force            # 覆盖已存在的文件
 npx my-workbench --dry-run          # 预览，不写入
 npx my-workbench --zcode            # 仅 ZCode 用户级安装（~/.zcode）
-npx my-workbench --dsh              # 仅 DSH agent preset（~/.dsh）
-npx my-workbench --dsh --dsh-profile desktop  # 仅写桌面版 profile 的页面行
+npx my-workbench --dsh              # DSH presets + lane 插件（~/.dsh）
 npx my-workbench assemble [--check] # 本仓库内：重新生成 .claude/agents/ 和 .opencode/
 ```
 
@@ -80,85 +79,63 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 ## DSH 目标
 
-`npx my-workbench --dsh` 在用户级安装一个 [DeepSeek Harness](https://www.npmjs.com/package/@deepseek-ai/dsh) **agent preset**：`<DSH_HOME>/.agent-presets/my-workbench/`（`DSH_HOME`，否则 `~/.dsh`）。DSH 从其 home 读取 presets，因此项目内无需安装任何内容。
+`npx my-workbench --dsh` 在用户级安装 [DeepSeek Harness](https://www.npmjs.com/package/@deepseek-ai/dsh) 的 agent 方案（`DSH_HOME`，否则 `~/.dsh`）。DSH 只从「声明」读取 preset —— 一条 `@deepseek-ai/dsh-agent-preset` 行，其 `config.plugins` 就是该 preset 的插件列表 —— 所以安装内容是 **home 级补丁层里的 YAML 加一个插件模块**，项目内不写任何东西：
 
-- `preset.yml` — preset 选择器中显示的名称与描述。
-- `agent.cordis.yml` — 组合文件：orchestrator 提示词作为该 preset 的 persona、完整的标准工具集，以及**一行**指向 lane 插件。
-- `lane-plugin/` — preset 挂载的打包插件。它拥有七个专家工具与各自的提示词，因此可以为每条赛道固定模型路由并持久保存。
-- `lane-plugin-ui/` — 设置页面，单独打包，由**一行惰性 profile 行**挂载（见下）。这就是 DSH 目标在 profile 层的全部足迹。
-
-**lane 插件目录结构**
+- **`<DSH_HOME>/cordis.patch.yml`** —— 一个带标记的托管块，声明八个 preset：orchestrator 的 **MyWorkbench**（order 5），以及每位专家一个子 preset（`my-workbench-explorer` … `my-workbench-improver`，order 106 起），后者承载该赛道的人格与受限工具集。DSH 在**每个** profile 自己的补丁之后应用 home 层，所以这一个块同时服务 `dsh web`、DSH Desktop 和机器上任何其他 profile —— 不需要按 profile 写入，也不需要猜 profile 名。
+- **`<DSH_HOME>/my-workbench/lane-plugin/`** —— 由 orchestrator preset 挂载的打包插件。它拥有七个委派工具（`subagent_explorer` … `subagent_improver`），每个工具都在 `my-workbench-<lane>` 子 preset 下启动子 agent，因此人格与只读限制来自子 preset —— DSH 0.2.x 没有逐次请求的 `persona`/`toolFilter`。
+- **`<DSH_HOME>/my-workbench/my-workbench-solutions/`** —— 平台方案指南，与其他后端一致。
+- **`<DSH_HOME>/my-workbench/presets.generated.patch.yml`** —— 渲染块的副本：便于审阅、diff，或在 `cordis.patch.yml` 不是纯补丁列表时手工合并。
+- **`<DSH_HOME>/my-workbench-lanes.json`** —— 可选的按赛道路由固定（见下）。CLI 只读取，从不改写。
 
 ```
-lane-plugin/                        # preset 行：./lane-plugin/src/index.js
-├── package.json                    # 名称 my-workbench-lanes（仅 Host 半，不含浏览器半）
-├── src/index.js                    # Host 半：7 个委派工具 + 设置命名空间
-├── src/roster.generated.js         # Host 赛道字段，由 dsh/lanes.json 渲染而来
-└── src/prompts.generated.js        # 7 条提示词，由 agents/prompts/*.md 渲染而来
-
-lane-plugin-ui/                     # profile 行：file:///…/lane-plugin-ui/src/index.js
-├── package.json                    # 名称 my-workbench-lanes-ui，exports "./client"，dsh.client.platform "web"
-├── src/index.js                    # 惰性 Host 半：什么都不注册
-└── lib/client.js                   # 设置页面，显示标签由 dsh/lanes.json 渲染而来
+<DSH_HOME>/
+├── cordis.patch.yml                            # 托管 preset 块（一个 insert，八行）
+├── my-workbench-lanes.json                     # 可选：按赛道的 provider/model/reasoningEffort
+└── my-workbench/
+    ├── presets.generated.patch.yml             # 渲染块的副本
+    ├── lane-plugin/
+    │   ├── package.json                        # 包名 my-workbench-lanes，version 在安装时渲染
+    │   └── src/index.js                        # 七个工具：不 import 任何包，无需依赖命令
+    │   └── src/roster.generated.js             # 由 dsh/lanes.json 渲染的赛道键/工具名/标签
+    │   └── src/prompts.generated.js            # 每条赛道一份人格，来自 agents/prompts/*.md
+    └── my-workbench-solutions/                 # 平台 GUI 测试指南
 ```
 
-- Host 行的 `name` 是**相对路径**（`./lane-plugin/src/index.js`）：预设行的裸包名解析基准是 host 组合的位置而非 preset 目录，因此随组合一起分发的包无法被找到。
-- Host 半的两个部署依赖（`@deepseek-ai/dsh-tools`、`@deepseek-ai/schemastery`）在**安装时**被解析为绝对 `file:` URL 写入其 `src/index.js`（从你的 DSH home 解析）。因此永远不需要任何依赖安装命令。
-- 该插件只能由这一个 preset 引用：它要注册一个设置命名空间，而 DSH 拒绝重复注册，所以第二个 preset 挂载同一行会直接失败。
-- **两份已安装的 manifest 和页面文件头都会写明产出它们的版本。** DSH 会把每个活跃插件包以 `{name, version}` 的形式（读取最近的 manifest）上报给模型服务方，因此 `package.json` 的 `version` 不是手写的，而是在安装时由 CLI 自己的版本渲染：`my-workbench@0.14.0` 安装出的就是 `my-workbench-lanes@0.14.0`。浏览器半没有 shell 会读取的 manifest 字段——boot 图条目只接受 `id/url/rev/inject/external/immediately`——所以它的版本写在文件头部注释里。若源码 manifest 的 `version` 与 CLI 版本不一致，`assemble --check` 会直接失败，从而保证发布时两者同步。
-- 这**三个带版本戳的文件每次运行都会刷新**（与版本戳文件同理），否则「已存在就跳过」会把最早部署的那个版本永久冻住：两份 `package.json` 与 `lane-plugin-ui/lib/client.js`。它们不需要 `--force`，且在内容未变时刷新是逐字节相同的，对磁盘而言等于无操作。其余文件仍保持「除非 `--force` 否则跳过」的语义。
+**为什么改成声明。** 旧的 `<DSH_HOME>/.agent-presets/<id>/` 目录格式（`preset.yml` + `agent.cordis.yml`）不再被任何 DSH 0.2.x 代码路径读取：preset 现在是普通的 Loader 行，而 preset 的子行从「声明它的那棵树」解析，因此 lane 插件行必须用**绝对 `file:` URL**，而不是相对 preset 目录的路径。`--dsh` 会删除旧版本残留的目录，并从仍带旧行的每个 profile 中移除那行设置页行（指向缺失模块的 Loader 行会让该 profile 组合失败）。
 
-**为什么每个 profile 各需要一行（以及它的代价）**
-
-DSH 发现浏览器（client）插件半的方式是扫描 **profile loader 自己的条目**——agent preset 是挂在某个 scope 下的独立 loader 树，因此 preset 内的行永远不会被扫描，页面不会被下发，`clientModules.clientPath(...)` 始终是 `undefined`。Host 半能正常挂载、设置命名空间也能注册，只有「页面」需要 profile 层。而**一个 DSH 进程只组合一个 profile**，所以这一行是「每个 profile 一行」而不是「每个 DSH home 一行」：`--dsh` 会在**它能找到的每个 profile** 的 `cordis.patch.yml` 中各维护**一个带标记的托管块**，每块只有一行惰性行：
-
-```yaml
-# >>> my-workbench lane settings page (managed block - regenerated by `my-workbench --dsh`) >>>
-- insert:
-    - id: my-workbench-lanes-ui
-      name: 'file:///…/.agent-presets/my-workbench/lane-plugin-ui/src/index.js'
-# <<< my-workbench lane settings page <<<
-```
-
-| profile | 谁在组合它 | 是否维护 |
-| --- | --- | --- |
-| `web` | `dsh web`（Web GUI） | 维护 |
-| `desktop` | DSH Desktop（桌面版） | 维护 |
-| 其它任意名字 | 其它 DSH 客户端或安装方式 | 维护 —— 不假设任何名字 |
-| `node_modules` | 谁都不是：它是 DSH 的共享依赖根 | 永不维护 |
-
-这里**不假设任何 profile 名字**，因为名字本身就不固定：DSH Desktop 用的是它自己命名的 profile（本文所据的机器上是 `desktop`），一台机器上也可能存在本 CLI 从没见过的 profile。因此判定改为结构性的——`<DSH_HOME>/profiles/` 下任何带有 `cordis.yml`（每个 profile 都有的根条目表）或 `cordis.patch.yml`（本 CLI 写入的用户补丁层）的目录都算 profile——于是桌面版和 Web GUI 由同一条规则覆盖。用 `--dsh-profile <name>` 可以只维护指定的那一个 profile。
-
-- 每次运行都**就地替换**该块；你自己的行与注释永远不会被改动或重排。`--dry-run` 不写任何东西。
-- 该行是惰性的：`lane-plugin-ui` **完全不声明依赖**，不注册任何工具、提示词段落或服务。不改动任何 bundle 层，也不向任何 `node_modules` 安装东西。
-- 页面在 `apply()` 中**同步注册**，由组件自己决定显示什么：`my-workbench-lanes` 命名空间已注册时显示可操作控件，否则显示惰性占位。最初「先 await 门禁再注册」的写法会让 shell 账本里的条目变成 `active: false`（其它分区都是 `active: true`），面板渲染为空白，所以判断移进了组件。
-- 因此从未挂载过 MyWorkbench 的部署会看到**一个没有控件、没有写入路径**的导航条目；一旦任何 MyWorkbench 会话挂载过 host 半（命名空间是进程级的），同一个页面在任何会话里都是可用的 —— 它编辑的固定值只被 MyWorkbench 会话消费。
-- 组件在每次打开该分区时重新读取命名空间，所以**刷新一次页面**只是为了加载/更新浏览器 bundle。
-- **改动 lane 插件的 Host 半需要重启 DSH，只重装不够。** preset 行每个进程只 import 一次 —— Node 的 ESM 缓存，而且 DSH 重挂载 stale 组合时用的仍是**同一个 specifier** —— 所以 `--dsh --force` 之后运行中的进程还是旧代码。更麻烦的是：stale 挂载对设置命名空间的注册**永远不会被释放**（`ensureStanding` 丢弃挂载时没有 dispose 它的 scope），因此"无条件注册"的旧代码会让下一次挂载直接失败：`settings namespace "my-workbench-lanes" is already registered`。现在随包发布的 Host 半会容忍这种重复注册、直接沿用存活的那份注册；这个容忍逻辑在**下次 DSH 重启**后生效。设置页面属于浏览器模块，只需刷新页面。
-- 若 `<DSH_HOME>/profiles/` 下没有任何目录是 profile（都没有 `cordis.yml` 或 `cordis.patch.yml`），则不写入任何文件，并打印出可直接粘贴的那一行 —— CLI 不会去猜目录名。
-- **写入之前会先报告 DSH 是否正在运行。** 桌面版运行期间 DSH 会拒绝改动 profile，而运行中的进程会继续使用它启动时组合好的内容，因此对着运行中的 DSH 安装虽然会落盘却不生效。CLI 会先读取进程表并给出提示（并列出匹配到的进程）；它不会阻止写入，因为此时刷新 preset 目录本身仍然有意义。在无法读取进程表的平台上会打印同样的提示 —— 漏报的代价是一次令人困惑的「没生效」，误报的代价只是一句话。
+**一个插件，零包依赖。** `lane-plugin/src/index.js` 只 import 同目录两个生成模块。挂在 `<DSH_HOME>` 下 `file:` URL 的插件无法按裸包名解析 harness 包，而把某个安装的 `dsh-tools` 绝对路径烧进文件又会把部署绑死到那个安装与版本。因此工具定义是普通的 `ToolDefinition` 对象 —— 注册表接受裸定义并把 `parameters` 投影为模型可见的 JSON Schema —— 行配置也按原样读取。manifest **不声明**任何依赖，所以不跑依赖命令、不向任何 `node_modules` 安装东西，DSH 的插件兼容性预检也没有可拒绝的内容；`version` 在安装时由 CLI 自己的版本渲染，DSH 的插件清单因此能报告产出该副本的发布版本，`assemble --check` 会在作者占位版本漂移时失败。
 
 **委派与按赛道路由**
 
-- 委派是原生机制。模型调用 `subagent_explorer`、`subagent_librarian`、`subagent_oracle`、`subagent_designer`、`subagent_fixer`、`subagent_observer`、`subagent_improver`，而不是在 Task 工具里填写子智能体类型。工具 API 支持后台运行，但 orchestrator 显式设置 `run_in_background: false` 并等待全部已派发任务返回。若提供可续用的子 agent id，可用 `send_message` 续用；id 本身不算最终报告。
-- 每个工具携带该专家的提示词（由 `agents/prompts/*.md` 渲染），并按其提示词的约束收紧子 agent 的工具：只读赛道失去 `write`/`edit`，`observer` 与 `improver` 还失去 shell，所有赛道都失去委派工具，因此赛道无法再派生子赛道。
-- **按赛道固定模型与推理等级。** 打开 DSH Web GUI 的设置页 **MyWorkbench 赛道模型**：每条赛道一行，左侧选模型、右侧选思考级别，另有 应用 / 全部改回继承 / 刷新模型目录。写入落在插件自己的设置命名空间并持久化到 `<DSH_HOME>/settings.yaml`，重启 DSH 后依然有效。全新安装由作为命名空间 `base` 层的推荐映射初始化；把某条赛道留作「继承会话模型」即可沿用当前会话的路由。
-- 仅按需启用（`--dsh` 或 `dsh`）— 默认目标仍是 `.opencode/` + `.claude/`。要求已存在 DSH home，不下载任何东西，已存在的文件除非 `--force` 否则跳过。新开一个 DSH 会话即可选用该 preset。
+- 模型调用 `subagent_explorer`、`subagent_librarian`、`subagent_oracle`、`subagent_designer`、`subagent_fixer`、`subagent_observer` 或 `subagent_improver`，而不是在 Task 工具里写 subagent_type。不传 `run_in_background` 时工具启动子 agent 并返回 `started subagent <name> — …`；orchestrator 明确设置 `run_in_background: false`，在同一轮里等待最终报告。
+- 每个工具都在对应赛道的子 preset 下启动子 agent：专家提示词、写入/shell 限制、且完全没有委派工具（赛道是叶子）。插件本身不授予任何权限 —— 组合就是限制。
+- `send_message` / `list_agents` / `interrupt_agent` / `wait_agent` 来自 DSH 的 subagent-control 行，在 orchestrator preset 中挂载一次。
+- **按赛道固定模型与推理等级**写在 `<DSH_HOME>/my-workbench-lanes.json`，CLI 会把它渲染进 lane 插件的行配置：
+
+  ```json
+  { "explorer": { "provider": "deepseek-account", "model": "deepseek-flash", "reasoningEffort": "max" },
+    "fixer":   { "provider": "", "model": "", "reasoningEffort": "" } }
+  ```
+
+  空字符串表示继承。没有可用固定值的赛道继承会话路由，这也是全新安装的默认。改完文件重新运行 `--dsh`；DSH 自带的 Subagent 设置页仍决定一个会话可用的路由清单。
+
+**运行时窗口与失败模式**
+
+- 支持的 DSH：**`>= 0.2.1-rc.2 < 0.3.0`**。CLI 会读取能找到的每个安装 —— `DSH_INSTALL_DIR`、`PATH` 上的每个 `dsh` 启动器、以及 `<DSH_HOME>/profiles/node_modules` —— 当没有任何探测到的安装在窗口内时**拒绝写入**（preset 永远不会被读取），只有部分在窗口内时给出警告。完全无法判定版本时警告并安装。
+- 安装是幂等的：托管块原地替换，你自己的行与注释永远不会被动到，重跑逐字节相同。`--dry-run` 不写任何东西。
+- 写之前会报告运行中的 DSH。DSH 会重载 home 补丁，但 lane 插件模块每个进程只 import 一次，因此改动插件后请**重启 DSH**；只是新增或修改 preset 时新开会话即可。
+- 桌面版运行期间 DSH 会拒绝 profile 改动，安装时请关闭 DSH Desktop；CLI 检测到活进程时会给出提示。
+- 当 `cordis.patch.yml` 不是纯补丁列表（例如 YAML 映射）时，CLI 不会动它，并提示改用 `my-workbench/presets.generated.patch.yml` 手工合并。
 
 **安装、验证、回滚**
 
 ```bash
-npx my-workbench --dsh --force        # （重新）写入 ~/.dsh/.agent-presets/my-workbench/
-                                      # 以及每个 profile 的 cordis.patch.yml 中的托管行：
-                                      #   ~/.dsh/profiles/web/       （dsh web）
-                                      #   ~/.dsh/profiles/desktop/   （DSH Desktop）
-npx my-workbench --dsh --dsh-profile desktop --force
-                                      # 只写桌面版 profile 的那一行
+npx my-workbench --dsh --force        # 重写 ~/.dsh/cordis.patch.yml 的块与 ~/.dsh/my-workbench/
 ```
 
-顺序很重要：安装 → **新开一个 DSH 会话**并选用 MyWorkbench preset（这会挂载 lane host 半）→ **刷新 Web 页面**（这会执行页面的门槛检查）→ 确认 `设置 → MyWorkbench 赛道模型` 列出七条赛道。桌面版中同一页面在重启应用后出现；**安装时请关闭 DSH 与桌面版** —— 桌面版运行期间 DSH 会拒绝改动 profile，检测到活进程时 CLI 会给出提示。同时确认七个 `subagent_*` 工具都在，且固定某条赛道后其子会话 header 带上所固定的 provider/model/effort。
+顺序很重要：安装 → **重启 DSH**（插件模块每进程只 import 一次）→ 新开会话并选择 **MyWorkbench** preset → 确认七个 `subagent_*` 工具都在，且固定了路由的赛道其子会话确实跑在固定路由上。八个 preset 都会出现在 agent-preset 选择器里；七个 `MyWorkbench · <lane>` 是内部子 preset —— 请选 **MyWorkbench**，不要选单条赛道。
 
-回滚：从每个 profile 的 `cordis.patch.yml` 中删除该托管块，**并**删除 `~/.dsh/.agent-presets/my-workbench`。`npx my-workbench --dsh --force` 会把两者都恢复。回滚后可能残留的只有 `~/.dsh/settings.yaml` 里一段惰性的 `my-workbench-lanes:`。
+回滚：从 `<DSH_HOME>/cordis.patch.yml` 删除带标记的块，并删除 `~/.dsh/my-workbench`（如果创建过 `<DSH_HOME>/my-workbench-lanes.json` 也一并删除）。`npx my-workbench --dsh --force` 会恢复块与插件。
 
 ## 单一来源，组装输出
 
@@ -182,18 +159,15 @@ agents/
     ├── zcode/
     │   └── slots/          # dispatch.md（每个后端都有，不逐一列出）
     └── dsh/
-        ├── lanes.json        # 赛道 key、工具、标签、权限和默认模型
-        ├── agent.cordis.yml  # preset 组合文件；{{prompt:<agent>}} 内嵌 prompts/<agent>.md
-        ├── preset.yml        # preset 展示元数据（name/description）
-        ├── lane-plugin/      # preset 挂载的 Host 半（设计记录：docs/dsh-lane-plugin/）
-        │   └── host-package/          # ESM 插件包：7 个赛道工具 + 设置命名空间
-        │       ├── package.json
-        │       └── src/index.js       # {{dep:<alias>}} 在安装时解析为 file: URL
-        ├── lane-plugin-ui/   # profile 挂载的设置「页面」
-        │   ├── package.json           # exports "./client"，dsh.client.platform "web"
-        │   ├── src/index.js           # 惰性 Host 半（什么都不注册）
-        │   └── lib/client.js          # 带渲染后赛道名册的浏览器半
-        └── slots/            # dispatch.md（orchestrator 提示词内的 {{slot:dispatch}}）
+        ├── lanes.json              # 赛道 key、工具、标签与权限
+        ├── preset.json             # preset 选择器元数据（name/description/order）
+        ├── orchestrator-preset.cordis.yml  # orchestrator preset 的插件列表
+        │                                   # （{{prompt:<agent>}} 内嵌 prompts/<agent>.md；
+        │                                   #  {{lane-plugin}} 变为安装后的 file: URL）
+        ├── lane-plugin/            # preset 挂载的插件（设计记录：docs/dsh-lane-plugin/）
+        │   ├── package.json               # 零依赖：只 import 同目录生成模块
+        │   └── src/index.js               # 七个工具，按各赛道 preset 启动子 agent
+        └── slots/                  # dispatch.md、solutions-dir.md、queue-*、goal-guidance
 ```
 
 在你的项目中，`.claude/agents/` 和 `.opencode/` 由它组装而来。编辑 `agents/`，然后运行 `npx my-workbench assemble`（`--check` 检测漂移）— 同样的工作流适用于本仓库和任何目标项目。`agents/roster.json` 集中保存描述与各后端 frontmatter，检查会拒绝没有记录的提示词。提示词正文可以引用 `{{slot:<name>}}`；每个后端在 `agents/backends/<backend>/slots/` 中提供对应文本，缺少 slot 会导致组装失败。DSH 组合文件用 `{{prompt:<agent>}}` 嵌入提示词；`agents/backends/dsh/lanes.json` 驱动安装后的赛道提示词模块、host 名册和设置页面标签。`assemble --check` 会渲染这些内容，检查页面包的 `dsh.client`/`./client` 声明和浏览器导入，并验证惰性 host 半可导入且不注册任何内容。

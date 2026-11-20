@@ -1,22 +1,23 @@
-# The `dsh` backend's agent preset: the my-workbench multi-agent setup for
-# DeepSeek Harness (DSH) — one orchestrator persona plus the lane plugin, which
-# owns the seven named specialist delegation tools. Installed by
-# `my-workbench --dsh` as <DSH_HOME>/.agent-presets/my-workbench/agent.cordis.yml,
-# beside the plugin itself at
-# <DSH_HOME>/.agent-presets/my-workbench/lane-plugin/; DSH reads a preset when a
-# session mounts it, so a new session is needed to pick it up.
+# The MyWorkbench ORCHESTRATOR preset's plugin list, in the order DSH activates
+# it. `my-workbench --dsh` indents this file under
+# `config.plugins:` of the `preset-my-workbench` declaration it writes into
+# <DSH_HOME>/cordis.patch.yml — DSH 0.2.x reads presets from declarations, never
+# from a preset directory.
 #
 # This file is assembled from agents/ source — never edit the installed copy:
 #   a `prompt:<agent>` placeholder becomes agents/prompts/<agent>.md verbatim,
 #   and the `slot:dispatch` placeholder inside the orchestrator prompt comes
 #   from agents/backends/dsh/slots/dispatch.md, as for every other backend.
-# The SPECIALIST prompts no longer appear here: the lane plugin's own generated
-# module carries them, rendered from the same agents/prompts/*.md by the same
-# CLI. `designer` is deliberately absent as a composition row: the design-only
-# designer is carried as a lane by the plugin's generated module, like the other
-# specialists.
+# `lane-plugin` is replaced at install time by the absolute file: URL of the
+# installed lane plugin module.
 #
-# This is an AGENT-PLANE composition. The `subagents` registry, the sandbox and
+# The SPECIALIST personas are not here: each specialist is its own child preset
+# (`preset-my-workbench-<lane>`, generated from agents/backends/dsh/lanes.json
+# and agents/prompts/<lane>.md). That is the only way DSH 0.2.x expresses a
+# subagent's identity and tool restrictions — `SubagentStartRequest` has neither
+# `persona` nor `toolFilter`; both come from the preset the child mounts.
+#
+# This is an AGENT-PLANE plugin list. The `subagents` registry, the sandbox and
 # approval stack, persistence, and the model route stay in the HOST composition;
 # this file contributes one agent's tools and prompt sections. A row that
 # PUBLISHES a service must sit inside a group carrying an `isolate` realm (see
@@ -26,20 +27,21 @@
 # only registers tools and consumes host services, so it sits outside any realm.
 #
 # Deliberately omitted from the shipped `standard` preset: the anonymous
-# `subagent`/`subagent_fork` tools and the `workflow`/`ralph` engines. Here every
+# `subagent`/`subagent_fork` tools and the `workflow`/`ralph` tools. Here every
 # delegation names a specialist, mirroring the Task-with-subagent_type flow the
-# prompts were written for. Copy those rows from the shipped composition if you
-# want them back.
+# prompts were written for. Add `@deepseek-ai/dsh-tool-subagent` rows if you want
+# the anonymous tool back.
 
 # ── identity ────────────────────────────────────────────────────────────────
 
 # The orchestrator prompt is the persona: it owns planning, routing, and
-# verification, and it must not implement serially. `{{model}}`/`{{cwd}}`
-# resolve from the agent's own route and workspace.
+# verification, and it must not implement serially. `{{model}}` resolves from
+# the agent's own route; the working directory arrives as required user context
+# from the working-directory service, so a `suffix` with `{{cwd}}` would fail
+# prompt assembly (that variable was removed in DSH 0.2).
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    suffix: Your working directory is {{cwd}}.
     prefix: |
       {{prompt:orchestrator}}
 
@@ -47,6 +49,9 @@
   name: '@deepseek-ai/dsh-agent-instructions'
   config:
     maxBytes: 65536
+
+- id: time-context
+  name: '@deepseek-ai/dsh-time-context'
 
 # ── shell ───────────────────────────────────────────────────────────────────
 
@@ -64,7 +69,8 @@
 # ── filesystem ──────────────────────────────────────────────────────────────
 
 # Both register into the host `tools` registry and provide nothing, so they need
-# no realm. The `fs` service and its policy stay in the host.
+# no realm. The `fs` service and its policy stay in the host. `apply_patch` stays
+# off (the 0.2.x default): the orchestrator delegates implementation.
 - id: tool-fs
   name: '@deepseek-ai/dsh-tool-fs'
 
@@ -156,24 +162,21 @@
 # (the registry answers cross-session queries and a provider name registers
 # once), so the rows here only register tools and need no realm.
 #
-# The seven specialist lanes live in ONE packaged plugin row (`lanes`, below),
-# not in seven `@deepseek-ai/dsh-tool-subagent` rows. The plugin owns the tools,
-# which is what lets it read each lane's model/reasoning-effort pin from its own
-# persisted settings namespace and apply that lane's read-only `toolFilter`
-# itself — neither is expressible in a composition row. The lanes keep their
-# names (`subagent_explorer` … `subagent_improver`), their prompts come from
-# agents/prompts/*.md, and their restrictions are unchanged:
-#   * read-only lanes lose `write`/`edit` (observer and improver also lose the
-#     shell), so "READ-ONLY" is enforced, not merely requested;
-#   * every lane loses all seven delegation tools, so a lane cannot spawn lanes.
-# Model routing lives in the plugin's settings namespace (settings →
-# MyWorkbench 赛道模型); every lane starts on 继承会话模型 and can be pinned
-# per lane there; see lane-plugin/host-package/src/index.js.
+# The control row registers `send_message`, `wait_agent`, `list_agents` and
+# `interrupt_agent` in one main entry (the old `/list-agents` subpath export is
+# gone). `interrupt` keeps its default (enabled) because the dispatch guidance
+# tells the model to stop a lane with `interrupt_agent`.
+#
+# The seven specialist tools live in ONE packaged plugin row (`lanes`, below).
+# Each tool starts its child under that lane's preset
+# (`preset-my-workbench-<lane>`), which carries the persona and the restricted
+# tool set; the plugin itself grants nothing. Model routing is configurable per
+# lane in <DSH_HOME>/my-workbench-lanes.json (installed as this row's `pins`);
+# every lane starts on 继承会话模型 and inherits the session's route.
 #
 # The universal disciplines reach each lane the same way a lane's persona does:
-# assembly appends them (agents/disciplines.md) to every agent prompt the plugin
-# delivers to a child, so no delegation brief carries them (bin/my-workbench.js,
-# agentPromptBody).
+# assembly appends them (agents/disciplines.md) to every agent prompt, so both
+# the lane preset persona and the delegation brief stay free of repeated rules.
 - id: delegation
   name: cordis:group
   group: true
@@ -181,30 +184,18 @@
     - id: tool-subagent-control
       name: '@deepseek-ai/dsh-tool-subagent-control'
 
-    - id: tool-subagent-list-agents
-      name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
-
     # The lane plugin. It owns the seven delegation tools and registers them in
     # THIS preset's scope, so they exist for MyWorkbench sessions only — no other
-    # preset gains a tool, and the settings page it publishes is inert outside
-    # MyWorkbench. Background-first (continuable) delegation is unchanged: a call
-    # returns a durable child id, and `run_in_background: false` waits for the
-    # final text.
+    # preset gains a tool, and nothing is mounted at profile level.
     #
-    # `name` is RELATIVE on purpose. A preset row's bare package name resolves
-    # from the host composition's base, not from this preset's directory, so a
-    # package shipped alongside the composition would not be found; a
-    # `./`-relative name resolves against the composition's own directory, which
-    # is where `my-workbench --dsh` puts the plugin. That is what keeps the
-    # install free of profile-level writes and dependency commands.
-    #
-    # The plugin must be named by THIS preset only: it registers a settings
-    # namespace, and DSH refuses a duplicate registration, so a second preset
-    # mounting the same row would fail loudly.
+    # `name` is an absolute `file:` URL baked by `my-workbench --dsh`: a preset
+    # declaration is mounted by the profile's Loader, so a relative name would
+    # resolve from the profile directory, not from any preset directory.
     - id: lanes
-      name: ./lane-plugin/src/index.js
+      name: '{{lane-plugin}}'
       config:
-        maxDepth: 3
+        maxDepth: 1
+        {{lane-pins}}
 
 # ── remaining model-facing rows ─────────────────────────────────────────────
 
