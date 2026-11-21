@@ -2,7 +2,7 @@
 
 English | [简体中文](README_CN.md)
 
-Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex agent setup, installed with one command. OpenCode is project-only; Claude Code supports project or user-level installation with `--user`; ZCode and Codex are always user-level.
+Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex agent setup, installed with one command. OpenCode, ZCode and Codex are always user-level; Claude Code supports project or user-level installation with `--user`.
 
 The retired first-party Tauri desktop app is preserved on the [`desktop`](https://github.com/xiaolf0813/my-workbench/tree/desktop) branch and is not maintained on `main`.
 
@@ -10,9 +10,9 @@ The retired first-party Tauri desktop app is preserved on the [`desktop`](https:
 npx my-workbench
 ```
 
-`my-workbench` copies a curated multi-agent configuration into the current project:
+`my-workbench` installs a curated multi-agent configuration:
 
-- **`.opencode/`** — OpenCode core config and native `.opencode/agents/` subagents: eleven agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `fixer`, `observer`, `spotter`, `driver`, `improver`, `intake`.
+- **`~/.config/opencode/`** — user-level OpenCode core config and native `agents/` subagents: eleven agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `fixer`, `observer`, `spotter`, `driver`, `improver`, `intake`.
 - **`.claude/`** — the same specialists as native Claude Code subagents (`.claude/agents/*.md`). Installed identically in every target.
 - **`~/.zcode/`** — opt-in ZCode support (`--zcode`): user-level global instructions plus the specialist subagents as ZCode user agents (`~/.zcode/agents/*.md`). Nothing is written inside the project.
 - **`~/.codex/`** — opt-in local ChatGPT / Codex support (`--chatgpt` or `--codex`): a short global entrypoint, the orchestration policy, ten native TOML custom agents, solution guides, and the bundled **Subagent Config** plugin; honors `CODEX_HOME`.
@@ -21,15 +21,15 @@ The orchestrator prompt also carries a persistent task queue: the `intake` speci
 
 ## OpenCode target
 
-- **`--opencode` (native)** — core config (`opencode.jsonc`) plus native `.opencode/agents/*.md` subagents. Requires the OpenCode app (`opencode` on PATH). Nothing is downloaded. The universal behavior rules (`agents/disciplines.md`) are appended to every agent's own prompt at assembly, so each agent carries them and the orchestrator never pastes them into a delegation brief. New sessions start on OpenCode's built-in `build` agent — switch to `orchestrator` in the agent selector, or set `"default_agent": "orchestrator"` in `opencode.jsonc`, to run the orchestration.
+- **`--opencode` (native)** — core config (`opencode.jsonc`) plus native `agents/*.md` subagents under `~/.config/opencode/`. Always user-level; `--user` does not change its destination. Requires the OpenCode app (`opencode` on PATH). Nothing is downloaded. The universal behavior rules (`agents/disciplines.md`) are appended to every agent's own prompt at assembly, so each agent carries them and the orchestrator never pastes them into a delegation brief. New sessions start on OpenCode's built-in `build` agent — switch to `orchestrator` in the agent selector, or set `"default_agent": "orchestrator"` in `opencode.jsonc`, to run the orchestration.
 
 ## Usage
 
 ```bash
-npx my-workbench                    # install both .opencode/ and .claude/
+npx my-workbench                    # ~/.config/opencode/ + project .claude/
 npx my-workbench --opencode         # OpenCode setup only
 npx my-workbench --claude           # Claude Code setup only
-npx my-workbench --user             # Claude Code user-level install: ~/.claude/
+npx my-workbench --user             # ~/.config/opencode/ + ~/.claude/
 npx my-workbench --force            # overwrite files that already exist
 npx my-workbench --dry-run          # preview without writing
 npx my-workbench --zcode            # ZCode user-level setup only (~/.zcode)
@@ -40,7 +40,7 @@ Existing files are skipped unless `--force` is given, so re-running is safe. A `
 
 ## Version management
 
-Every install — and `assemble` in this repository — writes a small stamp file recording the version of the CLI that deployed there, **one per deployment realm**: `my-workbench.version` in the project root for project-level runs, `~/.my-workbench.version` for shared user-level runs (`--user` or ZCode), and `<CODEX_HOME>/my-workbench.version` for each Codex home. A mixed run (e.g. `npx my-workbench --claude --zcode`) stamps both applicable realms. The stamp is refreshed unconditionally on every run, so it always names the running version.
+Every install — and `assemble` in this repository — writes a small stamp file recording the version of the CLI that deployed there, **one per deployment realm**: `my-workbench.version` in the project root for project-level Claude Code or assembly, `~/.my-workbench.version` for OpenCode, user-level Claude Code or ZCode, and `<CODEX_HOME>/my-workbench.version` for each Codex home. The default install stamps both project and home realms; `--opencode` alone stamps only home. The stamp is refreshed unconditionally on every run, so it always names the running version.
 
 ```bash
 npx my-workbench --upgrade   # compare deployed versions with the npm latest
@@ -50,7 +50,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 ## User-level install
 
-`npx my-workbench --user` installs only Claude Code assets to `~/.claude/` (`settings.json` + `agents/*.md`). OpenCode supports project-level installation only; combining `--opencode` with `--user` is an error, including with `--upgrade`. User-level files apply to every project and are not meant for version control; on name conflicts project-level agents win over user-level ones. ZCode and Codex are always user-level and ignore `--user`.
+`npx my-workbench --user` installs OpenCode assets to `~/.config/opencode/` and Claude Code assets to `~/.claude/` (`settings.json` + `agents/*.md`). OpenCode supports user-level installation only, with or without `--user`. The flag changes only Claude Code's destination. User-level files apply to every project and are not meant for version control. Existing project-level OpenCode files are left untouched; remove obsolete project agents yourself if they override the global agents. ZCode and Codex are always user-level and ignore `--user`.
 
 ## ZCode target
 
@@ -58,7 +58,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 - The global file is `agents/prompts/orchestrator.md` — the orchestrator prompt drives the main agent, with the ZCode dispatch convention substituted from `agents/backends/zcode/slots/dispatch.md`.
 - Subagents run with `injectAgentsMd: false`: the global file is not injected into them, so every delegation brief must carry full context.
-- Opt-in only (`--zcode` or `zcode`) — the default targets remain `.opencode/` + `.claude/`. Nothing is downloaded. Existing files are skipped unless `--force`. Restart ZCode sessions to pick up changes.
+- Opt-in only (`--zcode` or `zcode`) — the default targets remain OpenCode + Claude Code. Nothing is downloaded. Existing files are skipped unless `--force`. Restart ZCode sessions to pick up changes.
 
 ## ChatGPT / Codex target
 
@@ -96,7 +96,7 @@ agents/
         └── slots/          # dispatch.md (every backend has it; not enumerated here)
 ```
 
-In your project, `.claude/agents/` and `.opencode/` are assembled from it. Edit `agents/`, then run `npx my-workbench assemble` (`--check` detects drift) — the same workflow works in this repository and in any target project. `agents/roster.json` supplies descriptions and backend frontmatter, and the check rejects orphan prompt bodies. Prompt bodies may reference `{{slot:<name>}}` placeholders; each backend supplies their text in `agents/backends/<backend>/slots/`, and a slot referenced by a prompt but missing for a backend fails assembly.
+In this source repository, `assemble` generates local `.claude/agents/` and `.opencode/` artifacts for development and validation; OpenCode installations go to `~/.config/opencode/`. Edit `agents/`, then run `npx my-workbench assemble` (`--check` detects drift). `agents/roster.json` supplies descriptions and backend frontmatter, and the check rejects orphan prompt bodies. Prompt bodies may reference `{{slot:<name>}}` placeholders; each backend supplies their text in `agents/backends/<backend>/slots/`, and a slot referenced by a prompt but missing for a backend fails assembly.
 
 ## Attribution
 

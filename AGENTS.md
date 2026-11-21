@@ -6,9 +6,9 @@
 
 | Target | Flag | Where it installs |
 | --- | --- | --- |
-| opencode (native) | default set (project-only) | `.opencode/` — core config plus native `.opencode/agents/*.md`; rejects `--user` |
+| opencode (native) | default set (user-only) | `~/.config/opencode/` — core config plus native `agents/*.md`; ignores `--user` |
 | claude | default set | `.claude/` — `settings.json` plus `.claude/agents/*.md`; identical in every target |
-| user level | `--user` | Claude Code assets under `~/.claude/`; default target is claude only |
+| user level | `--user` | Claude Code assets under `~/.claude/`; default targets remain opencode + claude |
 | zcode | `--zcode` | `~/.zcode/AGENTS.md` (the orchestrator prompt as ZCode's global instruction file) + `~/.zcode/agents/*.md` |
 | ChatGPT / Codex (local) | `--chatgpt`, `--codex` | A managed loader block in the active `<CODEX_HOME>/AGENTS.override.md` or `AGENTS.md`, plus `my-workbench-orchestrator.md`, `agents/*.toml`, `my-workbench-solutions/`, and the offline `my-workbench-plugin-marketplace/` carrying Subagent Config; defaults to `~/.codex/`, always user-level |
 

@@ -145,6 +145,36 @@ test('--user --upgrade checks the home stamp and preserves the user-level target
   assert.match(result.stdout, /upgraded\s+~\/\.my-workbench\.version/)
 })
 
+test('--opencode --upgrade checks only the home stamp without requiring --user', async t => {
+  const server = await registryServer(t)
+  const home = projectFixture(t)
+  writeFileSync(join(home, '.my-workbench.version'), '0.0.1\n')
+  const npx = fakeNpx(t, { rewrite: '9.9.9', rewriteFile: '.my-workbench.version' })
+  const result = await upgradeRun(home, '99.0.0\n', `http://127.0.0.1:${server.address().port}`, npx.path, {
+    targets: ['--opencode'],
+    env: { HOME: home, USERPROFILE: home },
+  })
+  assert.equal(result.status, 0, result.stderr + result.stdout)
+  assert.equal(readFileSync(npx.log, 'utf8').trim(), '--yes my-workbench@9.9.9 --opencode --force')
+  assert.equal(readFileSync(join(home, 'my-workbench.version'), 'utf8'), '99.0.0\n')
+  assert.match(result.stdout, /upgraded\s+~\/\.my-workbench\.version/)
+})
+
+test('default --upgrade checks both project and home stamps', async t => {
+  const server = await registryServer(t)
+  const home = projectFixture(t)
+  writeFileSync(join(home, '.my-workbench.version'), '0.0.1\n')
+  const npx = fakeNpx(t, { rewrite: '9.9.9', rewriteFile: '.my-workbench.version' })
+  const result = await upgradeRun(home, '9.9.9\n', `http://127.0.0.1:${server.address().port}`, npx.path, {
+    targets: [],
+    env: { HOME: home, USERPROFILE: home },
+  })
+  assert.equal(result.status, 0, result.stderr + result.stdout)
+  assert.equal(readFileSync(npx.log, 'utf8').trim(), '--yes my-workbench@9.9.9 --force')
+  assert.match(result.stdout, /up-to-date\s+my-workbench\.version/)
+  assert.match(result.stdout, /upgraded\s+~\/\.my-workbench\.version/)
+})
+
 test('--upgrade leaves a deployment newer than npm latest alone', async t => {
   const server = await registryServer(t)
   const npx = fakeNpx(t, { rewrite: '9.9.9' })

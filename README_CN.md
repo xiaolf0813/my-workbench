@@ -2,7 +2,7 @@
 
 # my-workbench
 
-可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex 智能体配置，一条命令即可安装。OpenCode 仅支持项目级安装；Claude Code 支持项目级安装或用 `--user` 安装到用户级；ZCode 与 Codex 恒为用户级。
+可移植的 [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex 智能体配置，一条命令即可安装。OpenCode、ZCode 与 Codex 恒为用户级；Claude Code 支持项目级安装或用 `--user` 安装到用户级。
 
 已停止维护的自研 Tauri 桌面应用保留在 [`desktop`](https://github.com/xiaolf0813/my-workbench/tree/desktop) 分支，`main` 不再维护它。
 
@@ -12,9 +12,9 @@
 npx my-workbench
 ```
 
-`my-workbench` 将一套精心整理的多智能体配置复制到当前项目：
+`my-workbench` 安装一套精心整理的多智能体配置：
 
-- **`.opencode/`** — OpenCode 核心配置与原生 `.opencode/agents/` 子智能体：十一个智能体 — `orchestrator`、`explorer`、`librarian`、`oracle`、`designer`、`fixer`、`observer`、`spotter`、`driver`、`improver`、`intake`。
+- **`~/.config/opencode/`** — 用户级 OpenCode 核心配置与原生 `agents/` 子智能体：十一个智能体 — `orchestrator`、`explorer`、`librarian`、`oracle`、`designer`、`fixer`、`observer`、`spotter`、`driver`、`improver`、`intake`。
 - **`.claude/`** — 同一批专家智能体的 Claude Code 原生子智能体形态（`.claude/agents/*.md`）。所有目标中安装内容完全一致。
 - **`~/.zcode/`** — 可选的 ZCode 支持（`--zcode`）：用户级全局指令，外加各专家子智能体作为 ZCode 用户级 agents（`~/.zcode/agents/*.md`）。不在项目内写入任何内容。
 - **`~/.codex/`** — 可选的本地 ChatGPT / Codex 支持（`--chatgpt` 或 `--codex`）：全局短入口、编排策略、十个原生 TOML 子智能体、方案指南及内置的 **Subagent Config** 插件；支持 `CODEX_HOME`。
@@ -23,15 +23,15 @@ orchestrator 提示词还内置一条持久任务队列：`intake` 专家 ——
 
 ## OpenCode 目标
 
-- **`--opencode`（原生）** — 核心配置（`opencode.jsonc`）加原生 `.opencode/agents/*.md` 子智能体。要求已安装 OpenCode（PATH 上有 `opencode`）。不下载任何东西。通用行为规则（`agents/disciplines.md`）在组装时被追加进每个 agent 自己的提示词，因此每个 agent 自带这套纪律，orchestrator 不再把它粘贴进委派简报。
+- **`--opencode`（原生）** — 在 `~/.config/opencode/` 下安装核心配置（`opencode.jsonc`）和原生 `agents/*.md` 子智能体。恒为用户级，`--user` 不改变其安装位置。要求已安装 OpenCode（PATH 上有 `opencode`）。不下载任何东西。通用行为规则（`agents/disciplines.md`）在组装时被追加进每个 agent 自己的提示词，因此每个 agent 自带这套纪律，orchestrator 不再把它粘贴进委派简报。
 
 ## 用法
 
 ```bash
-npx my-workbench                    # 安装 .opencode/ 和 .claude/
+npx my-workbench                    # ~/.config/opencode/ + 项目 .claude/
 npx my-workbench --opencode         # 仅 OpenCode 配置
 npx my-workbench --claude           # 仅 Claude Code 配置
-npx my-workbench --user             # Claude Code 用户级安装：~/.claude/
+npx my-workbench --user             # ~/.config/opencode/ + ~/.claude/
 npx my-workbench --force            # 覆盖已存在的文件
 npx my-workbench --dry-run          # 预览，不写入
 npx my-workbench --zcode            # 仅 ZCode 用户级安装（~/.zcode）
@@ -42,7 +42,7 @@ npx my-workbench assemble [--check] # 本仓库内：重新生成 .claude/agents
 
 ## 版本管理
 
-每次安装（以及本仓库内的 `assemble`）都会写入一个小的标记文件，记录部署该处的 CLI 版本，**每个部署域（realm）一个**：项目级运行写在项目根目录的 `my-workbench.version`，共享用户级运行（`--user` 或 ZCode）写在 `~/.my-workbench.version`，每个 Codex home 则写在 `<CODEX_HOME>/my-workbench.version`。混合运行会写入所有适用的部署域。该标记每次运行都会无条件刷新，因此始终是当前运行版本。
+每次安装（以及本仓库内的 `assemble`）都会写入一个小的标记文件，记录部署该处的 CLI 版本，**每个部署域（realm）一个**：项目级 Claude Code 安装或组装写在项目根目录的 `my-workbench.version`，OpenCode、用户级 Claude Code 或 ZCode 写在 `~/.my-workbench.version`，每个 Codex home 则写在 `<CODEX_HOME>/my-workbench.version`。默认安装同时写入项目域和用户域；单独 `--opencode` 只写用户域。该标记每次运行都会无条件刷新，因此始终是当前运行版本。
 
 ```bash
 npx my-workbench --upgrade   # compare deployed versions with the npm latest
@@ -52,7 +52,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 ## 用户级安装
 
-`npx my-workbench --user` 仅将 Claude Code 资产安装到 `~/.claude/`（`settings.json` + `agents/*.md`）。OpenCode 仅支持项目级安装；`--opencode` 与 `--user` 同时使用会报错，搭配 `--upgrade` 时也一样。用户级文件对所有项目生效，不用于版本控制；命名冲突时项目级 agents 优先于用户级。ZCode 与 Codex 恒为用户级，忽略 `--user`。
+`npx my-workbench --user` 将 OpenCode 资产安装到 `~/.config/opencode/`，Claude Code 资产安装到 `~/.claude/`（`settings.json` + `agents/*.md`）。无论是否指定 `--user`，OpenCode 都仅支持用户级安装；该参数只改变 Claude Code 的安装位置。用户级文件对所有项目生效，不用于版本控制。已有的项目级 OpenCode 文件保持原样；若旧项目 agents 覆盖了全局 agents，请自行移除过时的项目配置。ZCode 与 Codex 恒为用户级，忽略 `--user`。
 
 ## ZCode 目标
 
@@ -60,7 +60,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 - 全局文件就是 `agents/prompts/orchestrator.md` — orchestrator 提示词驱动主智能体，其中 ZCode 的派发约定由 `agents/backends/zcode/slots/dispatch.md` 填入。
 - 子智能体以 `injectAgentsMd: false` 运行：全局文件不会注入它们，因此每个委派简报必须自带完整上下文。
-- 仅按需启用（`--zcode` 或 `zcode`）— 默认目标仍是 `.opencode/` + `.claude/`。不下载任何东西。已存在的文件除非 `--force` 否则跳过。重启 ZCode 会话以生效。
+- 仅按需启用（`--zcode` 或 `zcode`）— 默认目标仍是 OpenCode + Claude Code。不下载任何东西。已存在的文件除非 `--force` 否则跳过。重启 ZCode 会话以生效。
 
 ## ChatGPT / Codex 目标
 
@@ -98,7 +98,7 @@ agents/
         └── slots/          # dispatch.md（每个后端都有，不逐一列出）
 ```
 
-在你的项目中，`.claude/agents/` 和 `.opencode/` 由它组装而来。编辑 `agents/`，然后运行 `npx my-workbench assemble`（`--check` 检测漂移）— 同样的工作流适用于本仓库和任何目标项目。`agents/roster.json` 集中保存描述与各后端 frontmatter，检查会拒绝没有记录的提示词。提示词正文可以引用 `{{slot:<name>}}`；每个后端在 `agents/backends/<backend>/slots/` 中提供对应文本，缺少 slot 会导致组装失败。
+在本源码仓库中，`assemble` 生成本地 `.claude/agents/` 和 `.opencode/` 产物，供开发与校验；OpenCode 安装则写入 `~/.config/opencode/`。编辑 `agents/`，然后运行 `npx my-workbench assemble`（`--check` 检测漂移）。`agents/roster.json` 集中保存描述与各后端 frontmatter，检查会拒绝没有记录的提示词。提示词正文可以引用 `{{slot:<name>}}`；每个后端在 `agents/backends/<backend>/slots/` 中提供对应文本，缺少 slot 会导致组装失败。
 
 ## 署名
 
