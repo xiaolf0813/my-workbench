@@ -34,7 +34,7 @@
       }
     },
     "driver": {
-      "description": "GUI test execution specialist. Drives the surface under test through the project's gui-test toolkit - resolves controls by identity from text trees, acts, asserts, and reports pass/fail. Dispatch for functional GUI flows, one whole scenario per dispatch; visual appearance verdicts stay with spotter.",
+      "description": "Executes the orchestrator's acceptance plan for GUI, CLI, API, configuration and backend deliverables. Reports evidence per criterion and rechecks corrections. Uses the project GUI toolkit for functional flows; spotter handles live visual evidence.",
       "frontmatter": {
         "claude": [
           "name: driver",
@@ -51,7 +51,7 @@
           "    effect: deny",
           "  - action: shell",
           "    resource: \"*\"",
-          "    effect: deny"
+          "    effect: allow"
         ],
         "zcode": [
           "name: driver",
@@ -289,7 +289,7 @@
       }
     },
     "orchestrator": {
-      "description": "Coding workflow manager - owns understanding, decomposition, decisions, coordination, and verification; delegates implementation and rework by default, accounts for model cost differences, and limits direct repairs to the remediation exception. Set as the main-thread agent via settings.json (\"agent\": \"orchestrator\"); waits for all dispatched tasks to return and verifies the integrated result.",
+      "description": "Owns decomposition, all plans, development, integration, repair routing and final delivery. Assigns scoped implementation to specialists and acceptance execution to driver. Reconciles returned evidence before accepting the integrated result.",
       "frontmatter": {
         "claude": [
           "name: orchestrator",
