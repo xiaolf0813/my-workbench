@@ -89,7 +89,12 @@
           "name: explorer",
           "@description",
           "model: inherit",
-          "injectAgentsMd: false"
+          "injectAgentsMd: false",
+          "tools:",
+          "  - Glob",
+          "  - Grep",
+          "  - Read",
+          "  - Bash"
         ],
         "codex": [
           "name = \"explorer\"",
@@ -183,7 +188,14 @@
           "name: librarian",
           "@description",
           "model: inherit",
-          "injectAgentsMd: false"
+          "injectAgentsMd: false",
+          "tools:",
+          "  - WebSearch",
+          "  - WebFetch",
+          "  - Bash",
+          "  - Read",
+          "  - Grep",
+          "  - Glob"
         ],
         "codex": [
           "name = \"librarian\"",
@@ -215,7 +227,11 @@
           "name: observer",
           "@description",
           "model: inherit",
-          "injectAgentsMd: false"
+          "injectAgentsMd: false",
+          "tools:",
+          "  - Read",
+          "  - Glob",
+          "  - Grep"
         ],
         "codex": [
           "name = \"observer\"",
@@ -280,7 +296,12 @@
           "name: oracle",
           "@description",
           "model: inherit",
-          "injectAgentsMd: false"
+          "injectAgentsMd: false",
+          "tools:",
+          "  - Glob",
+          "  - Grep",
+          "  - Read",
+          "  - Bash"
         ],
         "codex": [
           "name = \"oracle\"",
@@ -326,7 +347,11 @@
           "name: improver",
           "@description",
           "model: inherit",
-          "injectAgentsMd: false"
+          "injectAgentsMd: false",
+          "tools:",
+          "  - Read",
+          "  - Glob",
+          "  - Grep"
         ],
         "codex": [
           "name = \"improver\"",

@@ -33,6 +33,7 @@ test('simultaneous manual and timer claims dispatch once and only the owner can 
   const before = readFileSync(task(file), 'utf8');
   assert.match(before, /^title: "修复: \\"A\\""/m);
   const { id } = await cmd('menu');
+  await cmd('auto-start', 'on');
   const results = await Promise.all([cmd('claim', id, file), cmd('wake', id), cmd('claim', id, file)]);
   const winners = results.filter(Boolean);
   assert.equal(winners.length, 1);
@@ -52,6 +53,7 @@ test('pause, replies and replaced menus disable only their own timer', async t =
   const file = await add('A');
   const first = await cmd('menu');
   const second = await cmd('menu');
+  await cmd('auto-start', 'on');
   assert.equal(await cmd('timer', first.id, 'late-timer'), null);
   assert.equal(await cmd('wake', first.id), null);
   assert.equal(await cmd('timer', second.id, 'timer-B'), 'timer-B');
@@ -75,10 +77,29 @@ test('existing task files preserve frontmatter, line endings and body', async t 
   const before = '\uFEFF---\r\ntitle: old\r\nstatus: "pending" # state\r\n---\r\nstatus: pending\r\n';
   writeFileSync(task(file), before);
   const menu = await cmd('menu');
+  await cmd('auto-start', 'on');
   const claim = await cmd('wake', menu.id);
   assert.equal(readFileSync(task(file), 'utf8'), before.replace('"pending"', '"in-progress"'));
   assert.equal(await cmd('finish', file, 'legacy', 'done'), null);
   assert.equal(await cmd('finish', file, claim.token, 'done'), 'done');
   writeFileSync(task('older.md'), before.replace('"pending"', '"in-progress"'));
   assert.equal(await cmd('finish', 'older.md', 'legacy', 'done'), 'done');
+});
+
+test('auto-start defaults off: timers and wakes are inert until enabled; manual claims unaffected', async t => {
+  const { cmd, add } = fixture(t);
+  const file = await add('A');
+  const menu = await cmd('menu');
+  assert.equal(await cmd('timer', menu.id, 'cron-1'), null);
+  assert.equal(await cmd('wake', menu.id), null);
+  assert.deepEqual(await cmd('auto-start', 'on'), { autoStart: true });
+  const claim = await cmd('wake', menu.id);
+  assert.equal(claim.file, file);
+  assert.equal(await cmd('finish', file, claim.token, 'done'), 'done');
+  assert.deepEqual(await cmd('auto-start', 'off'), { autoStart: false });
+  const next = await add('B');
+  const second = await cmd('menu');
+  assert.equal(await cmd('wake', second.id), null);
+  const manual = await cmd('claim', second.id, next);
+  assert.equal(await cmd('finish', next, manual.token, 'cancelled'), 'cancelled');
 });

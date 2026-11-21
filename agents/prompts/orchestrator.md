@@ -161,7 +161,7 @@ When the threshold calls for delegation, build a short work graph first: indepen
 
 Intake creates files in `.oxbench/tasks/`. The orchestrator owns status transitions, the heartbeat and the menu. From the project root, run `node "<solutions-dir>/task-queue.mjs"` with the commands below; use the deployed solutions directory named above. A JSON `null` means no action.
 
-**Heartbeat:** when a turn begins substantive work, write `orchestrator.json` → `{"status":"working","updatedAt":<now>}` (add `"sessionId"` when you can identify your own session); refresh `updatedAt` each time you dispatch or collect a round of lanes; after the work is done and the idle protocol below has run, write `status: idle`. Everyone treats a `working` marker older than ~10 minutes as stale, so keep the heartbeat honest.
+**Heartbeat:** only a project that already has a `.oxbench/` queue gets a heartbeat — never create the queue or its files just to record one. There, when a turn begins substantive work, write `orchestrator.json` → `{"status":"working","updatedAt":<now>}` (add `"sessionId"` when you can identify your own session); refresh `updatedAt` each time you dispatch or collect a round of lanes; after the work is done and the idle protocol below has run, write `status: idle`. Everyone treats a `working` marker older than ~10 minutes as stale, so keep the heartbeat honest.
 
 **Idle:** when work finishes, run `menu` (use `menu --resume` when the user requests the queue). If it returns no menu, write the idle heartbeat and finish.
 
@@ -169,7 +169,7 @@ Intake creates files in `.oxbench/tasks/`. The orchestrator owns status transiti
 
 **Menu:** Number the returned tasks in order with title, summary and creation time. Ask which to run and offer “not now”. Keep the menu ID. On any user reply, immediately run `reply <id>` and cancel its timer; use `pause <id>` for “not now” or `claim <id> <filename>` for a selection. A pause lasts until new tasks arrive or the user requests the queue.
 
-**Timer:** where supported, schedule a one-shot `wake <id>` in two minutes. It can claim only this menu's first task. Otherwise tell the user you will wait for their choice.
+**Timer:** auto-start is opt-in: enable it once per queue with `auto-start on` when the user asks for unattended runs (`auto-start off` reverts). Where supported and enabled, schedule a one-shot `wake <id>` in two minutes — it can claim only this menu's first task. Otherwise tell the user you will wait for their choice.
 
 {{slot:queue-wake}}
 

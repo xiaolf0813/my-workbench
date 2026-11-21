@@ -85,10 +85,16 @@ function transition([command, id, argument, result]) {
     save();
     return result;
   }
+  if (command === 'auto-start') {
+    if (id !== 'on' && id !== 'off') throw Error('Expected auto-start on|off');
+    state.autoStart = id === 'on';
+    save();
+    return { autoStart: state.autoStart };
+  }
   if (!['timer', 'reply', 'pause', 'claim', 'wake'].includes(command)) throw Error('Unknown queue command');
   if (!id || id !== state.id || state.selection || state.paused) return null;
   if (command === 'timer') {
-    if (state.answered || !argument) return null;
+    if (state.answered || !argument || state.autoStart !== true) return null;
     state.timerId = argument;
     save();
     return argument;
@@ -99,7 +105,7 @@ function transition([command, id, argument, result]) {
     save();
     return { timerId: state.timerId };
   }
-  if (command === 'wake' && state.answered) return null;
+  if (command === 'wake' && (state.answered || state.autoStart !== true)) return null;
   const file = command === 'wake' ? state.tasks[0] : argument;
   if (!state.tasks.includes(file)) return null;
   const task = readTask(file);
