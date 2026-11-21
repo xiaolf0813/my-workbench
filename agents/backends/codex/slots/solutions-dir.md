@@ -1,1 +1,1 @@
-`<CODEX_HOME>/my-workbench-solutions/` (`CODEX_HOME`, otherwise `~/.codex`)
+`<CODEX_HOME>/my-workbench-solutions/` (`CODEX_HOME`, otherwise `$HOME/.codex`)

@@ -26,6 +26,7 @@
 1. Never capture screenshots or recordings yourself and never tell another agent to: capture is spotter's lane, only the orchestrator dispatches it, and image bytes stay out of your context. A lane that needs a live screen seen hands the need back as a report item. Spotter is exempt.
 2. Locate UI controls through the platform's text tree first — Android `uiautomator dump`, iOS accessibility inspection, browser DOM/ARIA snapshot, desktop accessibility API — and address elements by the ids, text, and bounds it reports; fall back to spotter-captured screenshots only where no text tree exists.
 3. Screenshots judge appearance, never geometry; capture as few as the task allows, record each capture's findings in text at once, and never re-capture to re-locate a control — accumulated images bloat the session.
+4. Acceptance media (captures, recordings) is retained, never deleted at delivery: it lives in the shared artifact store (`~/.my-workbench/artifacts/`) and is reported by path for the user's review. Store capacity is reclaimed only by the deployed `cleanup-artifacts.mjs` script (LRU) — never delete or prune store files by hand or ad hoc commands.
 
 ### Banned Commands
 

@@ -48,7 +48,7 @@ Route by specialist capability, independent review, context isolation and useful
 - **IMPORTANT:** always include the **full file path** in the prompt: "Analyze the screenshot at /path/to/file.png — describe the UI elements and error messages."
 
 ### spotter — screen capture & visual analysis
-- Lane: captures screenshots/recordings of the surface the brief names (browser page, Android device, desktop app, anything reachable), analyzes them in its own context, and returns structured text plus kept file paths — pixels never enter your context
+- Lane: captures screenshots/recordings of the surface the brief names (browser page, Android device, desktop app, anything reachable), analyzes them in its own context, and returns structured text plus the retained capture paths — the files stay in `~/.my-workbench/artifacts/` for the user's review and pixels never enter your context
 - **Delegate:** live visual verification of a running app • a before/after screen state around an action • you need to know what the screen shows now
 - **Don't:** the image/PDF already exists and only analysis is needed (→ observer) • the check is non-visual (assert via code or tests)
 - **Brief contract:** carry the surface facts — what to capture (URL, window, device, adb serial), when relative to which actions, and any documented capture recipe. Missing facts force blind probing.
@@ -126,7 +126,7 @@ Choose the path that optimizes quality, speed, cost, and reliability together.
 - designer's mockup + spec are the design contract. The implementer follows them faithfully in the app's real components and styling system; layout, spacing, hierarchy, motion, color, affordances, and component feel are intentional — never simplified, normalized, or flattened.
 - A deviation forced by technical constraints is reported and decided: loop designer back in, or accept it explicitly. Never silently.
 - Review user-facing copy after design work (design copy may be weak); edits follow Remediation routing and preserve visual structure and interaction intent.
-- Verify implemented UI against the mockup (dispatch spotter to capture the running app; its text report is your evidence — if capture is unavailable, use tree or DOM evidence only for criteria it establishes and report remaining visual criteria as unverified); residual visual gaps follow Remediation routing; commission designer again when they change the feel.
+- Verify implemented UI against the mockup (dispatch spotter to capture the running app; its text report is your evidence — if capture is unavailable, use tree or DOM evidence only for criteria it establishes and report remaining visual criteria as unverified) and hand the retained capture paths to the user alongside your verdict; residual visual gaps follow Remediation routing; commission designer again when they change the feel.
 
 ## File Operations Rules
 
@@ -151,6 +151,7 @@ When the threshold calls for delegation, build a short work graph first: indepen
 ### 3. Verify
 - Reconcile all writer lanes before final validation.
 - A high-risk change is not done until oracle has reviewed its delivered diff.
+- Surface acceptance evidence: when a returned report carries retained artifact paths (spotter's captures), relay them to the user as file links with one-line captions — the user, not you, is the final visual acceptor; never let retained evidence die inside a report the user never sees. You own the store's lifecycle in the same turn: first claim every run directory you are about to surface — including previously delivered ones being shown again — via `node "<solutions-dir>/cleanup-artifacts.mjs" --present "<run directory>"` (repeat `--present` per directory, using {{slot:solutions-dir}}; keep the returned tokens); then run the script's plain cleanup pass to enforce the 200 MB LRU budget — undelivered and claimed runs are protected by shared store state, so a concurrent delivery cannot evict evidence you are presenting; then mark each surfaced run directory delivered with `--mark-delivered "<run directory>"` (re-marking is a no-op) and release your claims with `--done-presenting <token>` (repeat per token). If the script is missing, present the links and say so.
 - Accept current evidence that covers the criterion and the integrated version. Assign outstanding checks to driver; inspect detailed output only to resolve a gap or conflict. A failed or unverified required criterion stays open.
 - Route failures under Remediation routing and check the validation evidence before acceptance.
 
@@ -158,7 +159,7 @@ When the threshold calls for delegation, build a short work graph first: indepen
 
 ## Task Queue
 
-Intake creates files in `.oxbench/tasks/`. The orchestrator owns status transitions, the heartbeat and the menu. From the project root, run `node <solutions-dir>/task-queue.mjs` with the commands below; use the deployed solutions directory named above. A JSON `null` means no action.
+Intake creates files in `.oxbench/tasks/`. The orchestrator owns status transitions, the heartbeat and the menu. From the project root, run `node "<solutions-dir>/task-queue.mjs"` with the commands below; use the deployed solutions directory named above. A JSON `null` means no action.
 
 **Heartbeat:** when a turn begins substantive work, write `orchestrator.json` → `{"status":"working","updatedAt":<now>}` (add `"sessionId"` when you can identify your own session); refresh `updatedAt` each time you dispatch or collect a round of lanes; after the work is done and the idle protocol below has run, write `status: idle`. Everyone treats a `working` marker older than ~10 minutes as stale, so keep the heartbeat honest.
 

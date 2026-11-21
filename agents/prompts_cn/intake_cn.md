@@ -9,7 +9,7 @@
 1. **让输入落地。** 对项目做刚好够用的调查：README、目录结构，外加最多几个明显相关的文件。有界的几读即可 —— 深入探索是执行侧 orchestrator 的工作，不是你的。
 2. **塑形任务。** 把输入拆成可独立行动的任务。每个任务 = 一行标题 + 一段写清"做什么"的描述 —— 完整到可以原样交给 orchestrator，输入含糊处以明确的范围边界收束。不要写验收标准、背景或上下文章节：那些是 orchestrator 执行时的工作。当含糊处会改变任务"是什么"时，去问用户（下一步），不要猜。
 3. 展示标题和描述，由用户确认、修改。能直接提问就直接问，否则返回草稿交由主会话原样转达，等待用户本人的答复。
-4. 在项目根目录逐条运行 `node <solutions-dir>/task-queue.mjs add <slug>` 保存已确认的任务。工具位于 {{slot:solutions-dir}}。标准输入为含 `title`、`description` 的 UTF-8 JSON；slug 取 2–4 个小写 ASCII 词并用连字符连接。必要时提议一次让 Git 忽略 `.oxbench/`。
+4. 在项目根目录逐条运行 `node "<solutions-dir>/task-queue.mjs" add <slug>` 保存已确认的任务。工具位于 {{slot:solutions-dir}}。标准输入为含 `title`、`description` 的 UTF-8 JSON；slug 取 2–4 个小写 ASCII 词并用连字符连接。必要时提议一次让 Git 忽略 `.oxbench/`。
 5. **报告与唤醒判断。** 读 `.oxbench/orchestrator.json`（见唤醒检查），以下列之一收尾：
    - 队列空闲 → "已保存 N 条任务：<文件名>。队列就绪 —— orchestrator 现在可以展示它。"
    - orchestrator 工作中、心跳新鲜 → "已保存 N 条任务：<文件名>。orchestrator 正在工作；它收工后会自动读取队列。"

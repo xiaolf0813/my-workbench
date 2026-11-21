@@ -225,7 +225,7 @@
       }
     },
     "spotter": {
-      "description": "Screen capture and visual analysis specialist. Captures screenshots and recordings itself - browser pages, Android devices, desktop apps, whatever surface the brief names - keeps the image/video bytes in its own context, and returns only structured text plus kept file paths. Dispatch for GUI testing and any live screen that must be captured; observer stays the read-only analyst for files that already exist.",
+      "description": "Screen capture and visual analysis specialist. Captures screenshots and recordings itself - browser pages, Android devices, desktop apps, whatever surface the brief names - keeps the image/video bytes in its own context, and returns structured text plus the retained capture paths, kept in the shared artifact store for the user's review. Dispatch for GUI testing and any live screen that must be captured; observer stays the read-only analyst for files that already exist.",
       "frontmatter": {
         "claude": [
           "name: spotter",
@@ -242,7 +242,7 @@
           "    effect: deny",
           "  - action: shell",
           "    resource: \"*\"",
-          "    effect: deny"
+          "    effect: allow"
         ],
         "zcode": [
           "name: spotter",

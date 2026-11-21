@@ -1,1 +1,1 @@
-the deployed `~/.claude/my-workbench-solutions/` directory
+the deployed `$HOME/.claude/my-workbench-solutions/` directory

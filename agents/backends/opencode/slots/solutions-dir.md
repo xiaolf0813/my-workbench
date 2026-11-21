@@ -1,1 +1,1 @@
-the deployed `~/.config/opencode/my-workbench-solutions/` directory
+the deployed `$HOME/.config/opencode/my-workbench-solutions/` directory

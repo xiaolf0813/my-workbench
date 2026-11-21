@@ -1,1 +1,1 @@
-`~/.zcode/my-workbench-solutions/`
+`$HOME/.zcode/my-workbench-solutions/`
