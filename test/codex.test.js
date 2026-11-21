@@ -97,7 +97,7 @@ test('Codex defaults to the sandbox home; dry-run writes nothing', t => {
   const projectConfig = join(f.project, '.codex');
   mkdirSync(projectConfig);
   writeFileSync(join(projectConfig, 'AGENTS.md'), 'project instructions');
-  f.run('--codex', '--user', '--force');
+  f.run('--codex', '--force');
   assert.deepEqual(readdirSync(f.project), ['.codex']);
   assert.deepEqual(readdirSync(projectConfig), ['AGENTS.md']);
   assert.equal(readFileSync(join(projectConfig, 'AGENTS.md'), 'utf8'), 'project instructions');

@@ -6,17 +6,16 @@
 
 | Target | Flag | Where it installs |
 | --- | --- | --- |
-| opencode (native) | default set (user-only) | `~/.config/opencode/` — core config plus native `agents/*.md`; ignores `--user` |
-| claude | default set | `.claude/` — `settings.json` plus `.claude/agents/*.md`; identical in every target |
-| user level | `--user` | Claude Code assets under `~/.claude/`; default targets remain opencode + claude |
+| opencode (native) | default set | `~/.config/opencode/` — core config plus native `agents/*.md` |
+| claude | default set | `~/.claude/` — `settings.json` plus `agents/*.md` |
 | zcode | `--zcode` | `~/.zcode/AGENTS.md` (the orchestrator prompt as ZCode's global instruction file) + `~/.zcode/agents/*.md` |
-| ChatGPT / Codex (local) | `--chatgpt`, `--codex` | A managed loader block in the active `<CODEX_HOME>/AGENTS.override.md` or `AGENTS.md`, plus `my-workbench-orchestrator.md`, `agents/*.toml`, `my-workbench-solutions/`, and the offline `my-workbench-plugin-marketplace/` carrying Subagent Config; defaults to `~/.codex/`, always user-level |
+| ChatGPT / Codex (local) | `--chatgpt`, `--codex` | A managed loader block in the active `<CODEX_HOME>/AGENTS.override.md` or `AGENTS.md`, plus `my-workbench-orchestrator.md`, `agents/*.toml`, `my-workbench-solutions/`, and the offline `my-workbench-plugin-marketplace/` carrying Subagent Config; defaults to `~/.codex/` |
 
-Every target downloads nothing and writes nothing inside a project except the version stamp; existing files are skipped unless `--force`, and a `--force` overwrite first snapshots and restores the user's model settings (the per-backend `model`/`effort`/`thoughtLevel` frontmatter lines of every `agents/*.md`). Codex's active global AGENTS file is the deliberate exception: one marked loader block is added or refreshed while every byte outside it remains user-owned. The two JSON files it deploys are seed stubs, not owned files: a `--force` overwrite reconciles only the stub's own keys (derived from the stub bytes — `agent` in `.claude/settings.json`, `$schema` in `opencode.jsonc`) into an existing file and never touches any other byte of it (an unparseable file is left completely untouched). Every install and assemble stamps `my-workbench.version` once per deployment realm (`<cwd>/my-workbench.version` for project deploys, `~/.my-workbench.version` for shared user-level deploys, and `<CODEX_HOME>/my-workbench.version` for Codex) — written unconditionally, never subject to skip/`--force`. `--upgrade` compares those stamps with the npm registry latest and, when one is behind, auto-upgrades by redeploying via `npx my-workbench@latest --force` — the one deliberate download, and it overwrites deployed files by design.
+Every install is user-level and writes nothing to the current working directory; every target downloads nothing, existing files are skipped unless `--force`, and a `--force` overwrite first snapshots and restores the user's model settings (the per-backend `model`/`effort`/`thoughtLevel` frontmatter lines of every `agents/*.md`); the shipped source pins no model (`model: inherit`, or absent) — add per-agent model lines to match your providers and budget. Codex's active global AGENTS file is the deliberate exception: one marked loader block is added or refreshed while every byte outside it remains user-owned. The two JSON files it deploys are seed stubs, not owned files: a `--force` overwrite reconciles only the stub's own keys (derived from the stub bytes — `agent` in `~/.claude/settings.json`, `$schema` in `opencode.jsonc`) into an existing file and never touches any other byte of it (an unparseable file is left completely untouched). Every install stamps `~/.my-workbench.version` once per home-realm deploy (opencode/claude/zcode) and `<CODEX_HOME>/my-workbench.version` for Codex, while a source-checkout `assemble` render stamps `<cwd>/my-workbench.version` — written unconditionally, never subject to skip/`--force`. `--upgrade` compares those stamps with the npm registry latest and, when one is behind, auto-upgrades by redeploying via `npx my-workbench@latest --force` — the one deliberate download, and it overwrites deployed files by design.
 
 **opencode** requires an `opencode` binary on PATH.
 
-**zcode** has no configurable main agent and no project-level subagents, so `~/.zcode/` is the whole install.
+**zcode** has no configurable main agent and no per-project subagents, so `~/.zcode/` is the whole install.
 
 
 ## Layout
@@ -65,10 +64,6 @@ Run `npx my-workbench assemble` in the repo root after editing any source (`--ch
 - **ChatGPT / Codex** → standalone custom-agent TOML lives under `CODEX_HOME/agents/`; roster `frontmatter.codex` carries native TOML metadata. Prompts inherit session models by default. Force preserves top-level `model` / `model_reasoning_effort` / `model_reasoning_summary` / `model_verbosity` statements. The active global file (`AGENTS.override.md` when it has user instructions, otherwise `AGENTS.md`) carries one marked loader block; the full policy lives in `my-workbench-orchestrator.md` outside automatic discovery's size budget. Every Codex deployment also refreshes `my-workbench-plugin-marketplace/` and registers `subagent-config@my-workbench` with the official `codex plugin` CLI; Node.js and that CLI capability are hard prerequisites, registration failure rolls back managed files and plugin registration state and prevents the CODEX_HOME-local version stamp, and the user must restart ChatGPT / Codex afterward. Hosted ChatGPT chats and GPTs are not this target.
 - **Universal behavior rules** → `agents/disciplines.md` is the single authored copy, with `agents/disciplines_cn.md` beside it. Assembly appends the English file to every delivered agent prompt — markdown backends and Codex TOML agents — so no delegation brief repeats it. One rule per concern.
 - **No downloads**: my-workbench never pins a `"plugin"` entry and never downloads or executes anything.
-
-## Target projects
-
-After `npx my-workbench`, the target owns the same tree: edit its `agents/` source and run `npx my-workbench assemble` there; `assemble --check` detects drift. The shipped source pins no model (frontmatter is `model: inherit`, or absent); add per-agent model lines to match the providers and budget available in the target, and replace this root file with the target project's own instructions.
 
 ## Agent skills
 

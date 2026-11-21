@@ -28,8 +28,9 @@ function opencodePath(t) {
   return bin + delimiter + (process.env.PATH ?? '')
 }
 
-/** A project sandbox plus a `run` helper spawning the CLI inside it. HOME points at a
- *  sandbox home so a stray user-level write could never touch the real one. */
+/** A scratch working directory plus a `run` helper spawning the CLI inside it.
+ *  Every destination is user-level: HOME points at a sandbox home so a write
+ *  could never touch the real one or leak outside the fixture. */
 function projectFixture(t) {
   const dir = fixture(t)
   const project = join(dir, 'project')
@@ -43,17 +44,16 @@ function projectFixture(t) {
       env: { ...process.env, HOME: home, USERPROFILE: home, PATH: path },
       encoding: 'utf8',
     })
-  const file = (...rel) => join(project, ...rel)
   const homeFile = (...rel) => join(home, ...rel)
-  return { project, home, run, file, homeFile }
+  return { project, home, run, homeFile }
 }
 
 test('a --force reinstall preserves the agents frontmatter and reconciles the JSON stubs\' own keys', t => {
-  const { run, file, homeFile } = projectFixture(t)
+  const { run, homeFile } = projectFixture(t)
   const first = run([])
   assert.equal(first.status, 0, first.stderr + first.stdout)
   // A fresh create preserves nothing: the installed files ARE the renders/stubs.
-  const oracle = file('.claude', 'agents', 'oracle.md')
+  const oracle = homeFile('.claude', 'agents', 'oracle.md')
   assert.match(readFileSync(oracle, 'utf8'), /^model: inherit$/m)
 
   // The user retunes one destination per rule:
@@ -73,7 +73,7 @@ test('a --force reinstall preserves the agents frontmatter and reconciles the JS
   writeFileSync(oracle, readFileSync(oracle, 'utf8')
     .replace('model: inherit', 'model: custom/pinned-claude\neffort: high')
     .replace('Strategic technical advisor', 'MANGLED description'))
-  writeFileSync(file('.claude', 'settings.json'), `{
+  writeFileSync(homeFile('.claude', 'settings.json'), `{
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "agent": "user-pinned-orchestrator",
   "model": "sonnet",
@@ -111,7 +111,7 @@ test('a --force reinstall preserves the agents frontmatter and reconciles the JS
   // settings.json: ONLY the owned agent key was reset to canonical — every
   // other user byte (schema, model, effortLevel, env token, hooks) survived.
   assert.equal(
-    readFileSync(file('.claude', 'settings.json'), 'utf8'),
+    readFileSync(homeFile('.claude', 'settings.json'), 'utf8'),
     `{
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "agent": "orchestrator",
@@ -145,7 +145,7 @@ test('a --force reinstall preserves the agents frontmatter and reconciles the JS
 })
 
 test('an added model: line survives --force even when the render carries none (insertion)', t => {
-  const { run, file, homeFile } = projectFixture(t)
+  const { run, homeFile } = projectFixture(t)
   assert.equal(run([]).status, 0)
   const observer = homeFile('.config', 'opencode', 'agents', 'observer.md')
   const installed = readFileSync(observer, 'utf8')
@@ -173,9 +173,9 @@ test('an added model: line survives --force even when the render carries none (i
 })
 
 test('a rerun without --force leaves edited files untouched (skip)', t => {
-  const { run, file } = projectFixture(t)
+  const { run, homeFile } = projectFixture(t)
   assert.equal(run([]).status, 0)
-  const oracle = file('.claude', 'agents', 'oracle.md')
+  const oracle = homeFile('.claude', 'agents', 'oracle.md')
   const edited = readFileSync(oracle, 'utf8').replace('model: inherit', 'model: custom/pinned-claude') + '\nHAND-EDIT\n'
   writeFileSync(oracle, edited)
   const rerun = run([])
@@ -185,17 +185,17 @@ test('a rerun without --force leaves edited files untouched (skip)', t => {
 })
 
 test('--force twice in a row is idempotent', t => {
-  const { run, file, homeFile } = projectFixture(t)
+  const { run, homeFile } = projectFixture(t)
   assert.equal(run([]).status, 0)
   // Retuned values on disk, then two force overwrites: the second reconcile
   // sees the first's output, so the two trees must be byte-identical.
-  const oracle = file('.claude', 'agents', 'oracle.md')
+  const oracle = homeFile('.claude', 'agents', 'oracle.md')
   writeFileSync(oracle, readFileSync(oracle, 'utf8').replace('model: inherit', 'model: custom/pinned-claude\neffort: high'))
-  writeFileSync(file('.claude', 'settings.json'), '{\n  "agent": "user-pinned",\n  "model": "sonnet"\n}\n')
+  writeFileSync(homeFile('.claude', 'settings.json'), '{\n  "agent": "user-pinned",\n  "model": "sonnet"\n}\n')
   writeFileSync(homeFile('.config', 'opencode', 'opencode.jsonc'), '{\n  // mine\n  "model": "custom/pinned-oc"\n}\n')
   const targets = [
-    file('.claude', 'agents', 'oracle.md'),
-    file('.claude', 'settings.json'),
+    homeFile('.claude', 'agents', 'oracle.md'),
+    homeFile('.claude', 'settings.json'),
     homeFile('.config', 'opencode', 'opencode.jsonc'),
   ]
   assert.equal(run(['--force']).status, 0)
@@ -207,10 +207,10 @@ test('--force twice in a row is idempotent', t => {
 })
 
 test('a malformed JSON stub file is left completely untouched by --force, then reconciled once valid', t => {
-  const { run, file, homeFile } = projectFixture(t)
+  const { run, homeFile } = projectFixture(t)
   assert.equal(run([]).status, 0)
   // User content that does not parse: never overwritten with the stub.
-  const settings = file('.claude', 'settings.json')
+  const settings = homeFile('.claude', 'settings.json')
   const jsonc = homeFile('.config', 'opencode', 'opencode.jsonc')
   writeFileSync(settings, '{ "agent": broken')
   writeFileSync(jsonc, 'TAMPERED BY HAND\n')

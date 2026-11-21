@@ -1,7 +1,7 @@
 {
   "name": "my-workbench",
   "version": "0.14.0",
-  "description": "Portable agent setup: installs OpenCode at user level and Claude Code into your project (or user level with --user).",
+  "description": "Portable agent setup: installs OpenCode, Claude Code, ZCode and ChatGPT / Codex configs at user level.",
   "license": "MIT",
   "type": "module",
   "repository": {

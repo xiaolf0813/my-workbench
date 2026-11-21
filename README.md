@@ -2,7 +2,7 @@
 
 English | [简体中文](README_CN.md)
 
-Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex agent setup, installed with one command. OpenCode, ZCode and Codex are always user-level; Claude Code supports project or user-level installation with `--user`.
+Portable [OpenCode](https://opencode.ai) + Claude Code + ZCode + ChatGPT / Codex agent setup, installed with one command — everything installs at user level (`~/.config/opencode/`, `~/.claude/`, `~/.zcode/`, CODEX_HOME defaulting to `~/.codex/`), and nothing is written to your projects.
 
 The retired first-party Tauri desktop app is preserved on the [`desktop`](https://github.com/xiaolf0813/my-workbench/tree/desktop) branch and is not maintained on `main`.
 
@@ -13,23 +13,22 @@ npx my-workbench
 `my-workbench` installs a curated multi-agent configuration:
 
 - **`~/.config/opencode/`** — user-level OpenCode core config and native `agents/` subagents: eleven agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `fixer`, `observer`, `spotter`, `driver`, `improver`, `intake`.
-- **`.claude/`** — the same specialists as native Claude Code subagents (`.claude/agents/*.md`). Installed identically in every target.
-- **`~/.zcode/`** — opt-in ZCode support (`--zcode`): user-level global instructions plus the specialist subagents as ZCode user agents (`~/.zcode/agents/*.md`). Nothing is written inside the project.
+- **`~/.claude/`** — the same specialists as native Claude Code subagents (`~/.claude/agents/*.md`) plus `~/.claude/settings.json`.
+- **`~/.zcode/`** — opt-in ZCode support (`--zcode`): user-level global instructions plus the specialist subagents as ZCode user agents (`~/.zcode/agents/*.md`).
 - **`~/.codex/`** — opt-in local ChatGPT / Codex support (`--chatgpt` or `--codex`): a short global entrypoint, the orchestration policy, ten native TOML custom agents, solution guides, and the bundled **Subagent Config** plugin; honors `CODEX_HOME`.
 
 The orchestrator prompt also carries a persistent task queue: the `intake` specialist — invoked only when you explicitly ask, by name or @-mention — turns your raw input into confirmed task files under the project's `.oxbench/` directory, and the orchestrator presents that queue whenever it finishes work, sits idle, or is woken. Pick a task, or it auto-starts the first one after two minutes where the platform has a timer (ZCode); every task runs in an independent new session and is marked done only after the orchestrator accepts the result.
 
 ## OpenCode target
 
-- **`--opencode` (native)** — core config (`opencode.jsonc`) plus native `agents/*.md` subagents under `~/.config/opencode/`. Always user-level; `--user` does not change its destination. Requires the OpenCode app (`opencode` on PATH). Nothing is downloaded. The universal behavior rules (`agents/disciplines.md`) are appended to every agent's own prompt at assembly, so each agent carries them and the orchestrator never pastes them into a delegation brief. New sessions start on OpenCode's built-in `build` agent — switch to `orchestrator` in the agent selector, or set `"default_agent": "orchestrator"` in `opencode.jsonc`, to run the orchestration.
+- **`--opencode` (native)** — core config (`opencode.jsonc`) plus native `agents/*.md` subagents under `~/.config/opencode/`. Always user-level. Requires the OpenCode app (`opencode` on PATH). Nothing is downloaded. The universal behavior rules (`agents/disciplines.md`) are appended to every agent's own prompt at assembly, so each agent carries them and the orchestrator never pastes them into a delegation brief. New sessions start on OpenCode's built-in `build` agent — switch to `orchestrator` in the agent selector, or set `"default_agent": "orchestrator"` in `opencode.jsonc`, to run the orchestration.
 
 ## Usage
 
 ```bash
-npx my-workbench                    # ~/.config/opencode/ + project .claude/
+npx my-workbench                    # ~/.config/opencode/ + ~/.claude/
 npx my-workbench --opencode         # OpenCode setup only
 npx my-workbench --claude           # Claude Code setup only
-npx my-workbench --user             # ~/.config/opencode/ + ~/.claude/
 npx my-workbench --force            # overwrite files that already exist
 npx my-workbench --dry-run          # preview without writing
 npx my-workbench --zcode            # ZCode user-level setup only (~/.zcode)
@@ -40,21 +39,21 @@ Existing files are skipped unless `--force` is given, so re-running is safe. A `
 
 ## Version management
 
-Every install — and `assemble` in this repository — writes a small stamp file recording the version of the CLI that deployed there, **one per deployment realm**: `my-workbench.version` in the project root for project-level Claude Code or assembly, `~/.my-workbench.version` for OpenCode, user-level Claude Code or ZCode, and `<CODEX_HOME>/my-workbench.version` for each Codex home. The default install stamps both project and home realms; `--opencode` alone stamps only home. The stamp is refreshed unconditionally on every run, so it always names the running version.
+Every install writes a small stamp file recording the version of the CLI that deployed there, **one per deployment realm**: all home-level installs — OpenCode, Claude Code, ZCode — share `~/.my-workbench.version`, and each Codex home gets `<CODEX_HOME>/my-workbench.version`. A source-checkout `assemble` render stamps `my-workbench.version` in the repository root the same way. The stamp is refreshed unconditionally on every run, so it always names the running version.
 
 ```bash
 npx my-workbench --upgrade   # compare deployed versions with the npm latest
 ```
 
-`--upgrade` compares each selected realm's stamp with the latest version on the npm registry (`npm_config_registry` is respected; it defaults to `https://registry.npmjs.org`). When a stamp is outdated it **auto-upgrades**: it re-runs the install as `npx --yes my-workbench@latest [<targets>] [--user] --force` — the redeploy overwrites the deployed files (intentional for an upgrade) and needs `npm`/`npx` on PATH. A deployment that is numerically newer than the registry latest is left untouched. `--upgrade` exits `0` only when every checked stamp matches the latest after the run; it exits `1` on a registry error, when no stamp exists at all (run the install first), or when the redeploy fails.
+`--upgrade` compares each selected realm's stamp with the latest version on the npm registry (`npm_config_registry` is respected; it defaults to `https://registry.npmjs.org`). When a stamp is outdated it **auto-upgrades**: it re-runs the install as `npx --yes my-workbench@latest [<targets>] --force` — the redeploy overwrites the deployed files (intentional for an upgrade) and needs `npm`/`npx` on PATH. A deployment that is numerically newer than the registry latest is left untouched. `--upgrade` exits `0` only when every checked stamp matches the latest after the run; it exits `1` on a registry error, when no stamp exists at all (run the install first), or when the redeploy fails.
 
-## User-level install
+## Install destinations
 
-`npx my-workbench --user` installs OpenCode assets to `~/.config/opencode/` and Claude Code assets to `~/.claude/` (`settings.json` + `agents/*.md`). OpenCode supports user-level installation only, with or without `--user`. The flag changes only Claude Code's destination. User-level files apply to every project and are not meant for version control. Existing project-level OpenCode files are left untouched; remove obsolete project agents yourself if they override the global agents. ZCode and Codex are always user-level and ignore `--user`.
+Every install is user-level and applies to every session, whatever directory you run it from: OpenCode deploys to `~/.config/opencode/`, Claude Code to `~/.claude/` (`settings.json` + `agents/*.md` + `my-workbench-solutions/`), and the opt-in ZCode and Codex targets to `~/.zcode/` and CODEX_HOME (default `~/.codex/`). Nothing is ever written to your current directory. User-level files are not meant for version control. Any existing `.claude/` or `.opencode/` files in a project are your own and are left untouched; remove obsolete copies there yourself if they shadow the global agents.
 
 ## ZCode target
 
-`npx my-workbench --zcode` installs ZCode support at **user level only**: `~/.zcode/AGENTS.md` (global instructions for the main agent) and `~/.zcode/agents/*.md` (subagents). ZCode has no configurable main agent and no project-level subagents, so there is nothing to install inside a project.
+`npx my-workbench --zcode` installs ZCode support at **user level only**: `~/.zcode/AGENTS.md` (global instructions for the main agent) and `~/.zcode/agents/*.md` (subagents). ZCode has no configurable main agent and no per-project subagents, so `~/.zcode/` is the whole install.
 
 - The global file is `agents/prompts/orchestrator.md` — the orchestrator prompt drives the main agent, with the ZCode dispatch convention substituted from `agents/backends/zcode/slots/dispatch.md`.
 - Subagents run with `injectAgentsMd: false`: the global file is not injected into them, so every delegation brief must carry full context.
