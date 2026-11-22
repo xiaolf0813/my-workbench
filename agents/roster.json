@@ -86,7 +86,7 @@
           "    effect: deny"
         ],
         "zcode": [
-          "name: explorer",
+          "name: Explore",
           "@description",
           "model: inherit",
           "injectAgentsMd: false",

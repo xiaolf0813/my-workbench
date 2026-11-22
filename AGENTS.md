@@ -15,7 +15,7 @@ Every install is user-level and writes nothing to the current working directory;
 
 **opencode** requires an `opencode` binary on PATH.
 
-**zcode** has no configurable main agent and no per-project subagents, so `~/.zcode/` is the whole install.
+**zcode** has no configurable main agent and no per-project subagents, so `~/.zcode/` is the whole install. On zcode, explorer deploys with frontmatter `name: Explore` to shadow ZCode's built-in Explore with the roster agent (ZCode registers user agents by frontmatter name and a same-name user agent replaces the built-in), keeping plan mode's Explore dispatches on the pinned model.
 
 
 ## Layout
