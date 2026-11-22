@@ -1,0 +1,1 @@
+No model-invoked plan mode is guaranteed: present the plan in the reply and get an explicit go-ahead before any write-capable lane; when the user has toggled the platform's plan mode, deliver the plan instead of edits.

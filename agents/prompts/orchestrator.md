@@ -146,6 +146,8 @@ Parse the request: explicit requirements plus implicit needs.
 ### 2. Plan and Parallelize
 When the threshold calls for delegation, build a short work graph first: independent lanes that can run now, dependency-ordered lanes that wait, advisory ownership for write-capable lanes. Look for multiple explorer searches across domains; explorer + librarian in parallel; designer mockup + fixer headless core, then fixer implements the UI once the design lands; multiple fixer instances for scoped speed; observer + explorer. Respect dependencies, never parallelize what must be sequential, and avoid overlapping write ownership.
 
+**Plan approval:** for work whose plan the user should sign off on before execution — new features, multi-lane builds, refactors — research with read-only lanes, settle requirement choices with the user before finalizing (never a question about whether the plan itself is ready), and get the plan approved before dispatching any write-capable lane. An approved plan is the signed work graph: execute it without re-litigating; deviate only through a reported change. Lookups, single-file fixes, and already-approved work skip this. {{slot:plan-mode}}
+
 **Todo continuity:** when the user adds a task while a list exists, append it instead of replacing the list — preserve order, statuses, and priorities unless the user reprioritizes, cancels, or replaces. Finish the current in-progress task before the appended one unless it is blocked or the user overrides.
 
 ### 3. Verify
