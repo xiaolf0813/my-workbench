@@ -12,7 +12,7 @@ npx my-workbench
 
 `my-workbench` installs a curated multi-agent configuration:
 
-- **`~/.config/opencode/`** — user-level OpenCode core config and native `agents/` subagents: eleven agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `fixer`, `observer`, `spotter`, `driver`, `improver`, `intake`.
+- **`~/.config/opencode/`** — user-level OpenCode core config and native `agents/` subagents: eleven agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `developer`, `observer`, `spotter`, `driver`, `improver`, `intake`.
 - **`~/.claude/`** — the same specialists as native Claude Code subagents (`~/.claude/agents/*.md`) plus `~/.claude/settings.json`.
 - **`~/.zcode/`** — opt-in ZCode support (`--zcode`): user-level global instructions plus the specialist subagents as ZCode user agents (`~/.zcode/agents/*.md`).
 - **`~/.codex/`** — opt-in local ChatGPT / Codex support (`--chatgpt` or `--codex`): a short global entrypoint, the orchestration policy, ten native TOML custom agents, solution guides, and the bundled **Subagent Config** plugin with a desktop sidebar entry; honors `CODEX_HOME`.
@@ -58,7 +58,7 @@ Every install is user-level and applies to every session, whatever directory you
 
 `npx my-workbench --zcode` installs ZCode support at **user level only**: `~/.zcode/AGENTS.md` (global instructions for the main agent) and `~/.zcode/agents/*.md` (subagents). ZCode has no configurable main agent and no per-project subagents, so `~/.zcode/` is the whole install.
 
-- The global file is `agents/prompts/orchestrator.md` — the orchestrator prompt drives the main agent, with the ZCode dispatch convention substituted from `agents/backends/zcode/slots/dispatch.md`.
+- The global file is `agents/prompts/orchestrator.md` — the orchestrator prompt drives the main agent, with the ZCode dispatch convention substituted from `backends/zcode/slots/dispatch.md`.
 - Subagents run with `injectAgentsMd: false`: the global file is not injected into them, so every delegation brief must carry full context.
 - Opt-in only (`--zcode` or `zcode`) — the default targets remain OpenCode + Claude Code. Nothing is downloaded. Existing files are skipped unless `--force`. Restart ZCode sessions to pick up changes.
 
@@ -67,41 +67,45 @@ Every install is user-level and applies to every session, whatever directory you
 `npx my-workbench --chatgpt` (alias: `--codex`) installs native local custom agents into **CODEX_HOME**, defaulting to `~/.codex/`. This targets the current ChatGPT desktop app's local Codex runtime and Codex CLI; hosted chats and custom GPTs do not read these local files.
 
 - active global AGENTS file — deployment maintains one marked loader block in `AGENTS.override.md` when that file contains user instructions, otherwise in `AGENTS.md`; all surrounding user content is preserved. The block loads `my-workbench-orchestrator.md`, keeping the full policy outside the automatic AGENTS.md size budget.
-- `agents/*.toml` — ten specialists, each with native `name`, `description`, and `developer_instructions`, assembled from the same roster, prompts and disciplines. Models inherit from the current session unless you tune them in the deployed TOML or Subagent Config.
-- `my-workbench-plugin-marketplace/` — an offline local marketplace containing **Subagent Config**, which edits only the deployed agents' model fields. Deployment registers the marketplace and plugin through `codex plugin`; it never edits Codex plugin state directly.
+- `agents/*.toml` — ten specialists with native `name`, `description`, and `developer_instructions`, assembled from shared prompts and the Codex roster. The source pins no model.
+- `my-workbench-plugin-marketplace/` — an offline local marketplace containing **Subagent Config**, which provides a desktop sidebar page for model profiles and agent assignments. Deployment registers the marketplace and plugin through `codex plugin`.
 - `my-workbench-solutions/` — the platform guides, refreshed on every install.
 
 User-level only, opt-in, with no downloads or project writes. Node.js and a Codex CLI that supports `codex plugin` are required. Existing agent files skip unless `--force`; force preserves the agents' top-level `model`, `model_reasoning_effort`, `model_reasoning_summary`, and `model_verbosity` settings, while the active AGENTS loader block, bundled marketplace and plugin runtime refresh on every deployment. Plugin registration uses the official CLI, which owns the necessary `config.toml` changes. A registration failure restores the pre-deployment managed files, `config.toml`, and plugin cache and does not write the CODEX_HOME-local version stamp. Restart ChatGPT / Codex after success. Disabling subagents in your own settings can still prevent dispatch. Role instructions do not grant tools or create a separate sandbox.
+
+After restart, open **Subagent Config** from the ChatGPT sidebar. Saving creates the user-owned `<CODEX_HOME>/my-workbench-config.json` with ordered candidates for `fast`, `standard`, `deep`, and `perceptive` and a profile assignment for each agent. `developer` defaults to `auto`. The repository ships no model selections. The first save backs up and removes direct model pins from managed agent TOMLs so dispatch-time selection can apply.
 
 Schema and discovery follow official OpenAI documentation: [custom agents](https://learn.chatgpt.com/docs/agent-configuration/subagents), [AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md).
 
 ## Single source, assembled output
 
-Everything is generated from one tree, `agents/`:
+Shared prompts live in `agents/`; each backend owns its native metadata and behavior in top-level `backends/`:
 
 ```
 agents/
 ├── disciplines.md    # the universal disciplines, appended to every agent prompt at assembly
 ├── disciplines_cn.md # Chinese reference translation of disciplines.md (never packaged)
-├── roster.json       # agent descriptions and backend frontmatter, authored once
 ├── prompts/          # each agent prompt body, once (attribution notice kept here, dropped when assembled)
-├── prompts_cn/       # Chinese reference translations (never packaged)
-└── backends/         # everything backend-specific; each backend may carry slots/*.md
-                      # (per-backend text substituted for {{slot:...}} placeholders in agents/prompts/)
+└── prompts_cn/       # Chinese reference translations (never packaged)
+backends/             # backend rosters, native assets and {{slot:...}} prompt text
     ├── claude/
+    │   ├── roster.json     # Claude agent descriptions and metadata
     │   ├── settings.json   # main-thread agent setting
     │   └── slots/          # Claude-specific prompt text
     ├── opencode/
+    │   ├── roster.json           # OpenCode agent descriptions and metadata
     │   ├── slots/                # OpenCode-specific prompt text
     │   └── opencode.jsonc        # core config
     ├── zcode/
+    │   ├── roster.json     # ZCode agent descriptions and metadata
     │   └── slots/          # dispatch.md (every backend has it; not enumerated here)
     └── codex/
+        ├── roster.json     # Codex agent descriptions and native TOML metadata
         ├── slots/          # Codex-specific prompt text
         └── subagent-config/ # bundled local Subagent Config plugin
 ```
 
-In this source repository, `assemble` generates local `.claude/agents/` and `.opencode/` artifacts for development and validation; OpenCode installations go to `~/.config/opencode/`. Edit `agents/`, then run `npx my-workbench assemble` (`--check` detects drift). `agents/roster.json` supplies descriptions and backend frontmatter, and the check rejects orphan prompt bodies. Prompt bodies may reference `{{slot:<name>}}` placeholders; each backend supplies their text in `agents/backends/<backend>/slots/`, and a slot referenced by a prompt but missing for a backend fails assembly.
+In this source repository, `assemble` generates local `.claude/agents/` and `.opencode/` artifacts for development and validation; OpenCode installations go to `~/.config/opencode/`. Edit shared `agents/prompts/` or the appropriate `backends/<backend>/` directory, then run `npx my-workbench assemble` (`--check` detects drift). Each `backends/<backend>/roster.json` supplies that backend's descriptions and native metadata, and the check rejects orphan prompt bodies. Prompt bodies may reference `{{slot:<name>}}` placeholders; each backend supplies their text in `backends/<backend>/slots/`, and a slot referenced by a prompt but missing for a backend fails assembly.
 
 ## Attribution
 

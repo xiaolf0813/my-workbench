@@ -6,7 +6,7 @@ Agent GUI testing is slow when locating a control means looking at pixels. The f
 
 - **driver** — operates the surface: resolves aliases against the live text tree, acts, asserts, reports pass/fail. Text in, text out; one whole scenario per dispatch.
 - **spotter** — captures pixels and judges appearance only; never locates controls.
-- **fixer** — owns identity tags in the app source, the registry generator, and repairs for broken locators reported by driver.
+- **developer** — owns identity tags in the app source, the registry generator, and repairs for broken locators reported by driver.
 
 ## The three layers
 
@@ -54,11 +54,11 @@ Prefer semantic actions (UIA Invoke, DOM click, a11y actions) over coordinate ta
 
 ## Brief contract (driver)
 
-Surface facts (URL / window / device / adb serial) + the scenario as ordered steps with expected states + project paths (recipe `gui-test/README.md`, registry). One scenario per dispatch. Driver's misses route back to fixer (identity tags, generator); recurring driver failures route to improver.
+Surface facts (URL / window / device / adb serial) + the scenario as ordered steps with expected states + project paths (recipe `gui-test/README.md`, registry). One scenario per dispatch. Driver's misses route back to developer (identity tags, generator); recurring driver failures route to improver.
 
-## Bootstrap: what fixer builds
+## Bootstrap: what developer builds
 
-When driver reports "cannot operate", the orchestrator commissions fixer with this section as the spec — the deployable copy travels in `agents/solutions/toolkit-gui-test.md` (platform-neutral) plus the per-platform `*-gui-test.md` guides, so any project can be bootstrapped from zero; no pre-existing convention required. Once the toolkit lands, copy the convention into the target project's own instructions (its root AGENTS.md "Agent skills" section) so future sessions there inherit it without this deployment.
+When driver reports "cannot operate", the orchestrator commissions developer with this section as the spec — the deployable copy travels in `agents/solutions/toolkit-gui-test.md` (platform-neutral) plus the per-platform `*-gui-test.md` guides, so any project can be bootstrapped from zero; no pre-existing convention required. Once the toolkit lands, copy the convention into the target project's own instructions (its root AGENTS.md "Agent skills" section) so future sessions there inherit it without this deployment.
 
 Build order — each step is independently useful, stop after any of them:
 

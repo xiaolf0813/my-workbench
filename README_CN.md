@@ -14,7 +14,7 @@ npx my-workbench
 
 `my-workbench` 安装一套精心整理的多智能体配置：
 
-- **`~/.config/opencode/`** — 用户级 OpenCode 核心配置与原生 `agents/` 子智能体：十一个智能体 — `orchestrator`、`explorer`、`librarian`、`oracle`、`designer`、`fixer`、`observer`、`spotter`、`driver`、`improver`、`intake`。
+- **`~/.config/opencode/`** — 用户级 OpenCode 核心配置与原生 `agents/` 子智能体：十一个智能体 — `orchestrator`、`explorer`、`librarian`、`oracle`、`designer`、`developer`、`observer`、`spotter`、`driver`、`improver`、`intake`。
 - **`~/.claude/`** — 同一批专家智能体的 Claude Code 原生子智能体形态（`~/.claude/agents/*.md`），外加 `~/.claude/settings.json`。
 - **`~/.zcode/`** — 可选的 ZCode 支持（`--zcode`）：用户级全局指令，外加各专家子智能体作为 ZCode 用户级 agents（`~/.zcode/agents/*.md`）。
 - **`~/.codex/`** — 可选的本地 ChatGPT / Codex 支持（`--chatgpt` 或 `--codex`）：全局短入口、编排策略、十个原生 TOML 子智能体、方案指南及带桌面侧栏入口的 **Subagent Config** 插件；支持 `CODEX_HOME`。
@@ -60,7 +60,7 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 
 `npx my-workbench --zcode` 仅在**用户级**安装 ZCode 支持：`~/.zcode/AGENTS.md`（主智能体的全局指令）和 `~/.zcode/agents/*.md`（子智能体）。ZCode 没有可配置的主智能体，也没有按项目划分的子智能体，因此 `~/.zcode/` 就是全部安装内容。
 
-- 全局文件就是 `agents/prompts/orchestrator.md` — orchestrator 提示词驱动主智能体，其中 ZCode 的派发约定由 `agents/backends/zcode/slots/dispatch.md` 填入。
+- 全局文件就是 `agents/prompts/orchestrator.md` — orchestrator 提示词驱动主智能体，其中 ZCode 的派发约定由 `backends/zcode/slots/dispatch.md` 填入。
 - 子智能体以 `injectAgentsMd: false` 运行：全局文件不会注入它们，因此每个委派简报必须自带完整上下文。
 - 仅按需启用（`--zcode` 或 `zcode`）— 默认目标仍是 OpenCode + Claude Code。不下载任何东西。已存在的文件除非 `--force` 否则跳过。重启 ZCode 会话以生效。
 
@@ -69,41 +69,45 @@ npx my-workbench --upgrade   # compare deployed versions with the npm latest
 `npx my-workbench --chatgpt`（别名 `--codex`）把原生本地子智能体安装到 **CODEX_HOME**，默认 `~/.codex/`。适用于当前 ChatGPT 桌面程序的本地 Codex 运行时及 Codex CLI；云端聊天和自定义 GPT 不读取这些本地文件。
 
 - 当前生效的全局 AGENTS 文件：`AGENTS.override.md` 含有用户指令时在其中维护一个带标记的加载块，否则维护在 `AGENTS.md`；块外用户内容原样保留。该加载块指向 `my-workbench-orchestrator.md`，避免完整策略挤占 AGENTS.md 自动发现的大小预算。
-- `agents/*.toml`：十个原生专家子智能体，使用 `name`、`description`、`developer_instructions`，从同一 roster、提示词和通用纪律组装。默认继承当前会话模型，也可通过已部署 TOML 或 Subagent Config 调整。
-- `my-workbench-plugin-marketplace/`：包含 **Subagent Config** 的离线本地 marketplace；插件只编辑已部署子智能体的模型字段。部署通过 `codex plugin` 注册 marketplace 与插件，不直接编辑 Codex 插件状态。
+- `agents/*.toml`：十个原生专家子智能体，使用 `name`、`description`、`developer_instructions`，由共享提示词和 Codex 专属 roster 组装。源码不固定模型。
+- `my-workbench-plugin-marketplace/`：包含 **Subagent Config** 的离线本地 marketplace；提供桌面侧栏配置页，设置模型档位及智能体档位。部署通过 `codex plugin` 注册插件。
 - `my-workbench-solutions/`：每次安装刷新的平台指南。
 
 仅用户级，按需启用，不下载、不写项目文件；要求 PATH 中存在 Node.js 以及支持 `codex plugin` 的 Codex CLI。已有智能体文件默认跳过；`--force` 保留子智能体顶层的 `model`、`model_reasoning_effort`、`model_reasoning_summary`、`model_verbosity` 设置，而当前生效的 AGENTS 加载块、内置 marketplace 与插件运行时每次部署都会刷新。插件注册通过官方 CLI 完成，由该 CLI 管理必要的 `config.toml` 变更；注册失败会恢复部署前的受管文件、`config.toml` 与插件缓存，也不会写入 CODEX_HOME 本地版本戳。成功后需要重启 ChatGPT / Codex。用户设置禁用子智能体时仍可能无法委派。职责指令不会授予工具权限，也不会建立独立沙箱。
+
+重启后从 ChatGPT 左侧边栏打开 **Subagent Config**。保存时才创建用户所有的 `<CODEX_HOME>/my-workbench-config.json`，其中包含 `fast`、`standard`、`deep`、`perceptive` 档位的有序备选模型，以及每个智能体的档位。`developer` 默认使用 `auto`。仓库不预设具体模型。首次保存会备份并清除受管智能体 TOML 中的直接模型设置，使派发时的模型选择生效。
 
 格式及发现规则依据 OpenAI 官方文档：[自定义智能体](https://learn.chatgpt.com/docs/agent-configuration/subagents)、[AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md)。
 
 ## 单一来源，组装输出
 
-一切由一棵树 `agents/` 生成：
+共享提示词位于 `agents/`；各后端的原生元数据和行为位于一级目录 `backends/`：
 
 ```
 agents/
 ├── disciplines.md    # 通用纪律，组装时追加到每个 agent 提示词末尾
 ├── disciplines_cn.md # disciplines.md 的中文参考译文（永不打包）
-├── roster.json       # 智能体描述与各后端 frontmatter 的唯一编写处
 ├── prompts/          # 每个智能体的提示词正文，仅一份（署名声明留在此处，组装时剥离）
-├── prompts_cn/       # 中文参考翻译（永不打包）
-└── backends/         # 所有后端专属内容；每个后端可带 slots/*.md
-                      # （后端专属文本，替换 agents/prompts/ 中的 {{slot:...}} 占位符）
+└── prompts_cn/       # 中文参考翻译（永不打包）
+backends/             # 后端 roster、原生文件及 {{slot:...}} 提示词文本
     ├── claude/
+    │   ├── roster.json     # Claude 智能体描述与元数据
     │   ├── settings.json   # 主线程智能体设置
     │   └── slots/          # Claude 专属提示词文本
     ├── opencode/
+    │   ├── roster.json           # OpenCode 智能体描述与元数据
     │   ├── slots/                # OpenCode 专属提示词文本
     │   └── opencode.jsonc        # 核心配置
     ├── zcode/
+    │   ├── roster.json     # ZCode 智能体描述与元数据
     │   └── slots/          # dispatch.md（每个后端都有，不逐一列出）
     └── codex/
+        ├── roster.json     # Codex 智能体描述与原生 TOML 元数据
         ├── slots/          # Codex 专属提示词文本
         └── subagent-config/ # 内置 Subagent Config 插件
 ```
 
-在本源码仓库中，`assemble` 生成本地 `.claude/agents/` 和 `.opencode/` 产物，供开发与校验；OpenCode 安装则写入 `~/.config/opencode/`。编辑 `agents/`，然后运行 `npx my-workbench assemble`（`--check` 检测漂移）。`agents/roster.json` 集中保存描述与各后端 frontmatter，检查会拒绝没有记录的提示词。提示词正文可以引用 `{{slot:<name>}}`；每个后端在 `agents/backends/<backend>/slots/` 中提供对应文本，缺少 slot 会导致组装失败。
+在本源码仓库中，`assemble` 生成本地 `.claude/agents/` 和 `.opencode/` 产物，供开发与校验；OpenCode 安装则写入 `~/.config/opencode/`。编辑共享的 `agents/prompts/` 或对应的 `backends/<backend>/`，然后运行 `npx my-workbench assemble`（`--check` 检测漂移）。每个 `backends/<backend>/roster.json` 分别保存该后端的描述与原生元数据，检查会拒绝没有记录的提示词。提示词正文可以引用 `{{slot:<name>}}`；每个后端在 `backends/<backend>/slots/` 中提供对应文本，缺少 slot 会导致组装失败。
 
 ## 署名
 

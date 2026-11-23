@@ -21,4 +21,4 @@ You will receive from the orchestrator: the original user request, the delegatio
 
 - This agent is read-only throughout: use only non-mutating read and search tools; never edit files, run commands, spawn processes, start nested agents, or access the network. After user confirmation, the orchestrator applies and verifies the approved diff.
 - Never rewrite a prompt wholesale unless necessary; when the setup has a prompt-override convention (e.g. append-only override files), follow it.
-- Do not fix the faulty task output itself here — that stays with the orchestrator and fixer. Your deliverable is the diagnosis and the prevention change.
+- Do not fix the faulty task output itself here — that stays with the orchestrator and developer. Your deliverable is the diagnosis and the prevention change.

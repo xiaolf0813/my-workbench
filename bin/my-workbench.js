@@ -5,6 +5,7 @@
 // live under the home directory, never the current working directory.
 
 import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { preserveCodexSettings, renderCodexAgent } from "./codex-agent.js";
 import {
   copyFileSync,
@@ -12,6 +13,7 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -40,20 +42,20 @@ class UserError extends Error {}
 /** Entries copied for each target set. Names are copied as-is; dirs are walked recursively. */
 const SETS = {
   opencode: {
-    from: join(PKG_ROOT, "agents", "backends", "opencode"),
+    from: join(PKG_ROOT, "backends", "opencode"),
     dest: ".opencode",
     /** Native OpenCode setup: core config; agents are assembled separately. */
     entries: ["opencode.jsonc"],
   },
   claude: {
-    from: join(PKG_ROOT, "agents", "backends", "claude"),
+    from: join(PKG_ROOT, "backends", "claude"),
     dest: ".claude",
     /** Agent markdown files are assembled from agents/ source, not copied. */
     entries: ["settings.json"],
   },
 };
 
-/** Assemblable agent markdown backends: metadata file in agents/backends/ + output dir. */
+/** Assemblable agent markdown backends: metadata file in backends/ + output dir. */
 const BACKENDS = {
   claude: ".claude/agents",
   opencode: ".opencode/agents",
@@ -66,8 +68,8 @@ const SOLUTIONS_SRC = join(PKG_ROOT, "agents", "solutions");
 const SOLUTIONS_DEST_DIR = "my-workbench-solutions";
 
 /** Bundled, offline Codex plugin and its personal local marketplace. */
-const CODEX_PLUGIN_SOURCE = join(PKG_ROOT, "agents", "backends", "codex", "subagent-config");
-const CODEX_MARKETPLACE_SOURCE = join(PKG_ROOT, "agents", "backends", "codex", "subagent-config-marketplace");
+const CODEX_PLUGIN_SOURCE = join(PKG_ROOT, "backends", "codex", "subagent-config");
+const CODEX_MARKETPLACE_SOURCE = join(PKG_ROOT, "backends", "codex", "subagent-config-marketplace");
 const CODEX_MARKETPLACE_DIR = "my-workbench-plugin-marketplace";
 const CODEX_MARKETPLACE_NAME = "my-workbench";
 const CODEX_PLUGIN_NAME = "subagent-config";
@@ -94,7 +96,7 @@ function isSkipped(name) {
   );
 }
 
-/** Placeholders in shared prompt bodies: {{slot:<name>}} -> agents/backends/<backend>/slots/<name>.md */
+/** Placeholders in shared prompt bodies: {{slot:<name>}} -> backends/<backend>/slots/<name>.md */
 const SLOT_RE = /\{\{slot:([\w-]+)\}\}/g;
 
 
@@ -788,18 +790,18 @@ function codexPluginPrerequisiteFailures(root) {
 
 /**
  * Assemble one agent markdown file for a backend: its frontmatter lines from
- * agents/roster.json supplies frontmatter for the shared prompt bodies.
+ * backends/<backend>/roster.json supplies frontmatter for the shared prompt bodies.
  */
-function agentRoster() {
-  return JSON.parse(readFileSync(join(PKG_ROOT, "agents", "roster.json"), "utf8")).agents;
+function agentRoster(backendName) {
+  return JSON.parse(readFileSync(join(PKG_ROOT, "backends", backendName, "roster.json"), "utf8")).agents;
 }
 
 /** Render backend frontmatter from the one authored record per agent. */
 function loadBackend(name) {
   const agents = {};
-  for (const [agentName, record] of Object.entries(agentRoster())) {
-    const lines = record.frontmatter[name];
-    if (lines === undefined) continue;
+  for (const [agentName, record] of Object.entries(agentRoster(name))) {
+    const lines = record.frontmatter;
+    if (lines === null) continue;
     agents[agentName] = {
       frontmatter: lines.map((line) => line === "@description" ? `description: ${JSON.stringify(record.description)}` : line),
     };
@@ -810,14 +812,22 @@ function loadBackend(name) {
 /** Orphan prompts and missing reference translations are source errors. */
 function agentSourceProblems() {
   const problems = [];
-  const roster = agentRoster();
-  const names = new Set(Object.keys(roster));
-  for (const [name, record] of Object.entries(roster)) {
-    if (typeof record.description !== "string" || !record.description.trim()) problems.push(`agent '${name}' has no description`);
-    for (const backend of ["claude", "opencode", "zcode", "codex"]) {
-      const lines = record.frontmatter?.[backend];
-      if (name === "orchestrator" && ["zcode", "codex"].includes(backend) && lines === undefined) continue; // ZCode uses AGENTS.md as its main agent.
+  const backendNames = ["claude", "opencode", "zcode", "codex"];
+  const names = new Set();
+  for (const backend of backendNames) {
+    const roster = agentRoster(backend);
+    for (const [name, record] of Object.entries(roster)) {
+      names.add(name);
+      if (typeof record.description !== "string" || !record.description.trim()) problems.push(`agent '${name}' has no ${backend} description`);
+      const lines = record.frontmatter;
+      if (name === "orchestrator" && ["zcode", "codex"].includes(backend) && lines === null) continue;
       if (!Array.isArray(lines) || lines.filter((line) => line === "@description").length !== 1) problems.push(`agent '${name}' has invalid ${backend} frontmatter`);
+      if (backend === "codex" && Array.isArray(lines) && lines.some((line) => /^model(?:_reasoning_effort)?\s*=/.test(line.trim()))) problems.push(`agent '${name}' pins a Codex model in source`);
+    }
+  }
+  for (const backend of backendNames) {
+    for (const name of names) {
+      if (!(name in agentRoster(backend))) problems.push(`agent '${name}' is missing from ${backend} roster`);
     }
   }
   const promptDir = join(PKG_ROOT, "agents", "prompts");
@@ -878,9 +888,9 @@ function stripAttribution(body) {
   return body.startsWith(head) ? body.slice(head.length) : body;
 }
 
-/** Load a backend's slot texts: agents/backends/<backend>/slots/<name>.md -> Map(name -> trimmed content). */
+/** Load a backend's slot texts: backends/<backend>/slots/<name>.md -> Map(name -> trimmed content). */
 function loadSlots(backendName) {
-  const dir = join(PKG_ROOT, "agents", "backends", backendName, "slots");
+  const dir = join(PKG_ROOT, "backends", backendName, "slots");
   const slots = new Map();
   if (!existsSync(dir)) return slots;
   for (const file of readdirSync(dir)) {
@@ -900,7 +910,7 @@ function fillSlots(body, backendName, usedSlots) {
   const slots = loadSlots(backendName);
   return body.replace(SLOT_RE, (raw, slotName) => {
     if (!slots.has(slotName)) {
-      throw new Error(`agents/backends/${backendName}/slots/ is missing slot '${slotName}' (referenced by agents/prompts/)`);
+      throw new Error(`backends/${backendName}/slots/ is missing slot '${slotName}' (referenced by agents/prompts/)`);
     }
     usedSlots.add(slotName);
     return slots.get(slotName);
@@ -910,13 +920,13 @@ function fillSlots(body, backendName, usedSlots) {
 /** Warn about slot files no prompt body of this assemble run referenced. */
 function warnUnusedSlots(backendName, usedSlots) {
   for (const slotName of loadSlots(backendName).keys()) {
-    if (!usedSlots.has(slotName)) console.warn(`warn: unused slot '${slotName}' in agents/backends/${backendName}/slots/`);
+    if (!usedSlots.has(slotName)) console.warn(`warn: unused slot '${slotName}' in backends/${backendName}/slots/`);
   }
 }
 
 /**
  * Assemble one agent markdown file for a backend: its frontmatter lines from
- * agents/backends/<backend>.json joined with the shared prompt body from
+ * backends/<backend>.json joined with the shared prompt body from
  * agents/prompts/<name>.md (which carries the attribution notice), with
  * {{slot:...}} placeholders filled from the backend's slots/ and the universal
  * disciplines appended last — a delivered agent prompt is body + disciplines,
@@ -924,7 +934,7 @@ function warnUnusedSlots(backendName, usedSlots) {
  */
 function assembleAgent(backendName, name, usedSlots) {
   const meta = loadBackend(backendName).agents[name];
-  if (!meta) throw new Error(`agents/backends metadata is missing agent '${name}'`);
+  if (!meta) throw new Error(`backends metadata is missing agent '${name}'`);
   const body = fillSlots(stripAttribution(promptBody(name)), backendName, usedSlots).replace(/^\s+/, "").replace(/\s+$/, "");
   return `---\n${meta.frontmatter.join("\n")}\n---\n\n${body}${disciplinesBlock()}`;
 }
@@ -1039,7 +1049,7 @@ function codexDisplayOptions(root, opts) {
 }
 
 function codexEntrypoint(root) {
-  const backend = join(PKG_ROOT, "agents", "backends", "codex");
+  const backend = join(PKG_ROOT, "backends", "codex");
   return readFileSync(join(backend, "AGENTS.md"), "utf8")
     .replace("{{policy-path}}", join(root, "my-workbench-orchestrator.md").split(sep).join("/"))
     .trim();
@@ -1116,14 +1126,14 @@ function writeCodexAgentsBlock(root, display, opts, counts) {
 }
 
 function codexOutputs(root, usedSlots) {
-  const backend = join(PKG_ROOT, "agents", "backends", "codex");
+  const backend = join(PKG_ROOT, "backends", "codex");
   const leaf = readFileSync(join(backend, "leaf.md"), "utf8");
-  const outputs = Object.entries(agentRoster())
-    .filter(([, record]) => record.frontmatter.codex !== undefined)
+  const outputs = Object.entries(agentRoster("codex"))
+    .filter(([, record]) => record.frontmatter !== null)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([name, record]) => [
       `agents/${name}.toml`,
-      renderCodexAgent(name, record.description, record.frontmatter.codex,
+      renderCodexAgent(name, record.description, record.frontmatter,
         fillSlots(stripAttribution(promptBody(name)).trim(), "codex", usedSlots), leaf, disciplinesBlock()),
     ]);
   outputs.push(["my-workbench-orchestrator.md", fillSlots(agentPromptBody("orchestrator"), "codex", usedSlots)]);
@@ -1213,6 +1223,10 @@ function runCodexPluginCommand(root, args) {
 }
 
 function installCodexPlugin(root, marketplaceRoot, opts) {
+  if (!opts.dryRun && codexPluginAlreadyCurrent(root, marketplaceRoot)) {
+    console.log(`  plugin     ${CODEX_PLUGIN_ID} already installed with matching runtime`);
+    return;
+  }
   const commands = [
     ["plugin", "marketplace", "add", marketplaceRoot, "--json"],
     ["plugin", "add", CODEX_PLUGIN_ID, "--json"],
@@ -1221,6 +1235,37 @@ function installCodexPlugin(root, marketplaceRoot, opts) {
     console.log(`  plugin     codex ${args.join(" ")}${opts.dryRun ? "  (dry-run)" : ""}`);
     if (!opts.dryRun) runCodexPluginCommand(root, args);
   }
+}
+
+function codexPluginAlreadyCurrent(root, marketplaceRoot) {
+  const version = JSON.parse(readFileSync(join(CODEX_PLUGIN_SOURCE, "plugin.json"), "utf8")).version;
+  const cache = join(root, "plugins", "cache", CODEX_MARKETPLACE_NAME, CODEX_PLUGIN_NAME, version);
+  if (!CODEX_PLUGIN_FILES.every((rel) => existsSync(join(cache, rel)))) return false;
+  const result = spawnSync(codexProgram(), codexArgs(["plugin", "list", "--json"]), {
+    cwd: root, env: { ...process.env, CODEX_HOME: root }, encoding: "utf8", windowsHide: true,
+  });
+  if (result.error || result.status !== 0) return false;
+  try {
+    const installed = JSON.parse(result.stdout).installed;
+    if (!installed?.some((item) => item.pluginId === CODEX_PLUGIN_ID && item.version === version && item.installed && item.enabled)) return false;
+    return CODEX_PLUGIN_FILES.every((rel) =>
+      readFileSync(join(cache, rel)).equals(readFileSync(join(marketplaceRoot, "plugins", CODEX_PLUGIN_NAME, rel))));
+  } catch {
+    return false;
+  }
+}
+
+function retireCodexFixer(root, opts) {
+  if (!opts.force) return;
+  const oldFile = join(root, "agents", "fixer.toml");
+  if (!existsSync(oldFile)) return;
+  const source = readFileSync(oldFile, "utf8");
+  if (!/^name\s*=\s*["']fixer["']/m.test(source) || !/You are Fixer/.test(source)) return;
+  const backupDir = join(root, "my-workbench-agent-backups");
+  console.log(`  migrate    agents/fixer.toml -> ${basename(backupDir)}/  (legacy role)${opts.dryRun ? "  (dry-run)" : ""}`);
+  if (opts.dryRun) return;
+  mkdirSync(backupDir, { recursive: true });
+  renameSync(oldFile, join(backupDir, `fixer-${randomUUID()}.toml`));
 }
 
 function applyCodex(opts, counts) {
@@ -1244,12 +1289,13 @@ function applyCodex(opts, counts) {
     }
     throw error;
   }
+  retireCodexFixer(root, opts);
   warnUnusedSlots("codex", usedSlots);
   console.log("  note       restart ChatGPT / Codex after deployment; the orchestrator block is maintained in the active global AGENTS file");
 }
 
 /**
- * Sync the distributable OpenCode assets from agents/backends/opencode/
+ * Sync the distributable OpenCode assets from backends/opencode/
  * into this repository's live .opencode/ directory. In check mode, only
  * reports drift.
  */
@@ -1258,7 +1304,7 @@ function syncOpencodeAssets({ check }) {
   let drifted = 0;
 
   for (const backendName of ["opencode"]) {
-    const srcRoot = join(PKG_ROOT, "agents", "backends", backendName);
+    const srcRoot = join(PKG_ROOT, "backends", backendName);
     walk(srcRoot, srcRoot, (fileAbs) => {
       const rel = relative(srcRoot, fileAbs)
         .split(sep)

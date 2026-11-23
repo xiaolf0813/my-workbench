@@ -1,0 +1,134 @@
+{
+  "agents": {
+    "designer": {
+      "description": "Pure UI design specialist. Produces design specs and self-contained HTML mockups that show how interfaces should look, feel, and behave - never edits app source. Use before implementing new screens, redesigns, or visual polish; developer implements the design in the app. Not for implementation of any kind.",
+      "frontmatter": [
+        "@description",
+        "mode: subagent"
+      ]
+    },
+    "driver": {
+      "description": "Executes the orchestrator's acceptance plan for GUI, CLI, API, configuration and backend deliverables. Reports evidence per criterion and rechecks corrections. Uses the project GUI toolkit for functional flows; spotter handles live visual evidence.",
+      "frontmatter": [
+        "@description",
+        "mode: subagent",
+        "permissions:",
+        "  - action: edit",
+        "    resource: \"*\"",
+        "    effect: deny",
+        "  - action: shell",
+        "    resource: \"*\"",
+        "    effect: allow"
+      ]
+    },
+    "explorer": {
+      "description": "Fast codebase search and pattern matching specialist. Use PROACTIVELY for finding files, locating code patterns, and answering \"where is X?\" questions when scope is broad or uncertain, before planning or editing.",
+      "frontmatter": [
+        "@description",
+        "mode: subagent",
+        "permissions:",
+        "  - action: edit",
+        "    resource: \"*\"",
+        "    effect: deny",
+        "  - action: shell",
+        "    resource: \"*\"",
+        "    effect: deny"
+      ]
+    },
+    "developer": {
+      "description": "Implementation owner for assigned work. Makes code-level decisions within approved requirements, diagnoses ordinary bugs, implements and verifies changes, and repairs own failures. Returns scope and architecture decisions to the orchestrator.",
+      "frontmatter": [
+        "@description",
+        "mode: subagent"
+      ]
+    },
+    "intake": {
+      "description": "Task intake specialist. ONLY invoked when the user explicitly asks - by name, @-mention, or a direct request to organize work into tasks; the orchestrator never dispatches it proactively. Turns the user's raw input plus a light project survey into confirmed task files under the project's .oxbench/ task queue, then reports so the orchestrator's wake protocol can present the queue. Not for executing tasks - it never implements anything.",
+      "frontmatter": [
+        "@description",
+        "mode: subagent",
+        "permissions:",
+        "  - action: question",
+        "    resource: \"*\"",
+        "    effect: allow"
+      ]
+    },
+    "librarian": {
+      "description": "External documentation and library research specialist. Use PROACTIVELY when working with unfamiliar libraries, fast-moving APIs (React, Next.js, AI SDKs, ORMs, auth), version-specific behavior, edge cases, or tricky bugs that need current official docs, GitHub examples, or web research.",
+      "frontmatter": [
+        "@description",
+        "mode: subagent",
+        "permissions:",
+        "  - action: edit",
+        "    resource: \"*\"",
+        "    effect: deny",
+        "  - action: shell",
+        "    resource: \"*\"",
+        "    effect: deny"
+      ]
+    },
+    "observer": {
+      "description": "Visual analysis specialist. Use when a task involves images, screenshots, PDFs, or diagrams - extracts structured observations (UI elements, layouts, exact text via OCR) without loading raw image/PDF bytes into the orchestrator context. Always pass the full file path in the prompt. Requires a vision-capable model.",
+      "frontmatter": [
+        "@description",
+        "mode: subagent",
+        "permissions:",
+        "  - action: edit",
+        "    resource: \"*\"",
+        "    effect: deny",
+        "  - action: shell",
+        "    resource: \"*\"",
+        "    effect: deny"
+      ]
+    },
+    "spotter": {
+      "description": "Screen capture and visual analysis specialist. Captures screenshots and recordings itself - browser pages, Android devices, desktop apps, whatever surface the brief names - keeps the image/video bytes in its own context, and returns structured text plus the retained capture paths, kept in the shared artifact store for the user's review. Dispatch for GUI testing and any live screen that must be captured; observer stays the read-only analyst for files that already exist.",
+      "frontmatter": [
+        "@description",
+        "mode: subagent",
+        "permissions:",
+        "  - action: edit",
+        "    resource: \"*\"",
+        "    effect: deny",
+        "  - action: shell",
+        "    resource: \"*\"",
+        "    effect: allow"
+      ]
+    },
+    "oracle": {
+      "description": "Strategic technical advisor and senior code reviewer. Use for escalations where being wrong is costly - major architectural decisions with long-term impact, problems persisting after 2+ fix attempts, complex debugging with unclear root cause, high-risk multi-system refactors, and code needing simplification or YAGNI scrutiny. Not for routine verification or first-attempt fixes.",
+      "frontmatter": [
+        "@description",
+        "mode: subagent",
+        "permissions:",
+        "  - action: edit",
+        "    resource: \"*\"",
+        "    effect: deny",
+        "  - action: shell",
+        "    resource: \"*\"",
+        "    effect: deny"
+      ]
+    },
+    "orchestrator": {
+      "description": "Owns decomposition, all plans, development, integration, repair routing and final delivery. Assigns scoped implementation to specialists and acceptance execution to driver. Reconciles returned evidence before accepting the integrated result.",
+      "frontmatter": [
+        "@description",
+        "mode: all"
+      ]
+    },
+    "improver": {
+      "description": "Retrospective analyst for agent failures: traces which agent produced unsatisfactory completed work, diagnoses the root cause, and proposes prompt/config fixes pending user confirmation. Use ONLY when the user reports that previously completed work is wrong or unsatisfactory - not for ordinary code bugs, new feature work, or in-progress verification.",
+      "frontmatter": [
+        "@description",
+        "mode: subagent",
+        "permissions:",
+        "  - action: edit",
+        "    resource: \"*\"",
+        "    effect: deny",
+        "  - action: shell",
+        "    resource: \"*\"",
+        "    effect: deny"
+      ]
+    }
+  }
+}

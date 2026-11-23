@@ -1,4 +1,4 @@
-import { rootStatements } from "../agents/backends/codex/subagent-config/server/infrastructure/root-statements.js";
+import { rootStatements } from "../backends/codex/subagent-config/server/infrastructure/root-statements.js";
 export { rootStatements };
 
 /** Codex standalone-agent TOML helpers. No dependencies or config.toml writes. */

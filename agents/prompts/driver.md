@@ -23,7 +23,7 @@ For GUI checks, operate only the named surface through the project's gui-test to
 
 **Boundaries**:
 - Run only the specified acceptance checks. Use designated test fixtures or temporary state. Leave product code, tests, configuration and locators untouched.
-- Broken locators, missing identity tags, signature mismatches: report items for the orchestrator (fixer repairs them), never silent workarounds
+- Broken locators, missing identity tags, signature mismatches: report items for the orchestrator (developer repairs them), never silent workarounds
 - Stay within the assigned checks (one complete scenario per GUI dispatch). On recheck, follow the supplied plan for failed and affected criteria.
 
 **Report format** - the orchestrator parses these headings; keep them:

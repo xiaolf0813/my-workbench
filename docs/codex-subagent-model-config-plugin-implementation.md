@@ -200,7 +200,7 @@ ChatGPT Desktop
 ## 8. 推荐项目结构
 
 ```text
-agents/backends/codex/subagent-config/
+backends/codex/subagent-config/
 ├── plugin.json
 ├── mcp.json
 ├── package.json
