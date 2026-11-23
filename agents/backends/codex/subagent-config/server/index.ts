@@ -13,12 +13,12 @@ import { getAgentConfigurationsTool } from "./tools/get-agent-configurations.js"
 import { listModelsTool } from "./tools/list-models.js";
 import { updateAgentModelTool } from "./tools/update-agent-model.js";
 
-const UI_RESOURCE_URI = "ui://subagent-config/v12.html";
+const UI_RESOURCE_URI = "ui://subagent-config/v13.html";
 
 function createMcpServer() {
   const server = new McpServer({
     name: "subagent-config",
-    version: "0.1.9",
+    version: "0.1.10",
   });
 
   registerAppResource(server, "subagent-config", UI_RESOURCE_URI, {}, async () => {
@@ -33,6 +33,10 @@ function createMcpServer() {
             ui: {
               csp: { connectDomains: [] },
             },
+            "openai/ui": {
+              preferredDisplayMode: "fullscreen",
+              availableDisplayModes: ["fullscreen"],
+            },
           },
         },
       ],
@@ -43,7 +47,7 @@ function createMcpServer() {
     server,
     "get_agent_configurations",
     {
-      title: "Get Codex agent configurations",
+      title: "Subagent Config",
       description:
         "Scan personal Codex custom agents and, when the active Codex project root is known, current-project agents. Pass the absolute active project root; omit it when the host provides no project context.",
       inputSchema: z
@@ -62,6 +66,9 @@ function createMcpServer() {
       },
       _meta: {
         ui: { resourceUri: UI_RESOURCE_URI },
+        "openai/ui": {
+          entrypoints: [{ type: "global" }],
+        },
       },
     },
     async ({ projectRoot }) => {

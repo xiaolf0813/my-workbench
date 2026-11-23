@@ -29,7 +29,7 @@ test("stdio server exposes the three tools and the MCP Apps resource", async () 
     path.join(isolatedRuntime, "component.html"),
   );
 
-  const client = new Client({ name: "subagent-config-test", version: "0.1.9" });
+  const client = new Client({ name: "subagent-config-test", version: "0.1.10" });
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [path.join(isolatedRuntime, "server.mjs")],
@@ -44,12 +44,19 @@ test("stdio server exposes the three tools and the MCP Apps resource", async () 
       tools.tools.map((tool) => tool.name).sort(),
       ["get_agent_configurations", "list_models", "update_agent_model"],
     );
+    const sidebarTool = tools.tools.find((tool) => tool.name === "get_agent_configurations");
+    assert.equal(sidebarTool.title, "Subagent Config");
+    assert.deepEqual(sidebarTool._meta?.["openai/ui"]?.entrypoints, [{ type: "global" }]);
 
     const resources = await client.listResources();
-    const appResource = resources.resources.find((resource) => resource.uri === "ui://subagent-config/v12.html");
+    const appResource = resources.resources.find((resource) => resource.uri === "ui://subagent-config/v13.html");
     assert.ok(appResource);
     const component = await client.readResource({ uri: appResource.uri });
     assert.equal(component.contents[0]?.mimeType, "text/html;profile=mcp-app");
+    assert.deepEqual(component.contents[0]?._meta?.["openai/ui"], {
+      preferredDisplayMode: "fullscreen",
+      availableDisplayModes: ["fullscreen"],
+    });
     const componentHtml = component.contents[0]?.text ?? "";
     assert.match(componentHtml, /Subagent Config/);
     assert.match(componentHtml, /ui\/notifications\/tool-input/);

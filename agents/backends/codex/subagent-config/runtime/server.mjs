@@ -36396,7 +36396,7 @@ async function loadModelsFromAppServer() {
         clientInfo: {
           name: "subagent_config",
           title: "Subagent Config",
-          version: "0.1.9"
+          version: "0.1.10"
         }
       }
     });
@@ -36532,11 +36532,11 @@ async function updateAgentModelTool(input2) {
 }
 
 // server/index.ts
-var UI_RESOURCE_URI = "ui://subagent-config/v12.html";
+var UI_RESOURCE_URI = "ui://subagent-config/v13.html";
 function createMcpServer() {
   const server = new McpServer({
     name: "subagent-config",
-    version: "0.1.9"
+    version: "0.1.10"
   });
   G(server, "subagent-config", UI_RESOURCE_URI, {}, async () => {
     const uiBundle = readFileSync(path5.join(path5.dirname(fileURLToPath(import.meta.url)), "component.html"), "utf8");
@@ -36549,6 +36549,10 @@ function createMcpServer() {
           _meta: {
             ui: {
               csp: { connectDomains: [] }
+            },
+            "openai/ui": {
+              preferredDisplayMode: "fullscreen",
+              availableDisplayModes: ["fullscreen"]
             }
           }
         }
@@ -36559,7 +36563,7 @@ function createMcpServer() {
     server,
     "get_agent_configurations",
     {
-      title: "Get Codex agent configurations",
+      title: "Subagent Config",
       description: "Scan personal Codex custom agents and, when the active Codex project root is known, current-project agents. Pass the absolute active project root; omit it when the host provides no project context.",
       inputSchema: external_exports.object({
         projectRoot: external_exports.string().min(1).max(1024).optional().describe("Absolute root of the active Codex project, supplied from the current task context when known.")
@@ -36569,7 +36573,10 @@ function createMcpServer() {
         openWorldHint: false
       },
       _meta: {
-        ui: { resourceUri: UI_RESOURCE_URI }
+        ui: { resourceUri: UI_RESOURCE_URI },
+        "openai/ui": {
+          entrypoints: [{ type: "global" }]
+        }
       }
     },
     async ({ projectRoot }) => {

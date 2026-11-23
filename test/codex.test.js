@@ -26,7 +26,7 @@ appendFileSync(process.env.MY_WORKBENCH_TEST_CODEX_LOG, JSON.stringify(args) + '
 if (process.env.MY_WORKBENCH_FAIL_PLUGIN_INSTALL === '1' && args[0] === 'plugin' && args[1] === 'add') {
   mkdirSync(process.env.CODEX_HOME, { recursive: true });
   writeFileSync(join(process.env.CODEX_HOME, 'config.toml'), 'partial plugin registration\\n');
-  const cache = join(process.env.CODEX_HOME, 'plugins', 'cache', 'my-workbench', 'subagent-config', '0.1.9');
+  const cache = join(process.env.CODEX_HOME, 'plugins', 'cache', 'my-workbench', 'subagent-config', '0.1.10');
   mkdirSync(cache, { recursive: true });
   writeFileSync(join(cache, 'plugin.json'), '{"partial":true}');
   process.exit(42);
@@ -119,7 +119,7 @@ test('Codex plugin install failure rolls back files, config, cache, and the CODE
   assert.equal(existsSync(join(f.config, 'agents/fixer.toml')), false);
   assert.equal(existsSync(join(f.config, 'AGENTS.md')), false);
   assert.equal(existsSync(join(f.config, 'my-workbench-orchestrator.md')), false);
-  assert.equal(existsSync(join(f.config, 'plugins/cache/my-workbench/subagent-config/0.1.9/plugin.json')), false);
+  assert.equal(existsSync(join(f.config, 'plugins/cache/my-workbench/subagent-config/0.1.10/plugin.json')), false);
   assert.equal(existsSync(join(f.config, 'my-workbench.version')), false);
 });
 

@@ -17,7 +17,7 @@ npx my-workbench
 - **`~/.config/opencode/`** — 用户级 OpenCode 核心配置与原生 `agents/` 子智能体：十一个智能体 — `orchestrator`、`explorer`、`librarian`、`oracle`、`designer`、`fixer`、`observer`、`spotter`、`driver`、`improver`、`intake`。
 - **`~/.claude/`** — 同一批专家智能体的 Claude Code 原生子智能体形态（`~/.claude/agents/*.md`），外加 `~/.claude/settings.json`。
 - **`~/.zcode/`** — 可选的 ZCode 支持（`--zcode`）：用户级全局指令，外加各专家子智能体作为 ZCode 用户级 agents（`~/.zcode/agents/*.md`）。
-- **`~/.codex/`** — 可选的本地 ChatGPT / Codex 支持（`--chatgpt` 或 `--codex`）：全局短入口、编排策略、十个原生 TOML 子智能体、方案指南及内置的 **Subagent Config** 插件；支持 `CODEX_HOME`。
+- **`~/.codex/`** — 可选的本地 ChatGPT / Codex 支持（`--chatgpt` 或 `--codex`）：全局短入口、编排策略、十个原生 TOML 子智能体、方案指南及带桌面侧栏入口的 **Subagent Config** 插件；支持 `CODEX_HOME`。
 
 orchestrator 提示词还内置一条持久任务队列：`intake` 专家 —— 仅当你明确点名或 @-提及时才被调用 —— 把你的原始输入整理为确认后的任务文件，存入项目的 `.oxbench/` 目录；orchestrator 在完成工作、空闲或被唤醒时展示该队列。你选一条任务执行，或（在带定时器的平台上，即 ZCode）两分钟后自动开始第一条；每条任务都在独立的新会话中执行，且只有 orchestrator 验收通过后才标记为已完成。
 
@@ -34,8 +34,11 @@ npx my-workbench --claude           # 仅 Claude Code 配置
 npx my-workbench --force            # 覆盖已存在的文件
 npx my-workbench --dry-run          # 预览，不写入
 npx my-workbench --zcode            # 仅 ZCode 用户级安装（~/.zcode）
+npx my-workbench --codex            # 仅本地 ChatGPT / Codex 安装（CODEX_HOME）
 npx my-workbench assemble [--check] # 本仓库内：重新生成 .claude/agents/ 和 .opencode/
 ```
+
+`--chatgpt` 是 `--codex` 的别名。
 
 除非给出 `--force`，已存在的文件会被跳过，因此重复运行是安全的。`--force` 覆盖前会先快照并还原你的模型设置 —— 即每个 `agents/*.md` 按后端各自的 `model`/`effort`/`variant`/`thoughtLevel` 行 —— 你手动调整的模型指定在升级后依然保留。它部署的两个 JSON 文件是种子桩文件，不是被接管的文件：`--force` 只把桩文件自带的键（`.claude/settings.json` 的 `agent`、`opencode.jsonc` 的 `$schema`，由桩文件内容解析得出）调和进已有文件，其余任何字节都不会被改动。
 
@@ -93,8 +96,11 @@ agents/
     ├── opencode/
     │   ├── slots/                # OpenCode 专属提示词文本
     │   └── opencode.jsonc        # 核心配置
-    └── zcode/
-        └── slots/          # dispatch.md（每个后端都有，不逐一列出）
+    ├── zcode/
+    │   └── slots/          # dispatch.md（每个后端都有，不逐一列出）
+    └── codex/
+        ├── slots/          # Codex 专属提示词文本
+        └── subagent-config/ # 内置 Subagent Config 插件
 ```
 
 在本源码仓库中，`assemble` 生成本地 `.claude/agents/` 和 `.opencode/` 产物，供开发与校验；OpenCode 安装则写入 `~/.config/opencode/`。编辑 `agents/`，然后运行 `npx my-workbench assemble`（`--check` 检测漂移）。`agents/roster.json` 集中保存描述与各后端 frontmatter，检查会拒绝没有记录的提示词。提示词正文可以引用 `{{slot:<name>}}`；每个后端在 `agents/backends/<backend>/slots/` 中提供对应文本，缺少 slot 会导致组装失败。

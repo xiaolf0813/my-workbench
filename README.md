@@ -15,7 +15,7 @@ npx my-workbench
 - **`~/.config/opencode/`** — user-level OpenCode core config and native `agents/` subagents: eleven agents — `orchestrator`, `explorer`, `librarian`, `oracle`, `designer`, `fixer`, `observer`, `spotter`, `driver`, `improver`, `intake`.
 - **`~/.claude/`** — the same specialists as native Claude Code subagents (`~/.claude/agents/*.md`) plus `~/.claude/settings.json`.
 - **`~/.zcode/`** — opt-in ZCode support (`--zcode`): user-level global instructions plus the specialist subagents as ZCode user agents (`~/.zcode/agents/*.md`).
-- **`~/.codex/`** — opt-in local ChatGPT / Codex support (`--chatgpt` or `--codex`): a short global entrypoint, the orchestration policy, ten native TOML custom agents, solution guides, and the bundled **Subagent Config** plugin; honors `CODEX_HOME`.
+- **`~/.codex/`** — opt-in local ChatGPT / Codex support (`--chatgpt` or `--codex`): a short global entrypoint, the orchestration policy, ten native TOML custom agents, solution guides, and the bundled **Subagent Config** plugin with a desktop sidebar entry; honors `CODEX_HOME`.
 
 The orchestrator prompt also carries a persistent task queue: the `intake` specialist — invoked only when you explicitly ask, by name or @-mention — turns your raw input into confirmed task files under the project's `.oxbench/` directory, and the orchestrator presents that queue whenever it finishes work, sits idle, or is woken. Pick a task, or it auto-starts the first one after two minutes where the platform has a timer (ZCode); every task runs in an independent new session and is marked done only after the orchestrator accepts the result.
 
@@ -32,8 +32,11 @@ npx my-workbench --claude           # Claude Code setup only
 npx my-workbench --force            # overwrite files that already exist
 npx my-workbench --dry-run          # preview without writing
 npx my-workbench --zcode            # ZCode user-level setup only (~/.zcode)
+npx my-workbench --codex            # local ChatGPT / Codex setup only (CODEX_HOME)
 npx my-workbench assemble [--check] # in this repo: regenerate .claude/agents/ and .opencode/
 ```
+
+`--chatgpt` is an alias for `--codex`.
 
 Existing files are skipped unless `--force` is given, so re-running is safe. A `--force` overwrite snapshots and restores your model settings — the `model`/`effort`/`thoughtLevel` lines of every `agents/*.md` (per backend; on OpenCode the model reference `provider/model#variant` rides the `model:` line) — so your retuned pins survive upgrades. The two JSON files it deploys are seed stubs, not owned files: `--force` reconciles only the stub's own keys (`agent` in `.claude/settings.json`, `$schema` in `opencode.jsonc`) into an existing file and never touches any other byte of it.
 
@@ -91,8 +94,11 @@ agents/
     ├── opencode/
     │   ├── slots/                # OpenCode-specific prompt text
     │   └── opencode.jsonc        # core config
-    └── zcode/
-        └── slots/          # dispatch.md (every backend has it; not enumerated here)
+    ├── zcode/
+    │   └── slots/          # dispatch.md (every backend has it; not enumerated here)
+    └── codex/
+        ├── slots/          # Codex-specific prompt text
+        └── subagent-config/ # bundled local Subagent Config plugin
 ```
 
 In this source repository, `assemble` generates local `.claude/agents/` and `.opencode/` artifacts for development and validation; OpenCode installations go to `~/.config/opencode/`. Edit `agents/`, then run `npx my-workbench assemble` (`--check` detects drift). `agents/roster.json` supplies descriptions and backend frontmatter, and the check rejects orphan prompt bodies. Prompt bodies may reference `{{slot:<name>}}` placeholders; each backend supplies their text in `agents/backends/<backend>/slots/`, and a slot referenced by a prompt but missing for a backend fails assembly.

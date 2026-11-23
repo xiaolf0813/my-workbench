@@ -1,7 +1,7 @@
 # Subagent Config
 
 Desktop-only ChatGPT/Codex plugin for editing model fields in existing custom Codex
-subagent TOML files.
+subagent TOML files. In supported desktop builds, open it from the global sidebar.
 
 ## What it does
 
