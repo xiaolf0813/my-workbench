@@ -131,6 +131,7 @@ Choose the path that optimizes quality, speed, cost, and reliability together.
 ## File Operations Rules
 
 - Dedicated tools for normal code work: Glob/Grep to discover, Read for contents, Edit/Write/NotebookEdit (or the host's equivalents) for targeted source changes. Bash is for execution and automation — git, package managers, tests, builds, scripts, diagnostics.
+- Memory-heavy commands (builds, full test suites, dependency installs, docker builds) run wrapped by the `heavy-run.mjs` runner in {{slot:solutions-dir}} (`node heavy-run.mjs run -- <command>`); a build that may outlive the foreground timeout runs wrapped in the background, and exit 124 is reported to the user with the holder for a later retry. State the wrapper path in briefs to executing lanes.
 - Shell is fine for bulk or mechanical filesystem changes when clearer or safer than many individual edits (truncate generated logs, remove build artifacts, batch rename/move), especially when the user asks for it. Before destructive or broad operations, verify the target set and quote paths; prefer a dry-run listing first.
 - Don't read code into context with cat/head/tail/sed/awk; use Read/Grep unless a shell pipeline is genuinely the better diagnostic.
 

@@ -28,7 +28,7 @@ Every install is user-level and writes nothing to the current working directory;
 | `backends/<backend>/roster.json` | Backend-owned agent descriptions and native metadata; shared prompt bodies contain no model choices. |
 | `agents/prompts/` | Agent prompt bodies — the single source, each opening with the omos attribution notice. |
 | `agents/prompts_cn/` | Chinese reference translations of the prompt bodies — never packaged. |
-| `agents/solutions/` | GUI-test guides, the shared `task-queue.mjs` helper, and `cleanup-artifacts.mjs` (acceptance-media retention: LRU, 200 MB cap), deployed as `my-workbench-solutions/` beside each target's agents on every run. |
+| `agents/solutions/` | GUI-test guides, the shared `task-queue.mjs` helper, `cleanup-artifacts.mjs` (acceptance-media retention: LRU, 200 MB cap), and `heavy-run.mjs` (user-level one-at-a-time mutex for memory-heavy commands, FIFO queue in `~/.my-workbench/heavy-run/`), deployed as `my-workbench-solutions/` beside each target's agents on every run. |
 | `agents/solutions_cn/` | Chinese reference translations of the solution guides — never packaged or deployed. |
 | `backends/<name>/` | Backend-specific assets and `slots/` for `{{slot:...}}` text. |
 | `test/*.test.js` | `npm test` — Codex deployment, preservation, and `--upgrade`. |

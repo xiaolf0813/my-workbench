@@ -29,6 +29,10 @@
 4. Screenshots judge appearance, never geometry; capture as few as the task allows, record each capture's findings in text at once, and never re-capture to re-locate a control — accumulated images bloat the session.
 5. Acceptance media (captures, recordings) is retained, never deleted at delivery: it lives in the shared artifact store (`~/.my-workbench/artifacts/`) and is reported by path for the user's review. Store capacity is reclaimed only by the deployed `cleanup-artifacts.mjs` script (LRU) — never delete or prune store files by hand or ad hoc commands.
 
+### Heavy Commands
+
+Wrap memory-heavy commands (builds, full test suites, dependency installs, docker builds) in the deployed `my-workbench-solutions/heavy-run.mjs` runner — one such run at a time machine-wide, waiters queue FIFO. Exit 124 means it gave up waiting; report the holder and retry later.
+
 ### Banned Commands
 
 When a command or class of commands is blocked, use a permitted equivalent. Never bypass the restriction with wrappers or proxies. If a step requires manual action, give the user exact instructions and continue unaffected work. Before resuming the dependent step, verify the result through the channel you will use (for example, after a manual adb connection, confirm the device is visible in the device-control tool). Report the restriction, gap, fallback and manual steps.
