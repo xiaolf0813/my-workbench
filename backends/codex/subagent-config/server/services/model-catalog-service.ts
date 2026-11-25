@@ -62,8 +62,6 @@ export function modelCatalogFromRows(rows: unknown[]): ModelCatalog {
         })
         .filter((effort): effort is string => effort !== null),
     );
-    if (efforts.length === 0) continue;
-
     bySlug.set(slug, {
       slug,
       displayName: stringValue(model.displayName) ?? stringValue(model.display_name) ?? slug,

@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { PathResolver } from "../infrastructure/path-resolver.js";
+import { withFileLockSync } from "../infrastructure/file-lock.js";
 import { rootStatements } from "../infrastructure/root-statements.js";
 import { replaceModelFields } from "../infrastructure/toml-editor.js";
 
@@ -73,6 +74,8 @@ export function getModelConfiguration() {
 
 export function saveModelConfiguration(value: unknown, expectedRevision: string | null) {
   const file = configPath();
+  mkdirSync(path.dirname(file), { recursive: true });
+  return withFileLockSync(file, () => {
   const current = existsSync(file) ? readFileSync(file, "utf8") : null;
   if (revision(current) !== expectedRevision) throw new Error("Configuration changed since it was opened. Refresh before saving.");
   const validated = validateConfiguration(value);
@@ -86,7 +89,6 @@ export function saveModelConfiguration(value: unknown, expectedRevision: string 
     if (!rootStatements(source).some(({ key }) => key === "model" || key === "model_reasoning_effort")) continue;
     pinnedAgents.push({ file: agentFile, source, cleaned: replaceModelFields(source, { model: null, model_reasoning_effort: null }), name });
   }
-  mkdirSync(path.dirname(file), { recursive: true });
   const temporary = `${file}.${randomUUID()}.tmp`;
   try {
     if (pinnedAgents.length) {
@@ -106,4 +108,5 @@ export function saveModelConfiguration(value: unknown, expectedRevision: string 
     if (existsSync(temporary)) unlinkSync(temporary);
   }
   return { saved: true, fileRevision: revision(contents), path: file };
+  });
 }

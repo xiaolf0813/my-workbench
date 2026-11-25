@@ -14,14 +14,17 @@
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
+    "@types/ssh2": "^1.15.6",
     "esbuild": "^0.28.2",
     "typescript": "^5.9.3"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "2.0.4",
     "@modelcontextprotocol/server": "^2.4.0",
+    "@napi-rs/keyring": "^2.1.2",
     "@openai/mcp-extensions": "^0.2.1",
     "smol-toml": "^1.9.1",
+    "ssh2": "^1.16.0",
     "zod": "^4.6.7"
   }
 }

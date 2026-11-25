@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title>Subagent Config</title>
+  <rect width="128" height="128" rx="28" fill="#11182B"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M69 64h11M80 64V31h12M80 64h20M80 64v33h12" stroke="#8B83FF" stroke-width="6"/>
+    <rect x="20" y="39" width="51" height="50" rx="14" fill="#202A43" stroke="#495674" stroke-width="3"/>
+    <path d="M31 55h26M31 73h26" stroke="#E8ECF7" stroke-width="5"/>
+    <path d="M48 55h8M38 73h8" stroke="#69E0C0" stroke-width="7"/>
+  </g>
+  <circle cx="99" cy="31" r="9" fill="#69E0C0"/>
+  <circle cx="105" cy="64" r="9" fill="#8B83FF"/>
+  <circle cx="99" cy="97" r="9" fill="#69E0C0"/>
+</svg>

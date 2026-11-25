@@ -77,8 +77,25 @@ const CODEX_PLUGIN_ID = `${CODEX_PLUGIN_NAME}@${CODEX_MARKETPLACE_NAME}`;
 const CODEX_PLUGIN_FILES = [
   "plugin.json",
   "mcp.json",
+  "assets/icon.png",
+  "assets/logo.png",
   "runtime/server.mjs",
   "runtime/component.html",
+  "runtime/keyring/index.cjs",
+  "runtime/keyring/bindings/keyring.win32-x64-msvc.node",
+  "runtime/keyring/bindings/keyring.linux-x64-gnu.node",
+  "runtime/keyring/bindings/keyring.linux-arm64-gnu.node",
+  "runtime/keyring/bindings/keyring.darwin-x64.node",
+  "runtime/keyring/bindings/keyring.darwin-arm64.node",
+  "assets/keyring/licenses/keyring-win32-x64-msvc-LICENSE.third-party.md",
+  "assets/keyring/licenses/keyring-linux-x64-gnu-LICENSE.third-party.md",
+  "assets/keyring/licenses/keyring-linux-arm64-gnu-LICENSE.third-party.md",
+  "assets/keyring/licenses/keyring-darwin-x64-LICENSE.third-party.md",
+  "assets/keyring/licenses/keyring-darwin-arm64-LICENSE.third-party.md",
+  "assets/third-party-licenses/ssh2-LICENSE.txt",
+  "assets/third-party-licenses/asn1-LICENSE.txt",
+  "assets/third-party-licenses/bcrypt-pbkdf-LICENSE.txt",
+  "assets/third-party-licenses/napi-rs-keyring-LICENSE.txt",
 ];
 
 /** The only text this CLI owns inside Codex's active global instruction file. */
@@ -1020,6 +1037,30 @@ function composeZcodeAgentsMd(usedSlots = new Set()) {
 }
 
 /**
+ * The renamed implementation role shipped as zcode agent `fixer` in earlier
+ * releases. A --force redeploy migrates a legacy install: staging fixer.md at
+ * the developer.md destination first lets the standard model-settings
+ * preservation carry its pins into the fresh render; the old file then
+ * retires to a backup directory. TOML twin: retireCodexFixer().
+ */
+function retireZcodeFixer(opts) {
+  if (!opts.force) return;
+  const agentsDir = join(homedir(), ".zcode", "agents");
+  const oldFile = join(agentsDir, "fixer.md");
+  if (!existsSync(oldFile)) return;
+  const source = readFileSync(oldFile, "utf8");
+  if (!/^name:\s*["']?fixer["']?\s*$/m.test(source) || !/You are Fixer/.test(source)) return;
+  const newFile = join(agentsDir, "developer.md");
+  const staged = !existsSync(newFile);
+  if (staged && !opts.dryRun) copyFileSync(oldFile, newFile);
+  const backupDir = join(homedir(), ".zcode", "my-workbench-agent-backups");
+  console.log(`  migrate    agents/fixer.md -> ${staged ? "agents/developer.md" : basename(backupDir) + "/"}  (legacy role)${opts.dryRun ? "  (dry-run)" : ""}`);
+  if (opts.dryRun) return;
+  mkdirSync(backupDir, { recursive: true });
+  renameSync(oldFile, join(backupDir, `fixer-${randomUUID()}.md`));
+}
+
+/**
  * ZCode target: installs ONLY at user level (~/.zcode) — the global AGENTS.md
  * plus subagents in ~/.zcode/agents/. Opt-in via --zcode; never touches the
  * project directory, no downloads. Destinations are displayed
@@ -1030,6 +1071,7 @@ function applyZcode(opts, counts) {
   const display = { ...opts, displayRoot: homedir(), displayPrefix: "~/" };
   const usedSlots = new Set(); // shared by the subagent loop and the AGENTS.md render
   console.log(`\n~/.zcode/  (user-level: AGENTS.md, agents/*.md, my-workbench-solutions/)`);
+  retireZcodeFixer(opts);
   assembleBackend("zcode", join(zRoot, "agents"), display, counts, usedSlots);
   writeAgent(join(zRoot, "AGENTS.md"), composeZcodeAgentsMd(usedSlots), display, counts);
   installSolutions(zRoot, display, counts);

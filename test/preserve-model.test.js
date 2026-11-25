@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -170,6 +170,57 @@ test('an added model: line survives --force even when the render carries none (i
   const afterZ = readFileSync(zOracle, 'utf8')
   assert.match(afterZ, /^model: custom\/zcode-pin$/m)
   assert.match(afterZ, /^thoughtLevel: max\n---/m)
+})
+
+test('a --force zcode redeploy retires a legacy fixer.md and carries its pins into developer.md', t => {
+  const { run, homeFile } = projectFixture(t)
+  assert.equal(run(['--zcode']).status, 0)
+  const agentsDir = homeFile('.zcode', 'agents')
+  // A pre-rename install: developer.md absent, fixer.md carrying the user's
+  // pins (built from the current render, as the legacy file once looked).
+  const legacy = readFileSync(homeFile('.zcode', 'agents', 'developer.md'), 'utf8')
+    .replace('name: developer', 'name: "fixer"')
+    .replace('model: inherit', 'model: "account:plan/GLM-5.4"\nthoughtLevel: max')
+    .replace('You are Developer', 'You are Fixer')
+  rmSync(homeFile('.zcode', 'agents', 'developer.md'))
+  writeFileSync(join(agentsDir, 'fixer.md'), legacy)
+
+  const forced = run(['--zcode', '--force'])
+  assert.equal(forced.status, 0, forced.stderr + forced.stdout)
+  assert.match(forced.stdout, /migrate\s+agents\/fixer\.md -> agents\/developer\.md/)
+
+  // The pins moved with the rename; the body is the fresh developer render.
+  const developer = readFileSync(homeFile('.zcode', 'agents', 'developer.md'), 'utf8')
+  assert.match(developer, /^name: developer$/m)
+  assert.match(developer, /^model: "account:plan\/GLM-5\.4"$/m)
+  assert.match(developer, /^thoughtLevel: max$/m)
+  assert.match(developer, /implementation owner for the orchestrator/)
+
+  // The legacy file retired to the backup directory, not deleted.
+  assert.equal(existsSync(join(agentsDir, 'fixer.md')), false)
+  const backupDir = homeFile('.zcode', 'my-workbench-agent-backups')
+  const backups = readdirSync(backupDir).filter(file => file.startsWith('fixer-'))
+  assert.equal(backups.length, 1)
+  assert.match(readFileSync(join(backupDir, backups[0]), 'utf8'), /You are Fixer/)
+})
+
+test('a legacy zcode fixer.md the user already retuned is left alone without --force', t => {
+  const { run, homeFile } = projectFixture(t)
+  assert.equal(run(['--zcode']).status, 0)
+  const agentsDir = homeFile('.zcode', 'agents')
+  const legacy = readFileSync(homeFile('.zcode', 'agents', 'developer.md'), 'utf8')
+    .replace('name: developer', 'name: "fixer"')
+    .replace('model: inherit', 'model: "account:plan/GLM-5.4"\nthoughtLevel: max')
+    .replace('You are Developer', 'You are Fixer')
+  rmSync(homeFile('.zcode', 'agents', 'developer.md'))
+  writeFileSync(join(agentsDir, 'fixer.md'), legacy)
+
+  const rerun = run(['--zcode'])
+  assert.equal(rerun.status, 0, rerun.stderr + rerun.stdout)
+  // Without --force nothing migrates: fixer.md untouched (it is not a roster
+  // file, so no log line names it), developer.md created fresh — no self-heal.
+  assert.equal(readFileSync(join(agentsDir, 'fixer.md'), 'utf8'), legacy)
+  assert.match(readFileSync(homeFile('.zcode', 'agents', 'developer.md'), 'utf8'), /^name: developer$/m)
 })
 
 test('a rerun without --force leaves edited files untouched (skip)', t => {

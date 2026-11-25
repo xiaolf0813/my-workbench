@@ -8,6 +8,8 @@ import test from 'node:test';
 import { preserveCodexSettings, rootStatements } from '../bin/codex-agent.js';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// The plugin version moves with plugin.json; tests must follow it, not pin it.
+const pluginVersion = JSON.parse(readFileSync(join(repo, 'backends', 'codex', 'subagent-config', 'plugin.json'), 'utf8')).version;
 function fixture(t, override = true) {
   const root = mkdtempSync(join(tmpdir(), 'my-workbench-codex-'));
   assert.ok(resolve(root).startsWith(resolve(tmpdir()) + sep));
@@ -24,13 +26,13 @@ const { join } = require('node:path');
 const args = process.argv.slice(2);
 appendFileSync(process.env.MY_WORKBENCH_TEST_CODEX_LOG, JSON.stringify(args) + '\\n');
 if (process.env.MY_WORKBENCH_TEST_PLUGIN_CURRENT === '1' && args[0] === 'plugin' && args[1] === 'list') {
-  process.stdout.write(JSON.stringify({ installed: [{ pluginId: 'subagent-config@my-workbench', version: '0.2.4', installed: true, enabled: true }] }));
+  process.stdout.write(JSON.stringify({ installed: [{ pluginId: 'subagent-config@my-workbench', version: '${pluginVersion}', installed: true, enabled: true }] }));
   process.exit(0);
 }
 if (process.env.MY_WORKBENCH_FAIL_PLUGIN_INSTALL === '1' && args[0] === 'plugin' && args[1] === 'add') {
   mkdirSync(process.env.CODEX_HOME, { recursive: true });
   writeFileSync(join(process.env.CODEX_HOME, 'config.toml'), 'partial plugin registration\\n');
-  const cache = join(process.env.CODEX_HOME, 'plugins', 'cache', 'my-workbench', 'subagent-config', '0.2.4');
+  const cache = join(process.env.CODEX_HOME, 'plugins', 'cache', 'my-workbench', 'subagent-config', '${pluginVersion}');
   mkdirSync(cache, { recursive: true });
   writeFileSync(join(cache, 'plugin.json'), '{"partial":true}');
   process.exit(42);
@@ -123,7 +125,7 @@ test('Codex plugin install failure rolls back files, config, cache, and the CODE
   assert.equal(existsSync(join(f.config, 'agents/developer.toml')), false);
   assert.equal(existsSync(join(f.config, 'AGENTS.md')), false);
   assert.equal(existsSync(join(f.config, 'my-workbench-orchestrator.md')), false);
-  assert.equal(existsSync(join(f.config, 'plugins/cache/my-workbench/subagent-config/0.2.4/plugin.json')), false);
+  assert.equal(existsSync(join(f.config, 'plugins/cache/my-workbench/subagent-config', pluginVersion, 'plugin.json')), false);
   assert.equal(existsSync(join(f.config, 'my-workbench.version')), false);
 });
 
@@ -172,7 +174,7 @@ test('Codex skips repeat plugin registration when the installed runtime matches'
   const f = fixture(t);
   f.run('--codex');
   const source = join(f.config, 'my-workbench-plugin-marketplace/plugins/subagent-config');
-  const cache = join(f.config, 'plugins/cache/my-workbench/subagent-config/0.2.4');
+  const cache = join(f.config, 'plugins/cache/my-workbench/subagent-config', pluginVersion);
   mkdirSync(dirname(cache), { recursive: true });
   cpSync(source, cache, { recursive: true });
   f.env.MY_WORKBENCH_TEST_PLUGIN_CURRENT = '1';

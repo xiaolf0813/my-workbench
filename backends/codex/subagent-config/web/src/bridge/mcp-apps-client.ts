@@ -6,6 +6,7 @@ type JsonRpcResponse = {
   };
   result?: {
     structuredContent?: unknown;
+    _meta?: Record<string, unknown>;
     isError?: boolean;
     content?: { type: string; text?: string }[];
   };
@@ -59,12 +60,12 @@ window.addEventListener("message", (event: MessageEvent) => {
     entry.reject(new Error(data.result.content?.find((part) => part.type === "text")?.text || "MCP tool error."));
     return;
   }
-  entry.resolve(data.result?.structuredContent ?? data.result);
+  entry.resolve(data.result?._meta?.["subagent-config/credential-entry"] ?? data.result?.structuredContent ?? data.result);
 });
 
 window.addEventListener("unload", () => rejectAll("UI disconnected."));
 
-async function request(method: string, params?: unknown): Promise<unknown> {
+async function request(method: string, params?: unknown, timeoutMs = 15000): Promise<unknown> {
   const id = nextRequestId++;
   const payload = { jsonrpc: "2.0", id, method, params: params ?? {} };
   return await new Promise((resolve, reject) => {
@@ -74,7 +75,7 @@ async function request(method: string, params?: unknown): Promise<unknown> {
       if (!pending.has(id)) return;
       pending.delete(id);
       reject(new Error("MCP Apps request timed out."));
-    }, 15000);
+    }, timeoutMs);
   });
 }
 
@@ -99,7 +100,7 @@ export function subscribeInvocationProjectRoot(listener: (projectRoot: string | 
   return () => projectRootListeners.delete(listener);
 }
 
-export async function callTool<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
-  const result = (await request("tools/call", { name, arguments: args })) as T;
+export async function callTool<T>(name: string, args: Record<string, unknown> = {}, timeoutMs?: number): Promise<T> {
+  const result = (await request("tools/call", { name, arguments: args }, timeoutMs)) as T;
   return result;
 }

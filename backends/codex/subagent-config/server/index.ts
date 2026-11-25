@@ -13,13 +13,16 @@ import {
 import { getAgentConfigurationsTool } from "./tools/get-agent-configurations.js";
 import { listModelsTool } from "./tools/list-models.js";
 import { getModelConfiguration, saveModelConfiguration } from "./services/model-profile-service.js";
+import { checkSshCodexTarget, getSshSyncBatch, startSshSyncBatch, syncSubagentConfigToSsh } from "./services/ssh-sync-service.js";
+import { beginSshPasswordEntry } from "./services/ssh-credential-broker.js";
+import { deleteSshServer, getSshPasswordStatus, listSshServers, saveSshServer, getSshServer } from "./services/ssh-server-store.js";
 
-const UI_RESOURCE_URI = "ui://subagent-config/v18.html";
+const UI_RESOURCE_URI = "ui://subagent-config/v21.html";
 
 function createMcpServer() {
   const server = new McpServer({
     name: "subagent-config",
-    version: "0.2.4",
+    version: "0.2.14",
   });
   new OpenAIExtensions(server);
 
@@ -33,7 +36,7 @@ function createMcpServer() {
           text: uiBundle,
           _meta: {
             ui: {
-              csp: { connectDomains: [] },
+              csp: { connectDomains: ["http://127.0.0.1:*"] },
             },
             "openai/ui": {
               preferredDisplayMode: "fullscreen",
@@ -47,7 +50,7 @@ function createMcpServer() {
 
   registerAppTool(server, "open_subagent_config", {
     title: "Open Subagent Config",
-    description: "Open the Subagent Config model and agent settings page.",
+    description: "Open Subagent Config to manage models, agents, and remote SSH sync.",
     inputSchema: z.object({}).strict(),
     annotations: { readOnlyHint: true, openWorldHint: false },
     _meta: {
@@ -151,6 +154,138 @@ function createMcpServer() {
     } catch (error) {
       return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "Unable to save model profiles." }] };
     }
+  });
+
+  server.registerTool("get_ssh_servers", {
+    title: "List SSH servers",
+    description: "Read saved SSH server connection settings. Passwords are never returned.",
+    inputSchema: z.object({}).strict(),
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }, async () => {
+    try {
+      const servers = listSshServers().map((item) => {
+        const credential = item.authentication === "password" ? getSshPasswordStatus(item.id) : { saved: false, available: true };
+        const { credentialGeneration: _credentialGeneration, passwordDestination: _passwordDestination, ...publicServer } = item;
+        return { ...publicServer, passwordSaved: credential.saved, passwordStoreAvailable: credential.available };
+      });
+      return { content: [{ type: "text", text: `Found ${servers.length} SSH server${servers.length === 1 ? "" : "s"}.` }], structuredContent: { servers } };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "Unable to read saved SSH servers." }] };
+    }
+  });
+
+  const sshServerInputSchema = z.object({
+    id: z.string().uuid().optional(),
+    name: z.string().min(1).max(80),
+    target: z.string().min(1).max(255).describe("SSH host alias or user@host from the local SSH configuration."),
+    port: z.number().int().min(1).max(65535).optional(),
+    codexHome: z.string().max(1024),
+    authentication: z.enum(["agent", "key-file", "password"]),
+    keyFilePath: z.string().max(2048).optional(),
+  }).strict();
+
+  server.registerTool("save_ssh_server", {
+    title: "Save SSH server",
+    description: "Add or update an SSH server connection. Stores connection metadata locally and never accepts a password.",
+    inputSchema: sshServerInputSchema,
+    annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: false, readOnlyHint: false },
+  }, async (input) => {
+    try {
+      const saved = saveSshServer(input);
+      const { credentialGeneration: _credentialGeneration, passwordDestination: _passwordDestination, ...publicServer } = saved;
+      return { content: [{ type: "text", text: "SSH server saved." }], structuredContent: { server: publicServer } };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "Unable to save the SSH server." }] };
+    }
+  });
+
+  server.registerTool("delete_ssh_server", {
+    title: "Delete SSH server",
+    description: "Remove a saved SSH server and its system credential, if present.",
+    inputSchema: z.object({ id: z.string().uuid() }).strict(),
+    annotations: { destructiveHint: true, openWorldHint: false, readOnlyHint: false },
+  }, async ({ id }) => {
+    try {
+      deleteSshServer(id);
+      return { content: [{ type: "text", text: "SSH server deleted." }], structuredContent: { deleted: true } };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "Unable to delete the SSH server." }] };
+    }
+  });
+
+  registerAppTool(server, "begin_ssh_password_entry", {
+    title: "Open secure SSH password entry",
+    description: "Create a short-lived local credential entry request. The password is sent directly to the local keychain endpoint, not through MCP.",
+    inputSchema: z.object({ serverId: z.string().uuid(), origin: z.string().min(1).max(256) }).strict(),
+    annotations: { readOnlyHint: false, openWorldHint: false },
+    _meta: { ui: { resourceUri: UI_RESOURCE_URI, visibility: ["app"] } },
+  }, async ({ serverId, origin }) => {
+    try {
+      const result = await beginSshPasswordEntry(serverId, origin);
+      return { content: [{ type: "text", text: "Secure password entry is ready." }], _meta: { "subagent-config/credential-entry": result } };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "Unable to open secure password entry." }] };
+    }
+  });
+
+  const sshServerIdSchema = z.object({ serverId: z.string().uuid() }).strict();
+
+  server.registerTool("check_ssh_codex_target", {
+    title: "Check SSH Codex target",
+    description: "Check SSH connectivity and confirm remote Node.js, Codex CLI, and the local plugin package version. Does not change the remote host.",
+    inputSchema: sshServerIdSchema,
+    annotations: { readOnlyHint: true, openWorldHint: true },
+  }, async ({ serverId }) => {
+    try {
+      const result = await checkSshCodexTarget(getSshServer(serverId));
+      return { content: [{ type: "text", text: "SSH target is ready." }], structuredContent: result };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "Unable to check the SSH target." }] };
+    }
+  });
+
+  server.registerTool("sync_subagent_config_to_ssh", {
+    title: "Sync Subagent Config over SSH",
+    description: "Install or update the Subagent Config plugin on a user-selected remote Codex and copy the sanitized MyWorkbench model profiles. Requires explicit overwrite confirmation. Does not sync provider credentials or Codex settings.",
+    inputSchema: sshServerIdSchema.extend({
+      confirmOverwrite: z.literal(true).describe("Confirm replacing the remote Subagent Config plugin and model profile file."),
+    }).strict(),
+    annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: true, readOnlyHint: false },
+  }, async ({ serverId, confirmOverwrite: _confirmOverwrite }) => {
+    try {
+      const result = await syncSubagentConfigToSsh(getSshServer(serverId));
+      return { content: [{ type: "text", text: "Subagent Config synced. Restart remote Codex to reload it." }], structuredContent: result };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "Unable to sync Subagent Config over SSH." }] };
+    }
+  });
+
+  server.registerTool("sync_subagent_config_to_all_ssh", {
+    title: "Sync Subagent Config to all SSH servers",
+    description: "Sync the current Subagent Config plugin and sanitized model profiles to every saved SSH server. Requires explicit overwrite confirmation.",
+    inputSchema: z.object({ serverIds: z.array(z.string().uuid()).min(1).max(50), confirmOverwrite: z.literal(true) }).strict(),
+    annotations: { destructiveHint: true, idempotentHint: true, openWorldHint: true, readOnlyHint: false },
+  }, async ({ serverIds, confirmOverwrite: _confirmOverwrite }) => {
+    try {
+      const uniqueIds = [...new Set(serverIds)];
+      if (uniqueIds.length !== serverIds.length) throw new Error("The server list contains duplicate entries. Refresh it and retry.");
+      const servers = uniqueIds.map((id) => getSshServer(id));
+      const result = startSshSyncBatch(servers);
+      return { content: [{ type: "text", text: `Started sync batch ${result.batchId}.` }], structuredContent: result };
+    } catch (error) {
+      return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "Unable to sync all SSH servers." }] };
+    }
+  });
+
+  server.registerTool("get_ssh_sync_batch", {
+    title: "Get SSH sync progress",
+    description: "Read per-server progress for an active or recently completed sync-all batch.",
+    inputSchema: z.object({ batchId: z.string().uuid() }).strict(),
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }, async ({ batchId }) => {
+    const result = getSshSyncBatch(batchId);
+    const message = result.status === "unknown" ? "The sync batch status is no longer available; inspect remote plugin state before retrying." : `Sync batch is ${result.status}.`;
+    return { content: [{ type: "text", text: message }], structuredContent: result };
   });
 
   return server;

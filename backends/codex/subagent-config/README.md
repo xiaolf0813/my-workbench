@@ -6,6 +6,8 @@ The plugin creates `<CODEX_HOME>/my-workbench-config.json` only when the user sa
 
 On the first profile save, existing direct `model` and `model_reasoning_effort` fields in personal MyWorkbench agent TOMLs are backed up under `<CODEX_HOME>/my-workbench-agent-model-backups/` and removed so dispatch-time profile selection can apply. Other TOML content is preserved. New chats read the saved configuration.
 
+The **SSH Sync** page keeps a local list of remote Codex servers and can sync to all of them. Connections can use the local SSH agent/config, a private key file path, or a password saved in the operating system credential store. Passwords travel encrypted from the UI to a short-lived loopback endpoint and never pass through MCP tool arguments or the server-list file. Password connections require a matching host key in the configured `known_hosts` files and currently do not support `ProxyJump` or `ProxyCommand`. Key-file authentication pins the selected key while preserving effective host-verification settings; it requires direct SSH and does not support `ProxyJump`, `ProxyCommand`, or `KnownHostsCommand`. Agent authentication uses the full local SSH config. Private key files stay on this device. A connection check verifies remote Node.js, Codex CLI, `tar`, `flock`, and `cmp` before syncing. The remote plugin files and `my-workbench-config.json` are replaced after explicit confirmation. Provider credentials, provider settings, and other Codex files are not copied. The lock serializes syncs from this feature; manual or external marketplace edits are not coordinated. Restart remote Codex after syncing.
+
 The Codex orchestrator chooses a profile, tries the user-ordered candidates, and falls back only if a model-specific error proves the agent did not start. It asks the user to configure an absent profile or replace exhausted candidates.
 
 ## Development
@@ -18,4 +20,4 @@ npm run build
 npm test
 ```
 
-`npm run build` updates the checked-in offline runtime at `runtime/server.mjs` and `runtime/component.html`. The MCP app resource URI is versioned; update `UI_RESOURCE_URI` whenever the HTML contract changes.
+`npm run build` updates the checked-in offline runtime at `runtime/server.mjs` and `runtime/component.html`, including the vendored per-platform system-keyring bindings. The MCP app resource URI is versioned; update `UI_RESOURCE_URI` whenever the HTML contract changes.
